@@ -1,0 +1,64 @@
+# BSELA operational thresholds
+#
+# Tuned during P4 dogfood. Initial values are conservative placeholders.
+
+[gates]
+# Minimum distiller confidence required to auto-merge a project-scoped lesson.
+auto_merge_confidence = 0.9
+
+# Global rules always require human review regardless of confidence.
+global_rules_require_review = true
+
+# Safety-posture rules (crypto, wallet, trading, destructive git) always require review.
+safety_rules_require_review = true
+
+[detector]
+# Number of identical tool calls in a row before flagging a loop.
+loop_threshold = 3
+
+# Number of tool retries on the same target before flagging waste.
+retry_threshold = 4
+
+# User correction markers that trigger a candidate error record.
+correction_markers = ["stop", "hard stop", "no wait", "don't do that", "undo", "revert that"]
+
+[dedupe]
+# Cosine similarity above which two lessons are considered duplicates.
+similarity_threshold = 0.85
+
+# Hard cap on global lessons; oldest + lowest-hit evicted during compaction.
+max_global_lessons = 200
+
+[cost]
+# Hard monthly USD ceiling for LLM spend. Exceed → circuit breaker, CLI exits.
+monthly_budget_usd = 50.0
+
+# Per-session distillation budget. Exceed → escalate to auditor digest.
+per_session_budget_usd = 0.10
+
+[retention]
+# Rolling window for raw session transcripts.
+session_days = 90
+
+# Rolling window for error records.
+error_days = 90
+
+[audit]
+# Weekly auditor digest day-of-week (0 = Monday).
+digest_day = 0
+
+# Drift alarm: fraction of lessons whose hit-rate dropped vs. 30-day baseline.
+drift_alarm_threshold = 0.5
+
+[scrubber]
+# Pre-ingest secret patterns. Any match quarantines the session.
+patterns = [
+    "AKIA[0-9A-Z]{16}",                      # AWS access key
+    "sk-ant-api[0-9]{2}-[A-Za-z0-9_-]{80,}", # Anthropic
+    "sk-[A-Za-z0-9]{48}",                    # OpenAI legacy
+    "sk-proj-[A-Za-z0-9_-]{40,}",            # OpenAI project keys
+    "ghp_[A-Za-z0-9]{36}",                   # GitHub personal token
+    "gho_[A-Za-z0-9]{36}",                   # GitHub OAuth token
+    "xoxb-[0-9]+-[0-9]+-[A-Za-z0-9]+",       # Slack bot
+    "-----BEGIN [A-Z ]+ PRIVATE KEY-----",   # PEM
+]

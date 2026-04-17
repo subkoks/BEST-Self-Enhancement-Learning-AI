@@ -1,0 +1,64 @@
+# BSELA model routing configuration
+#
+# Keys: task classes produced by the Router. Values: recommended model IDs and knobs.
+# All values can be overridden at runtime via BSELA_MODEL_<TASKCLASS> env vars.
+
+[default]
+provider = "anthropic"
+prompt_cache = true
+max_retries = 3
+timeout_seconds = 120
+
+# High-volume, low-complexity scoring on session-end. Cheap + fast.
+[judge]
+model = "claude-haiku-4-5-20251001"
+max_tokens = 512
+temperature = 0.0
+
+# Full distillation when the judge flags low confidence or high impact.
+[distiller]
+model = "claude-opus-4-7"
+max_tokens = 4096
+temperature = 0.2
+
+# Planning / architecture work. Long reasoning, trade-off thinking.
+[planner]
+model = "claude-opus-4-7"
+max_tokens = 8192
+temperature = 0.3
+
+# Bulk code edits, scaffolding. Best quality per dollar.
+[builder]
+model = "claude-sonnet-4-6"
+max_tokens = 8192
+temperature = 0.2
+
+# Pre-commit review. Speed over depth.
+[reviewer]
+model = "claude-haiku-4-5-20251001"
+max_tokens = 1024
+temperature = 0.0
+
+# External research / summarization.
+[researcher]
+model = "claude-sonnet-4-6"
+max_tokens = 4096
+temperature = 0.3
+
+# Large codebase audits. Needs 1M context window.
+[auditor]
+model = "claude-opus-4-7"
+max_tokens = 8192
+temperature = 0.2
+
+# Root-cause triage on failures.
+[debugger]
+model = "claude-opus-4-7"
+max_tokens = 4096
+temperature = 0.1
+
+# Memory dedupe + merge decisions.
+[memory_updater]
+model = "claude-haiku-4-5-20251001"
+max_tokens = 1024
+temperature = 0.0
