@@ -1,0 +1,86 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+.eggs/
+build/
+dist/
+*.egg
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# uv
+.uv-cache/
+
+# Testing
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.nox/
+coverage.xml
+*.cover
+.hypothesis/
+.mypy_cache/
+.ruff_cache/
+.dmypy.json
+dmypy.json
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.windsurf/
+.cursor/
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon?
+._*
+
+# Local runtime state
+.bsela/
+*.db
+*.db-journal
+*.sqlite
+*.sqlite3
+
+# Session captures (never commit; may contain secrets)
+sessions/
+transcripts/
+
+# Env + secrets
+.env
+.env.*
+!.env.example
+secrets/
+*.pem
+*.key
+
+# Notes and scratch
+Main-idea.txt
+Aditional-research-for-project.txt
+My-First-RAW-Idea-Screenshot-*.jpg
+Screenshots/
+
+# Logs
+logs/
+*.log
+
+# Generated docs
+docs/_build/
+site/
