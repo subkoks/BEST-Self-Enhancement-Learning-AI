@@ -36,7 +36,7 @@ coverage.xml
 .dmypy.json
 dmypy.json
 
-# IDEs
+# IDEs / agent state
 .vscode/
 .idea/
 *.swp
@@ -44,6 +44,8 @@ dmypy.json
 *~
 .windsurf/
 .cursor/
+.claude/
+.codex/
 
 # macOS
 .DS_Store
