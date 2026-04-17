@@ -11,7 +11,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 
-from sqlmodel import select
+from sqlmodel import col, select
 
 from bsela.memory.models import ErrorRecord, Metric, SessionRecord
 from bsela.memory.store import session_scope
@@ -33,8 +33,8 @@ def sweep_errors(*, days: int, now: datetime | None = None) -> int:
     cutoff = _cutoff(days, now)
     with session_scope() as s:
         stale = list(s.exec(select(ErrorRecord).where(ErrorRecord.detected_at < cutoff)).all())
-        for row in stale:
-            s.delete(row)
+        for err in stale:
+            s.delete(err)
         s.commit()
         return len(stale)
 
@@ -46,15 +46,15 @@ def sweep_sessions(*, days: int, now: datetime | None = None) -> int:
         stale = list(s.exec(select(SessionRecord).where(SessionRecord.ingested_at < cutoff)).all())
         if not stale:
             return 0
-        ids = {row.id for row in stale}
-        dependents_errors = s.exec(select(ErrorRecord).where(ErrorRecord.session_id.in_(ids))).all()
-        dependents_metrics = s.exec(select(Metric).where(Metric.session_id.in_(ids))).all()
-        for row in dependents_errors:
-            s.delete(row)
-        for row in dependents_metrics:
-            s.delete(row)
-        for row in stale:
-            s.delete(row)
+        ids = {sess.id for sess in stale}
+        dep_errors = s.exec(select(ErrorRecord).where(col(ErrorRecord.session_id).in_(ids))).all()
+        dep_metrics = s.exec(select(Metric).where(col(Metric.session_id).in_(ids))).all()
+        for err in dep_errors:
+            s.delete(err)
+        for metric in dep_metrics:
+            s.delete(metric)
+        for sess in stale:
+            s.delete(sess)
         s.commit()
         return len(stale)
 
