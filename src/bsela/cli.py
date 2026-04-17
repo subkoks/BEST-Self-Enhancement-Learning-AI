@@ -16,6 +16,7 @@ from rich.console import Console
 
 from bsela import __version__
 from bsela.core.capture import ingest_file
+from bsela.core.detector import detect_errors
 from bsela.core.retention import sweep
 from bsela.memory.store import (
     bsela_home,
@@ -23,6 +24,7 @@ from bsela.memory.store import (
     count_sessions,
     db_path,
     list_errors,
+    list_sessions,
 )
 
 app = typer.Typer(
@@ -134,6 +136,32 @@ def rollback(
 ) -> None:
     """Revert a previously applied lesson."""
     console.print(f"[yellow]rollback[/yellow] {lesson_id}: not implemented (P7).")
+    raise typer.Exit(code=0)
+
+
+@app.command()
+def detect(
+    session_id: Annotated[
+        str | None,
+        typer.Option(
+            "--session-id",
+            "-s",
+            help="Detect against a single session id. Omit to scan all captured sessions.",
+        ),
+    ] = None,
+) -> None:
+    """Run the deterministic detector over captured sessions."""
+    if session_id is not None:
+        result = detect_errors(session_id)
+        console.print(f"session {result.session_id}: {len(result.errors)} candidate errors")
+        raise typer.Exit(code=0)
+
+    targets = [s for s in list_sessions(status="captured", limit=10_000)]
+    total = 0
+    for sess in targets:
+        result = detect_errors(sess.id)
+        total += len(result.errors)
+    console.print(f"scanned {len(targets)} sessions, found {total} candidate errors")
     raise typer.Exit(code=0)
 
 

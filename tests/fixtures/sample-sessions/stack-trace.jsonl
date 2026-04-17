@@ -1,0 +1,4 @@
+{"ts": "2026-01-15T12:00:00Z", "type": "user", "content": "run the tests"}
+{"ts": "2026-01-15T12:00:02Z", "type": "tool_use", "name": "Bash", "input": {"command": "pytest"}}
+{"ts": "2026-01-15T12:00:08Z", "type": "tool_result", "content": "Traceback (most recent call last):\n  File \"/x/y.py\", line 7, in <module>\n    foo()\nValueError: boom"}
+{"ts": "2026-01-15T12:00:12Z", "type": "assistant", "content": "Fix incoming."}
