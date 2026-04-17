@@ -1,0 +1,6 @@
+{"ts": "2026-01-15T10:00:00Z", "type": "user", "content": "help me fix the failing test in utils"}
+{"ts": "2026-01-15T10:00:03Z", "type": "assistant", "content": "Let me read the test file first."}
+{"ts": "2026-01-15T10:00:04Z", "type": "tool_use", "name": "Read", "input": {"path": "tests/test_utils.py"}}
+{"ts": "2026-01-15T10:00:05Z", "type": "tool_result", "content": "file contents ..."}
+{"ts": "2026-01-15T10:00:12Z", "type": "assistant", "content": "Found the off-by-one; patch incoming."}
+{"ts": "2026-01-15T10:00:20Z", "type": "user", "content": "thanks, looks right"}
