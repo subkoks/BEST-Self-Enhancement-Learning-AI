@@ -1,6 +1,7 @@
 """BSELA command-line interface.
 
-P0 scaffold: commands are declared but return stubs. Logic lands in P1-P3.
+P1 wires ``bsela ingest`` and ``bsela status`` to the capture pipeline +
+SQLite memory store. ``review`` and ``rollback`` stay stubbed until P3/P7.
 """
 
 from __future__ import annotations
@@ -12,6 +13,14 @@ import typer
 from rich.console import Console
 
 from bsela import __version__
+from bsela.core.capture import ingest_file
+from bsela.memory.store import (
+    bsela_home,
+    count_lessons,
+    count_sessions,
+    db_path,
+    list_errors,
+)
 
 app = typer.Typer(
     name="bsela",
@@ -47,7 +56,24 @@ def main(
 @app.command()
 def status() -> None:
     """Show storage metrics: sessions, errors, lessons, pending proposals."""
-    console.print("[yellow]status:[/yellow] not implemented (P1).")
+    home = bsela_home()
+    if not db_path().exists():
+        console.print(
+            f"[yellow]status:[/yellow] no store at {home} yet — "
+            "run [bold]bsela ingest[/bold] first."
+        )
+        raise typer.Exit(code=0)
+
+    sessions_total = count_sessions()
+    sessions_quarantined = count_sessions(status="quarantined")
+    errors_total = len(list_errors(limit=10_000))
+    lessons_pending = count_lessons(status="pending")
+    lessons_total = count_lessons()
+
+    console.print(f"[bold]BSELA home:[/bold] {home}")
+    console.print(f"sessions: {sessions_total} (quarantined: {sessions_quarantined})")
+    console.print(f"errors:   {errors_total}")
+    console.print(f"lessons:  {lessons_total} (pending: {lessons_pending})")
     raise typer.Exit(code=0)
 
 
@@ -56,16 +82,32 @@ def ingest(
     path: Annotated[
         Path,
         typer.Argument(
-            exists=False,
+            exists=True,
             dir_okay=False,
             file_okay=True,
             readable=True,
             help="Path to a session transcript (JSONL).",
         ),
     ],
+    source: Annotated[
+        str,
+        typer.Option(
+            "--source",
+            "-s",
+            help="Origin editor/agent of the transcript.",
+        ),
+    ] = "claude_code",
 ) -> None:
     """Ingest one session transcript into the BSELA store."""
-    console.print(f"[yellow]ingest[/yellow] {path}: not implemented (P1).")
+    result = ingest_file(path, source=source)
+    if result.status == "quarantined":
+        console.print(f"[red]quarantined[/red] {result.session_id}: {result.quarantine_reason}")
+        raise typer.Exit(code=0)
+
+    console.print(
+        f"[green]captured[/green] {result.session_id} "
+        f"turns={result.turn_count} tool_calls={result.tool_call_count}"
+    )
     raise typer.Exit(code=0)
 
 

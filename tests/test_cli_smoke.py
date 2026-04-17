@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
+import pytest
 from typer.testing import CliRunner
 
 from bsela import __version__
@@ -21,10 +24,13 @@ def test_help_lists_commands() -> None:
         assert cmd in result.stdout
 
 
-def test_status_stub_exits_zero() -> None:
+def test_status_exits_zero_when_store_missing(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("BSELA_HOME", str(tmp_path))
     result = CliRunner().invoke(app, ["status"])
     assert result.exit_code == 0
-    assert "not implemented" in result.stdout
+    assert "no store" in result.stdout
 
 
 def test_review_stub_exits_zero() -> None:
