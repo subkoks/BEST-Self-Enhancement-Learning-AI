@@ -1,0 +1,41 @@
+name: Weekly Self-Audit
+
+on:
+  schedule:
+    # Mondays 09:00 UTC
+    - cron: "0 9 * * 1"
+  workflow_dispatch:
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          version: "latest"
+
+      - name: Set up Python
+        run: uv python install 3.13
+
+      - name: Sync dependencies
+        run: uv sync --all-extras
+
+      - name: Ruff format check
+        run: uv run ruff format --check .
+
+      - name: Ruff lint
+        run: uv run ruff check . --output-format=github
+
+      - name: Mypy strict
+        run: uv run mypy src
+
+      - name: Pytest with coverage
+        run: uv run pytest -q --cov=bsela --cov-report=term-missing
+
+      - name: Stale decisions check
+        run: |
+          echo "Scanning docs/decisions/ for ADRs with status != 'Accepted'..."
+          ! grep -rL "Status:\*\* Accepted" docs/decisions/ | grep -E '\.md$' || true
