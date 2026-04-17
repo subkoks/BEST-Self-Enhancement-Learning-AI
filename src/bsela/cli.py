@@ -18,6 +18,8 @@ from bsela import __version__
 from bsela.core.capture import ingest_file
 from bsela.core.detector import detect_errors
 from bsela.core.retention import sweep
+from bsela.llm.client import AnthropicClient
+from bsela.llm.distiller import distill_session
 from bsela.memory.store import (
     bsela_home,
     count_lessons,
@@ -170,6 +172,33 @@ def prune() -> None:
     """Drop sessions + errors older than the retention windows in thresholds.toml."""
     result = sweep()
     console.print(f"pruned sessions: {result.sessions_deleted}  errors: {result.errors_deleted}")
+    raise typer.Exit(code=0)
+
+
+@app.command()
+def distill(
+    session_id: Annotated[
+        str,
+        typer.Option("--session-id", "-s", help="Session id to distill."),
+    ],
+    persist: Annotated[
+        bool,
+        typer.Option("--persist/--no-persist", help="Write pending Lesson rows."),
+    ] = True,
+) -> None:
+    """Run judge → distill over one session (requires ANTHROPIC_API_KEY)."""
+    client = AnthropicClient.from_config()
+    result = distill_session(session_id, client=client, persist=persist)
+    if not result.distilled:
+        console.print(
+            f"session {session_id}: judge says healthy "
+            f"(confidence={result.verdict.confidence:.2f}); no lessons distilled."
+        )
+        raise typer.Exit(code=0)
+    console.print(
+        f"session {session_id}: {len(result.persisted)} lesson(s) "
+        f"{'persisted' if persist else 'drafted'}."
+    )
     raise typer.Exit(code=0)
 
 

@@ -2,11 +2,11 @@
 
 from __future__ import annotations
 
-import json
+import importlib
 import os
 import re
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Protocol
+from typing import TYPE_CHECKING, Any, Protocol
 
 from bsela.llm.types import DistillResponse, JudgeVerdict
 from bsela.utils.config import load_models
@@ -60,11 +60,10 @@ class AnthropicClient:
             api_key=api_key or os.environ.get("ANTHROPIC_API_KEY"),
         )
 
-    def _anthropic(self) -> Anthropic:
+    def _anthropic(self) -> Any:
         if self._client is None:
-            from anthropic import Anthropic as _Anthropic
-
-            self._client = _Anthropic(api_key=self.api_key)
+            module = importlib.import_module("anthropic")
+            self._client = module.Anthropic(api_key=self.api_key)
         return self._client
 
     def _complete(self, *, model: str, system: str, user: str, max_tokens: int) -> str:
@@ -122,15 +121,9 @@ class FakeLLMClient:
         return self.distill_response
 
 
-def _load_json_payload(text: str) -> dict[str, object]:
-    """Utility for tests that want to inspect the user payload JSON."""
-    return json.loads(text)
-
-
 __all__ = [
     "AnthropicClient",
     "FakeLLMClient",
     "LLMClient",
     "_extract_json_object",
-    "_load_json_payload",
 ]

@@ -18,16 +18,17 @@ from bsela.llm.types import DistillResponse, JudgeVerdict, LessonCandidate
 from bsela.memory.models import ErrorRecord, Lesson, SessionRecord
 from bsela.memory.store import get_session, list_errors, list_lessons, save_lesson
 
-JUDGE_SYSTEM_PROMPT = """You score a completed coding-AI session. Read the summary JSON and return a single JSON object with these keys and nothing else:
-
-{"goal_achieved": bool, "efficiency": 0..1, "looped": bool, "wasted_tokens": bool, "confidence": 0..1, "notes": ""}
-
-Rules:
-- Ground every flag in the candidate_errors list. If no candidates exist, assume goal_achieved=true.
-- efficiency is a float 0..1 where 1.0 is optimal.
-- confidence is how sure you are in this verdict.
-- Never include text outside the JSON object.
-"""
+JUDGE_SYSTEM_PROMPT = (
+    "You score a completed coding-AI session. Read the summary JSON and return a single "
+    "JSON object with these keys and nothing else:\n\n"
+    '{"goal_achieved": bool, "efficiency": 0..1, "looped": bool, "wasted_tokens": bool, '
+    '"confidence": 0..1, "notes": ""}\n\n'
+    "Rules:\n"
+    "- Ground every flag in candidate_errors. With no candidates, assume goal_achieved=true.\n"
+    "- efficiency is a float 0..1 where 1.0 is optimal.\n"
+    "- confidence is how sure you are in this verdict.\n"
+    "- Never include text outside the JSON object.\n"
+)
 
 
 @dataclass(frozen=True)
@@ -154,7 +155,7 @@ def distill_session(
 
 
 __all__ = [
-    "DistillationResult",
     "JUDGE_SYSTEM_PROMPT",
+    "DistillationResult",
     "distill_session",
 ]
