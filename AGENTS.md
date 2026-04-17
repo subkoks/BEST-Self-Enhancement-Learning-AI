@@ -41,6 +41,31 @@ Five types, one SQLite DB, typed tables:
 - **Human review required for:** any global rule, any change that modifies safety posture, any change touching crypto / wallet / trading rules.
 - **Secret scrubber** runs before any session data enters the store. Quarantine on hit, never distill.
 
+## Auto Mode (BSELA overlay)
+
+> Global **Default Mode / Auto Mode / Hard Stop / Communication / Token / Planning / Nonstop** sections in `~/AGENTS.md` apply verbatim. The rules below are project-specific additions; they do not restate the global rules.
+
+### Project-specific Hard Stops
+
+Pause and surface even in Auto Mode when a change would:
+
+- Write directly to synced editor artifacts (`~/.claude/CLAUDE.md`, `~/.cursor/rules/*`, `~/.windsurf/rules/*`, `~/.codeium/...`, `~/.codex/AGENTS.md`). Always upstream to `~/Projects/Current/Active/agents-md` and let existing sync propagate.
+- Fine-tune, distill into, or otherwise modify foundation-model weights (violates harness+context invariant).
+- Bypass the secret scrubber, weaken its patterns, or attempt to distill a quarantined session.
+- Auto-merge a lesson scoped `global`, or touch safety / crypto / wallet / trading rules — these always require human review.
+- Override `config/thresholds.toml` gates, budgets, or retention windows without a matching ADR in `docs/adr/`.
+- Exceed `cost.monthly_budget_usd` or sustain overshoot of `cost.per_session_budget_usd` — trip the breaker, do not widen the budget.
+
+### Execution norms in Auto Mode
+
+- **Ship only on green.** Every commit must leave `ruff check`, `ruff format --check`, `mypy src tests`, and `pytest` passing. If red, fix or revert — never commit broken.
+- **One logical change per commit.** Use `type(scope):` with scopes `cli|core|memory|llm|adapters|docs|ci|config|hooks|tests`. Stage files by name; never `git add .` / `-A`.
+- **Follow `docs/roadmap.md` phase order.** Jumping a phase requires a one-line flag in the status update and an ADR if the deviation is durable.
+- **Stay on `main` for solo work** per repo convention. No force-push, no history rewrites, no branch deletion without explicit ask.
+- **Batch + compact.** Parallelize independent reads/greps in one turn; avoid sleep-polling; prefer targeted diffs, short plans, terse status updates.
+- **Log autonomous decisions.** When resolving ambiguity without asking, add a one-sentence note to the end-of-turn summary and, once `bsela decision add` lands, persist load-bearing ones to the `decisions` table.
+- **Two-failure rule.** If the same approach or identical tool call fails twice, switch strategy — do not loop retries.
+
 ## Tech Stack
 
 - Python 3.13 via pyenv; `uv` for deps.
