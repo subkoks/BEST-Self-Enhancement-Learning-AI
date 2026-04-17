@@ -78,6 +78,15 @@ Pause and surface even in Auto Mode when a change would:
 - Use `type(scope):` — scopes: `cli`, `core`, `memory`, `llm`, `adapters`, `docs`, `ci`, `config`, `hooks`, `tests`.
 - One logical change per commit. Never `git add .`.
 
+## Branch Naming Policy
+
+- Primary branch types: `feat/...`, `fix/...`, `chore/...`, `docs/...`.
+- Keep one branch per task; do not create a new branch only because the editor/agent changed.
+- Tool-prefixed branches are optional and reserved for parallel experiments: `cursor/...`, `codex/...`, `claude/...`, `windsurf/...`.
+- If already on the correct task branch, continue on it unless explicitly instructed to branch.
+- For solo work, staying on `main` is still the default unless task risk/scope justifies a feature branch.
+- Use tool tags in commit/PR text only when useful (for example: `[cursor]`, `[codex]`), not as a hard requirement.
+
 ## Out of Scope
 
 - Model training / fine-tuning / RLHF infrastructure.
