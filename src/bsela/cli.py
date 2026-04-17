@@ -6,6 +6,8 @@ SQLite memory store. ``review`` and ``rollback`` stay stubbed until P3/P7.
 
 from __future__ import annotations
 
+import json
+import sys
 from pathlib import Path
 from typing import Annotated
 
@@ -14,6 +16,7 @@ from rich.console import Console
 
 from bsela import __version__
 from bsela.core.capture import ingest_file
+from bsela.core.retention import sweep
 from bsela.memory.store import (
     bsela_home,
     count_lessons,
@@ -29,6 +32,13 @@ app = typer.Typer(
     add_completion=False,
     rich_markup_mode="rich",
 )
+hook_app = typer.Typer(
+    name="hook",
+    help="Hook entrypoints invoked by editor integrations.",
+    no_args_is_help=True,
+    add_completion=False,
+)
+app.add_typer(hook_app, name="hook")
 console = Console()
 
 
@@ -124,6 +134,34 @@ def rollback(
 ) -> None:
     """Revert a previously applied lesson."""
     console.print(f"[yellow]rollback[/yellow] {lesson_id}: not implemented (P7).")
+    raise typer.Exit(code=0)
+
+
+@app.command()
+def prune() -> None:
+    """Drop sessions + errors older than the retention windows in thresholds.toml."""
+    result = sweep()
+    console.print(f"pruned sessions: {result.sessions_deleted}  errors: {result.errors_deleted}")
+    raise typer.Exit(code=0)
+
+
+@hook_app.command("claude-stop")
+def claude_stop() -> None:
+    """Read a Claude Code Stop JSON payload on stdin and ingest its transcript."""
+    raw = sys.stdin.read()
+    if not raw.strip():
+        raise typer.Exit(code=0)
+    try:
+        payload = json.loads(raw)
+    except json.JSONDecodeError:
+        raise typer.Exit(code=0) from None
+    transcript = payload.get("transcript_path") or payload.get("transcriptPath")
+    if not isinstance(transcript, str) or not transcript:
+        raise typer.Exit(code=0)
+    path = Path(transcript).expanduser()
+    if not path.is_file():
+        raise typer.Exit(code=0)
+    ingest_file(path, source="claude_code")
     raise typer.Exit(code=0)
 
 

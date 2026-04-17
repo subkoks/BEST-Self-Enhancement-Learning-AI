@@ -1,18 +1,13 @@
 #!/usr/bin/env bash
-# Claude Code `Stop` hook — called when a conversation ends.
-# Forwards the transcript path to `bsela ingest`. Safe to no-op if bsela isn't installed.
+# Claude Code `Stop` hook — invoked when a conversation ends.
+# Claude Code writes a JSON payload (session_id, transcript_path, cwd, ...)
+# to stdin; forward it to `bsela hook claude-stop` which parses and ingests.
+# Silent no-op when bsela is not installed so the hook never blocks Claude Code.
 
 set -euo pipefail
-
-TRANSCRIPT_PATH="${CLAUDE_TRANSCRIPT_PATH:-${1:-}}"
-
-if [[ -z "${TRANSCRIPT_PATH}" ]]; then
-    exit 0
-fi
 
 if ! command -v bsela >/dev/null 2>&1; then
     exit 0
 fi
 
-bsela ingest "${TRANSCRIPT_PATH}" >/dev/null 2>&1 &
-disown
+bsela hook claude-stop >/dev/null 2>&1 || true
