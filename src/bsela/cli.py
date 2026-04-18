@@ -20,17 +20,24 @@ import typer
 from bsela import __version__
 from bsela.core.capture import ingest_file
 from bsela.core.detector import detect_errors
+from bsela.core.gate import evaluate as evaluate_gate
 from bsela.core.retention import sweep
+from bsela.core.updater import UpdaterError, propose_lesson
 from bsela.llm.client import AnthropicClient
 from bsela.llm.distiller import distill_session
+from bsela.memory.models import Lesson
 from bsela.memory.store import (
     bsela_home,
     count_lessons,
     count_sessions,
     db_path,
+    get_lesson,
     list_errors,
+    list_lessons,
     list_sessions,
+    update_lesson_status,
 )
+from bsela.utils.config import load_thresholds
 
 app = typer.Typer(
     name="bsela",
@@ -45,6 +52,14 @@ hook_app = typer.Typer(
     add_completion=False,
 )
 app.add_typer(hook_app, name="hook")
+review_app = typer.Typer(
+    name="review",
+    help="List, propose, and reject pending lessons.",
+    invoke_without_command=True,
+    no_args_is_help=False,
+    add_completion=False,
+)
+app.add_typer(review_app, name="review")
 
 
 def _version_callback(value: bool) -> None:
@@ -127,10 +142,103 @@ def ingest(
     raise typer.Exit(code=0)
 
 
-@app.command()
-def review() -> None:
+def _short(value: str, *, limit: int = 60) -> str:
+    return value if len(value) <= limit else value[: limit - 1] + "…"
+
+
+def _render_pending(lesson: Lesson) -> str:
+    gate = evaluate_gate(lesson, load_thresholds())
+    tag = "AUTO" if gate.auto_merge else "REVIEW"
+    if gate.safety_flag:
+        tag = "SAFETY"
+    return (
+        f"{lesson.id}  [{tag}]  scope={lesson.scope}  "
+        f"conf={lesson.confidence:.2f}  {_short(lesson.rule)}"
+    )
+
+
+@review_app.callback(invoke_without_command=True)
+def review_root(ctx: typer.Context) -> None:
     """List pending rule-change proposals awaiting approval."""
-    typer.echo("review: not implemented (P3).")
+    if ctx.invoked_subcommand is not None:
+        return
+    pending = list_lessons(status="pending", limit=100)
+    if not pending:
+        typer.echo("review: no pending lessons.")
+        raise typer.Exit(code=0)
+    typer.echo(f"review: {len(pending)} pending lesson(s)")
+    for lesson in pending:
+        typer.echo(_render_pending(lesson))
+    raise typer.Exit(code=0)
+
+
+@review_app.command("propose")
+def review_propose(
+    lesson_id: Annotated[str, typer.Argument(help="Pending lesson id to propose.")],
+    repo: Annotated[
+        Path | None,
+        typer.Option(
+            "--repo",
+            help="Override BSELA_AGENTS_MD_REPO for this call.",
+            dir_okay=True,
+            file_okay=False,
+        ),
+    ] = None,
+) -> None:
+    """Write a proposal branch on agents-md for a pending lesson."""
+    lesson = get_lesson(lesson_id)
+    if lesson is None:
+        typer.secho(f"review: lesson {lesson_id} not found.", fg=typer.colors.RED)
+        raise typer.Exit(code=1)
+    if lesson.status != "pending":
+        typer.secho(
+            f"review: lesson {lesson_id} is status={lesson.status}; nothing to propose.",
+            fg=typer.colors.YELLOW,
+        )
+        raise typer.Exit(code=1)
+
+    gate = evaluate_gate(lesson, load_thresholds())
+    try:
+        result = propose_lesson(lesson, repo=repo)
+    except UpdaterError as exc:
+        typer.secho(f"review: proposal failed — {exc}", fg=typer.colors.RED)
+        raise typer.Exit(code=2) from None
+
+    new_status = "approved" if gate.auto_merge else "proposed"
+    update_lesson_status(lesson_id, status=new_status, note=f"branch={result.branch}")
+    typer.secho(
+        f"review: proposed lesson {lesson_id} -> {result.branch} "
+        f"(base={result.base_branch}, status={new_status})",
+        fg=typer.colors.GREEN,
+    )
+    raise typer.Exit(code=0)
+
+
+@review_app.command("reject")
+def review_reject(
+    lesson_id: Annotated[str, typer.Argument(help="Pending lesson id to reject.")],
+    note: Annotated[
+        str | None,
+        typer.Option(
+            "--note",
+            "-n",
+            help="Reason to attach to the rejected lesson.",
+        ),
+    ] = None,
+) -> None:
+    """Mark a pending lesson as rejected. No branch is written."""
+    lesson = get_lesson(lesson_id)
+    if lesson is None:
+        typer.secho(f"review: lesson {lesson_id} not found.", fg=typer.colors.RED)
+        raise typer.Exit(code=1)
+    if lesson.status != "pending":
+        typer.secho(
+            f"review: lesson {lesson_id} is status={lesson.status}; cannot reject.",
+            fg=typer.colors.YELLOW,
+        )
+        raise typer.Exit(code=1)
+    update_lesson_status(lesson_id, status="rejected", note=note)
+    typer.echo(f"review: rejected lesson {lesson_id}.")
     raise typer.Exit(code=0)
 
 

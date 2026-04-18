@@ -33,6 +33,10 @@ def test_status_exits_zero_when_store_missing(
     assert "no store" in result.stdout
 
 
-def test_review_stub_exits_zero() -> None:
+def test_review_with_empty_store_exits_zero(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("BSELA_HOME", str(tmp_path))
     result = CliRunner().invoke(app, ["review"])
     assert result.exit_code == 0
+    assert "no pending lessons" in result.stdout
