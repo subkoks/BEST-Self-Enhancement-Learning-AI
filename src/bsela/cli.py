@@ -2,6 +2,10 @@
 
 P1 wires ``bsela ingest`` and ``bsela status`` to the capture pipeline +
 SQLite memory store. ``review`` and ``rollback`` stay stubbed until P3/P7.
+
+Output uses ``typer.echo`` / ``typer.secho`` for deterministic, ANSI-free
+text by default. Colour activates only when stdout is a TTY, so test
+captures and piped output stay machine-parseable.
 """
 
 from __future__ import annotations
@@ -12,7 +16,6 @@ from pathlib import Path
 from typing import Annotated
 
 import typer
-from rich.console import Console
 
 from bsela import __version__
 from bsela.core.capture import ingest_file
@@ -34,7 +37,6 @@ app = typer.Typer(
     help="Best Self-Enhancement Learning Agent — control plane for coding AI agents.",
     no_args_is_help=True,
     add_completion=False,
-    rich_markup_mode="rich",
 )
 hook_app = typer.Typer(
     name="hook",
@@ -43,12 +45,11 @@ hook_app = typer.Typer(
     add_completion=False,
 )
 app.add_typer(hook_app, name="hook")
-console = Console()
 
 
 def _version_callback(value: bool) -> None:
     if value:
-        console.print(f"bsela {__version__}")
+        typer.echo(f"bsela {__version__}")
         raise typer.Exit()
 
 
@@ -72,10 +73,7 @@ def status() -> None:
     """Show storage metrics: sessions, errors, lessons, pending proposals."""
     home = bsela_home()
     if not db_path().exists():
-        console.print(
-            f"[yellow]status:[/yellow] no store at {home} yet — "
-            "run [bold]bsela ingest[/bold] first."
-        )
+        typer.echo(f"status: no store at {home} yet — run `bsela ingest` first.")
         raise typer.Exit(code=0)
 
     sessions_total = count_sessions()
@@ -84,10 +82,10 @@ def status() -> None:
     lessons_pending = count_lessons(status="pending")
     lessons_total = count_lessons()
 
-    console.print(f"[bold]BSELA home:[/bold] {home}")
-    console.print(f"sessions: {sessions_total} (quarantined: {sessions_quarantined})")
-    console.print(f"errors:   {errors_total}")
-    console.print(f"lessons:  {lessons_total} (pending: {lessons_pending})")
+    typer.echo(f"BSELA home: {home}")
+    typer.echo(f"sessions: {sessions_total} (quarantined: {sessions_quarantined})")
+    typer.echo(f"errors:   {errors_total}")
+    typer.echo(f"lessons:  {lessons_total} (pending: {lessons_pending})")
     raise typer.Exit(code=0)
 
 
@@ -115,12 +113,16 @@ def ingest(
     """Ingest one session transcript into the BSELA store."""
     result = ingest_file(path, source=source)
     if result.status == "quarantined":
-        console.print(f"[red]quarantined[/red] {result.session_id}: {result.quarantine_reason}")
+        typer.secho(
+            f"quarantined {result.session_id}: {result.quarantine_reason}",
+            fg=typer.colors.RED,
+        )
         raise typer.Exit(code=0)
 
-    console.print(
-        f"[green]captured[/green] {result.session_id} "
-        f"turns={result.turn_count} tool_calls={result.tool_call_count}"
+    typer.secho(
+        f"captured {result.session_id} "
+        f"turns={result.turn_count} tool_calls={result.tool_call_count}",
+        fg=typer.colors.GREEN,
     )
     raise typer.Exit(code=0)
 
@@ -128,7 +130,7 @@ def ingest(
 @app.command()
 def review() -> None:
     """List pending rule-change proposals awaiting approval."""
-    console.print("[yellow]review:[/yellow] not implemented (P3).")
+    typer.echo("review: not implemented (P3).")
     raise typer.Exit(code=0)
 
 
@@ -137,7 +139,7 @@ def rollback(
     lesson_id: Annotated[str, typer.Argument(help="Lesson identifier to revert.")],
 ) -> None:
     """Revert a previously applied lesson."""
-    console.print(f"[yellow]rollback[/yellow] {lesson_id}: not implemented (P7).")
+    typer.echo(f"rollback {lesson_id}: not implemented (P7).")
     raise typer.Exit(code=0)
 
 
@@ -155,7 +157,7 @@ def detect(
     """Run the deterministic detector over captured sessions."""
     if session_id is not None:
         result = detect_errors(session_id)
-        console.print(f"session {result.session_id}: {len(result.errors)} candidate errors")
+        typer.echo(f"session {result.session_id}: {len(result.errors)} candidate errors")
         raise typer.Exit(code=0)
 
     targets = [s for s in list_sessions(status="captured", limit=10_000)]
@@ -163,7 +165,7 @@ def detect(
     for sess in targets:
         result = detect_errors(sess.id)
         total += len(result.errors)
-    console.print(f"scanned {len(targets)} sessions, found {total} candidate errors")
+    typer.echo(f"scanned {len(targets)} sessions, found {total} candidate errors")
     raise typer.Exit(code=0)
 
 
@@ -171,7 +173,7 @@ def detect(
 def prune() -> None:
     """Drop sessions + errors older than the retention windows in thresholds.toml."""
     result = sweep()
-    console.print(f"pruned sessions: {result.sessions_deleted}  errors: {result.errors_deleted}")
+    typer.echo(f"pruned sessions: {result.sessions_deleted}  errors: {result.errors_deleted}")
     raise typer.Exit(code=0)
 
 
@@ -190,12 +192,12 @@ def distill(
     client = AnthropicClient.from_config()
     result = distill_session(session_id, client=client, persist=persist)
     if not result.distilled:
-        console.print(
+        typer.echo(
             f"session {session_id}: judge says healthy "
             f"(confidence={result.verdict.confidence:.2f}); no lessons distilled."
         )
         raise typer.Exit(code=0)
-    console.print(
+    typer.echo(
         f"session {session_id}: {len(result.persisted)} lesson(s) "
         f"{'persisted' if persist else 'drafted'}."
     )
