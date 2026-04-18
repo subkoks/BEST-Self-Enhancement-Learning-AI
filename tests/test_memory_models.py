@@ -4,8 +4,11 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
+
 from bsela.memory.models import Decision, ErrorRecord, Lesson, Metric, SessionRecord
 from bsela.memory.store import (
+    get_lesson,
     get_session,
     list_decisions,
     list_errors,
@@ -17,6 +20,7 @@ from bsela.memory.store import (
     save_lesson,
     save_metric,
     save_session,
+    update_lesson_status,
 )
 
 
@@ -80,3 +84,29 @@ def test_lesson_and_decision_and_metric(tmp_bsela_home: Path) -> None:
     assert [lesson.id] == [row.id for row in list_lessons(scope="project")]
     assert [decision.id] == [row.id for row in list_decisions()]
     assert [metric.id] == [row.id for row in list_metrics(stage="ingest")]
+
+
+def test_get_lesson_returns_none_for_unknown_id(tmp_bsela_home: Path) -> None:
+    assert get_lesson("does-not-exist") is None
+
+
+def test_update_lesson_status_transitions_and_notes(tmp_bsela_home: Path) -> None:
+    lesson = save_lesson(
+        Lesson(
+            scope="project",
+            rule="Run ruff before commit",
+            why="Keep CI green",
+            how_to_apply="Before every commit",
+            confidence=0.9,
+        )
+    )
+    updated = update_lesson_status(lesson.id, status="approved", note="matches repo policy")
+    assert updated.status == "approved"
+    assert updated.updated_at >= lesson.updated_at
+    assert "-- review note --" in updated.how_to_apply
+    assert "matches repo policy" in updated.how_to_apply
+
+
+def test_update_lesson_status_raises_for_missing(tmp_bsela_home: Path) -> None:
+    with pytest.raises(LookupError):
+        update_lesson_status("missing", status="rejected")

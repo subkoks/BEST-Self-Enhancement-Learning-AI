@@ -10,6 +10,7 @@ from __future__ import annotations
 import os
 from collections.abc import Iterator
 from contextlib import contextmanager
+from datetime import UTC, datetime
 from functools import lru_cache
 from pathlib import Path
 
@@ -143,6 +144,36 @@ def save_lesson(record: Lesson) -> Lesson:
         return record
 
 
+def get_lesson(lesson_id: str) -> Lesson | None:
+    with session_scope() as s:
+        return s.get(Lesson, lesson_id)
+
+
+def update_lesson_status(
+    lesson_id: str,
+    *,
+    status: str,
+    note: str | None = None,
+) -> Lesson:
+    """Transition a lesson to a new status. Returns the refreshed row.
+
+    ``note`` is appended to ``how_to_apply`` under a ``-- review note --``
+    delimiter so reviewer context survives without a separate column.
+    """
+    with session_scope() as s:
+        lesson = s.get(Lesson, lesson_id)
+        if lesson is None:
+            raise LookupError(f"lesson not found: {lesson_id}")
+        lesson.status = status
+        lesson.updated_at = datetime.now(UTC)
+        if note:
+            lesson.how_to_apply = f"{lesson.how_to_apply}\n\n-- review note --\n{note}"
+        s.add(lesson)
+        s.commit()
+        s.refresh(lesson)
+        return lesson
+
+
 def list_lessons(
     *,
     status: str | None = None,
@@ -217,6 +248,7 @@ __all__ = [
     "count_sessions",
     "db_path",
     "get_engine",
+    "get_lesson",
     "get_session",
     "list_decisions",
     "list_errors",
@@ -230,4 +262,5 @@ __all__ = [
     "save_metric",
     "save_session",
     "session_scope",
+    "update_lesson_status",
 ]
