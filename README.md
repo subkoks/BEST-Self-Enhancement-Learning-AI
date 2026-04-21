@@ -56,6 +56,11 @@ Auto-ingestion: `bsela hook install` previews the merged
 for the full pipeline and [`config/thresholds.toml`](config/thresholds.toml)
 for tunables.
 
+Developer gate: `make check` runs the full local gate
+(ruff check → ruff format --check → mypy → pytest). `make fix`
+auto-resolves what ruff can. Targets mirror what CI will enforce
+once wired up.
+
 ## Architecture
 
 See [`docs/architecture.md`](docs/architecture.md).
