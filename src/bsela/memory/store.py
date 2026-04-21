@@ -198,6 +198,18 @@ def count_lessons(*, status: str | None = None) -> int:
         return len(list(s.exec(stmt).all()))
 
 
+def session_has_lessons(session_id: str) -> bool:
+    """Return True iff any Lesson exists whose source_error_id is from this session."""
+    stmt = (
+        select(Lesson.id)
+        .join(ErrorRecord, Lesson.source_error_id == ErrorRecord.id)  # type: ignore[arg-type]
+        .where(ErrorRecord.session_id == session_id)
+        .limit(1)
+    )
+    with session_scope() as s:
+        return s.exec(stmt).first() is not None
+
+
 # ---- Decisions -------------------------------------------------------------
 
 

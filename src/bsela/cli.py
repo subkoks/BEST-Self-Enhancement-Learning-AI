@@ -27,6 +27,15 @@ from bsela.core.hook_install import (
     default_claude_settings_path,
     plan_install,
 )
+from bsela.core.process import (
+    DEFAULT_LIMIT as PROCESS_DEFAULT_LIMIT,
+)
+from bsela.core.process import (
+    DEFAULT_SINCE_DAYS as PROCESS_DEFAULT_SINCE_DAYS,
+)
+from bsela.core.process import (
+    process_sessions,
+)
 from bsela.core.report import (
     DEFAULT_RECENT_LIMIT,
     DEFAULT_WINDOW_DAYS,
@@ -366,6 +375,54 @@ def distill(
     typer.echo(
         f"session {session_id}: {len(result.persisted)} lesson(s) "
         f"{'persisted' if persist else 'drafted'}."
+    )
+    raise typer.Exit(code=0)
+
+
+@app.command()
+def process(
+    limit: Annotated[
+        int,
+        typer.Option("--limit", "-n", min=1, help="Max sessions to distill in one run."),
+    ] = PROCESS_DEFAULT_LIMIT,
+    since_days: Annotated[
+        int,
+        typer.Option(
+            "--since-days",
+            "-d",
+            min=0,
+            help="Only consider sessions ingested within this window. 0 = no window.",
+        ),
+    ] = PROCESS_DEFAULT_SINCE_DAYS,
+    rerun: Annotated[
+        bool,
+        typer.Option(
+            "--rerun/--skip-already-distilled",
+            help="Re-distill sessions even if a Lesson already references their errors.",
+        ),
+    ] = False,
+    persist: Annotated[
+        bool,
+        typer.Option("--persist/--no-persist", help="Write pending Lesson rows."),
+    ] = True,
+) -> None:
+    """Batch-distill recent captured sessions (requires ANTHROPIC_API_KEY)."""
+    client = AnthropicClient.from_config()
+    result = process_sessions(
+        client=client,
+        limit=limit,
+        since_days=since_days if since_days > 0 else None,
+        skip_already_distilled=not rerun,
+        persist=persist,
+    )
+    typer.echo(
+        f"process: considered={result.considered} processed={result.processed} "
+        f"distilled={result.distilled} lessons={result.lessons_created}"
+    )
+    typer.echo(
+        f"  skipped: no_errors={result.skipped_no_errors} "
+        f"already_distilled={result.skipped_already_distilled} "
+        f"judge_healthy={result.skipped_judge_healthy} errors={result.errors}"
     )
     raise typer.Exit(code=0)
 

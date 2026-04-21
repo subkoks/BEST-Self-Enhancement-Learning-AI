@@ -28,9 +28,10 @@ bsela --help
 Core commands:
 
 ```bash
-bsela ingest <transcript.jsonl>           # capture a session into the store
-bsela detect [--session-id <id>]          # run the deterministic error detector
-bsela distill --session-id <id>           # judge + distill (needs ANTHROPIC_API_KEY)
+bsela ingest <transcript.jsonl>           # capture → scrub → auto-detect in one step
+bsela detect [--session-id <id>]          # re-run the deterministic detector manually
+bsela distill --session-id <id>           # judge + distill one session (needs ANTHROPIC_API_KEY)
+bsela process [-n 10] [-d 7]              # batch-distill recent captures (needs ANTHROPIC_API_KEY)
 bsela review                              # list pending lessons with AUTO/REVIEW/SAFETY tags
 bsela review propose <lesson-id>          # write a proposal branch on agents-md
 bsela review reject  <lesson-id> -n ...   # reject a pending lesson with a note
@@ -39,6 +40,13 @@ bsela status                              # session / error / lesson counts
 bsela prune                               # drop rows outside retention windows
 bsela hook install [--apply]              # wire the Claude Code Stop hook (dry-run by default)
 ```
+
+The detector now runs inline during `bsela ingest` (and therefore during
+the Stop hook), so error rows land without a second command — set
+`--no-auto-detect` on the library call only if you need to decouple the
+two. `bsela process` batches judge+distill over recent captured
+sessions, skipping anything quarantined, error-free, or already
+distilled.
 
 Auto-ingestion: `bsela hook install` previews the merged
 `~/.claude/settings.json`; add `--apply` to write it (a timestamped
