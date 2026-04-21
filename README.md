@@ -37,11 +37,14 @@ bsela review reject  <lesson-id> -n ...   # reject a pending lesson with a note
 bsela report [--window-days 7] [--stdout] # P4 dogfood report → ~/.bsela/reports/dogfood.md
 bsela status                              # session / error / lesson counts
 bsela prune                               # drop rows outside retention windows
+bsela hook install [--apply]              # wire the Claude Code Stop hook (dry-run by default)
 ```
 
-Install the Claude Code `Stop` hook to auto-ingest sessions; see
-[`docs/architecture.md`](docs/architecture.md) for the full pipeline and
-[`config/thresholds.toml`](config/thresholds.toml) for tunables.
+Auto-ingestion: `bsela hook install` previews the merged
+`~/.claude/settings.json`; add `--apply` to write it (a timestamped
+`.bak` is left alongside). See [`docs/architecture.md`](docs/architecture.md)
+for the full pipeline and [`config/thresholds.toml`](config/thresholds.toml)
+for tunables.
 
 ## Architecture
 
