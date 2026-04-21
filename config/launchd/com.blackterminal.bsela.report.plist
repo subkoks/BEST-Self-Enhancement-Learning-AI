@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  P4 dogfood report template. Runs `bsela report` every Monday at 09:00
+  local time. Writes the rolling markdown to ~/.bsela/reports/dogfood.md
+  and appends stdout/stderr to ~/.bsela/logs/report.*.log.
+
+  Install:
+      cp config/launchd/com.blackterminal.bsela.report.plist \
+         ~/Library/LaunchAgents/
+      launchctl load -w ~/Library/LaunchAgents/com.blackterminal.bsela.report.plist
+
+  Unload: launchctl unload -w ~/Library/LaunchAgents/com.blackterminal.bsela.report.plist
+
+  The plist hard-codes the author's home path because launchd does NOT
+  expand ${HOME} inside string values. Fork this file and rewrite the
+  three /Users/... paths if you are not black.terminal.
+-->
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.blackterminal.bsela.report</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/zsh</string>
+        <string>-lc</string>
+        <string>bsela report</string>
+    </array>
+
+    <key>StartCalendarInterval</key>
+    <dict>
+        <key>Weekday</key>
+        <integer>1</integer>
+        <key>Hour</key>
+        <integer>9</integer>
+        <key>Minute</key>
+        <integer>0</integer>
+    </dict>
+
+    <key>StandardOutPath</key>
+    <string>/Users/black.terminal/.bsela/logs/report.out.log</string>
+
+    <key>StandardErrorPath</key>
+    <string>/Users/black.terminal/.bsela/logs/report.err.log</string>
+
+    <key>RunAtLoad</key>
+    <false/>
+
+    <key>KeepAlive</key>
+    <false/>
+</dict>
+</plist>
