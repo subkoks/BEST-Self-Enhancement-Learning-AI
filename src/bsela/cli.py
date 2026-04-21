@@ -21,6 +21,12 @@ from bsela import __version__
 from bsela.core.capture import ingest_file
 from bsela.core.detector import detect_errors
 from bsela.core.gate import evaluate as evaluate_gate
+from bsela.core.hook_install import (
+    DEFAULT_HOOK_COMMAND,
+    apply_install,
+    default_claude_settings_path,
+    plan_install,
+)
 from bsela.core.report import (
     DEFAULT_RECENT_LIMIT,
     DEFAULT_WINDOW_DAYS,
@@ -380,6 +386,87 @@ def claude_stop() -> None:
     if not path.is_file():
         raise typer.Exit(code=0)
     ingest_file(path, source="claude_code")
+    raise typer.Exit(code=0)
+
+
+@hook_app.command("install")
+def hook_install(
+    settings: Annotated[
+        Path | None,
+        typer.Option(
+            "--settings",
+            "-s",
+            dir_okay=False,
+            file_okay=True,
+            help="Override Claude Code settings path (default: ~/.claude/settings.json).",
+        ),
+    ] = None,
+    command: Annotated[
+        str,
+        typer.Option(
+            "--command",
+            "-c",
+            help="Command to register under the Stop hook.",
+        ),
+    ] = DEFAULT_HOOK_COMMAND,
+    apply: Annotated[
+        bool,
+        typer.Option(
+            "--apply/--dry-run",
+            help="Write to disk. Defaults to dry-run — prints the would-be merged JSON.",
+        ),
+    ] = False,
+    backup: Annotated[
+        bool,
+        typer.Option(
+            "--backup/--no-backup",
+            help="Write a timestamped .bak copy before mutating an existing file.",
+        ),
+    ] = True,
+) -> None:
+    """Install the Claude Code Stop hook into ``~/.claude/settings.json``.
+
+    Idempotent: if the target command is already registered the run is a
+    no-op. Default is ``--dry-run`` — pass ``--apply`` to write.
+    """
+    target = settings or default_claude_settings_path()
+
+    if not apply:
+        try:
+            raw = target.read_text(encoding="utf-8") if target.is_file() else ""
+        except OSError as exc:
+            typer.secho(f"hook install: cannot read {target}: {exc}", fg=typer.colors.RED)
+            raise typer.Exit(code=1) from None
+        existing = json.loads(raw) if raw.strip() else {}
+        if not isinstance(existing, dict):
+            typer.secho(
+                f"hook install: {target} is not a JSON object at the top level.",
+                fg=typer.colors.RED,
+            )
+            raise typer.Exit(code=1)
+        plan = plan_install(existing, command=command)
+        typer.echo(f"hook install (dry-run): {plan.reason}")
+        typer.echo(f"target: {target}")
+        typer.echo("--- proposed settings.json ---")
+        typer.echo(json.dumps(plan.merged, indent=2, sort_keys=True))
+        typer.echo("--- end ---")
+        typer.echo("re-run with --apply to write.")
+        raise typer.Exit(code=0)
+
+    try:
+        result = apply_install(target, command=command, backup=backup)
+    except (OSError, ValueError) as exc:
+        typer.secho(f"hook install: {exc}", fg=typer.colors.RED)
+        raise typer.Exit(code=1) from None
+
+    if not result.wrote:
+        typer.echo(f"hook install: {result.plan.reason} (no change)")
+        raise typer.Exit(code=0)
+
+    msg = f"hook install: {result.plan.reason} at {result.path}"
+    if result.backup is not None:
+        msg += f" (backup: {result.backup})"
+    typer.secho(msg, fg=typer.colors.GREEN)
     raise typer.Exit(code=0)
 
 
