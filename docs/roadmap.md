@@ -8,7 +8,7 @@
 | **P1 — Capture + Store** | ✅ done | 3 days | Hook → ingest → SQLite. Tested against real Claude Code sessions. |
 | **P2 — Detect + Distill** | ✅ done | 4 days | Regex detector + Haiku distiller. Lessons produced on seeded failures. |
 | **P3 — Propose + Gate** | ✅ done | 2 days | Updater writes branches on `agents-md`. `bsela review` UX live. |
-| **P4 — MVP Dogfood** | ⬜ | 7 days | Daily use. Measure lesson quality, false positives. Tune thresholds. |
+| **P4 — MVP Dogfood** | 🔄 active | 7 days | Daily use. Measure lesson quality, false positives. Tune thresholds. Self-serve tooling in place (`bsela report`, `bsela process`, `bsela hook install`, `bsela decision`, weekly launchd plist). Remaining work is runtime — ingest live sessions, inspect output, tune. |
 | **P5 — Router + Auditor** | ⬜ | 5 days | Task classifier + weekly `launchd` audit. |
 | **P6 — MCP + Multi-editor** | ⬜ | 7 days | MCP server (TypeScript); Codex + Windsurf adapters. |
 | **P7 — A/B + Drift** | ⬜ | 5 days | Replay harness, drift alarms, rollback tooling. |
@@ -47,4 +47,22 @@ Deferred past MVP: Router, Auditor, Reviewer, Researcher, MCP server, Codex/Wind
 
 ## Next Action
 
-Enter P4 — MVP Dogfood. Start by running `bsela ingest` against live Claude Code sessions, inspecting detector + judge output, and tuning `config/thresholds.toml` based on false-positive rate. Keep a lightweight rolling log of lessons proposed vs. rejected in `~/.bsela/reports/dogfood.md`.
+P4 tooling is self-serve. Runtime work left for the operator:
+
+1. `bsela hook install --apply` — wire the Claude Code `Stop` hook.
+2. Use Claude Code normally for a few days so sessions accumulate.
+   Ingest now auto-runs the deterministic detector, so `ErrorRecord`
+   rows land without a second command.
+3. `bsela process -n 10 -d 7` — batch-distill the most recent week.
+   Needs `ANTHROPIC_API_KEY`; skips quarantined, error-free, and
+   already-distilled sessions automatically.
+4. `bsela review` → `bsela review propose <id>` for AUTO-tagged
+   lessons; `bsela review reject <id> -n "…"` for false positives.
+5. `bsela report --stdout` (or let the weekly launchd plist write to
+   `~/.bsela/reports/dogfood.md`) — review useful-lesson ratio,
+   quarantine rate, gate-tag distribution, cost.
+6. Tune `config/thresholds.toml` (loop_threshold, judge_threshold,
+   correction_markers, scrubber patterns) based on the false-positive
+   rate observed. Any change that overrides a gate / budget / retention
+   window is a Hard Stop — it requires a matching ADR in `docs/decisions/`.
+7. When comfortable, declare P4 shipped and enter P5 (Router + Auditor).
