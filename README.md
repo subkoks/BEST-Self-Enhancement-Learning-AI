@@ -39,6 +39,8 @@ bsela report [--window-days 7] [--stdout] # P4 dogfood report → ~/.bsela/repor
 bsela status                              # session / error / lesson counts
 bsela prune                               # drop rows outside retention windows
 bsela hook install [--apply]              # wire the Claude Code Stop hook (dry-run by default)
+bsela decision add "<title>" -c ... -d ... -x ...  # log a load-bearing autonomous decision
+bsela decision list [-n 20]               # show recent decisions, newest first
 ```
 
 The detector now runs inline during `bsela ingest` (and therefore during

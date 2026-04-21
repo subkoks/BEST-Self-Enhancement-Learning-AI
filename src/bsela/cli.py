@@ -47,16 +47,18 @@ from bsela.core.retention import sweep
 from bsela.core.updater import UpdaterError, propose_lesson
 from bsela.llm.client import AnthropicClient
 from bsela.llm.distiller import distill_session
-from bsela.memory.models import Lesson
+from bsela.memory.models import Decision, Lesson
 from bsela.memory.store import (
     bsela_home,
     count_lessons,
     count_sessions,
     db_path,
     get_lesson,
+    list_decisions,
     list_errors,
     list_lessons,
     list_sessions,
+    save_decision,
     update_lesson_status,
 )
 from bsela.utils.config import load_thresholds
@@ -82,6 +84,13 @@ review_app = typer.Typer(
     add_completion=False,
 )
 app.add_typer(review_app, name="review")
+decision_app = typer.Typer(
+    name="decision",
+    help="Record and review load-bearing autonomous decisions.",
+    no_args_is_help=True,
+    add_completion=False,
+)
+app.add_typer(decision_app, name="decision")
 
 
 def _version_callback(value: bool) -> None:
@@ -271,6 +280,70 @@ def rollback(
 ) -> None:
     """Revert a previously applied lesson."""
     typer.echo(f"rollback {lesson_id}: not implemented (P7).")
+    raise typer.Exit(code=0)
+
+
+@decision_app.command("add")
+def decision_add(
+    title: Annotated[str, typer.Argument(help="Short title — first line of the ADR.")],
+    context: Annotated[
+        str,
+        typer.Option(
+            "--context",
+            "-c",
+            help="Why this decision exists (one paragraph is fine).",
+        ),
+    ],
+    decision: Annotated[
+        str,
+        typer.Option(
+            "--decision",
+            "-d",
+            help="The chosen option, stated positively.",
+        ),
+    ],
+    consequences: Annotated[
+        str,
+        typer.Option(
+            "--consequences",
+            "-x",
+            help="Trade-offs and what this forecloses.",
+        ),
+    ],
+) -> None:
+    """Persist a load-bearing autonomous decision to the decisions table.
+
+    This is the AGENTS.md "Log autonomous decisions" counterpart for
+    work too small to warrant a full ``docs/decisions/00NN-*.md`` ADR
+    but large enough to want an audit trail.
+    """
+    saved = save_decision(
+        Decision(
+            title=title,
+            context=context,
+            decision=decision,
+            consequences=consequences,
+        )
+    )
+    typer.secho(f"decision {saved.id}: recorded.", fg=typer.colors.GREEN)
+    raise typer.Exit(code=0)
+
+
+@decision_app.command("list")
+def decision_list(
+    limit: Annotated[
+        int,
+        typer.Option("--limit", "-n", min=1, help="Max decisions to show."),
+    ] = 20,
+) -> None:
+    """List recently recorded decisions (newest first)."""
+    rows = list_decisions(limit=limit)
+    if not rows:
+        typer.echo("decision: no entries yet.")
+        raise typer.Exit(code=0)
+    for row in rows:
+        stamp = row.created_at.strftime("%Y-%m-%d %H:%M")
+        typer.echo(f"- {row.id}  {stamp}  {row.title}")
     raise typer.Exit(code=0)
 
 
