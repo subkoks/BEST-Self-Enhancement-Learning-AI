@@ -14,7 +14,8 @@ FIXTURES = Path(__file__).parent / "fixtures" / "sample-sessions"
 
 
 def _ingest(path: Path) -> str:
-    return ingest_file(path).session_id
+    """Ingest without auto-detect so each detector test starts from zero errors."""
+    return ingest_file(path, auto_detect=False).session_id
 
 
 def test_detects_user_correction(tmp_bsela_home: Path) -> None:

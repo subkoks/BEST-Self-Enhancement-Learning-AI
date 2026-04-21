@@ -5,12 +5,19 @@ If the scrubber hits a secret pattern, the session is persisted with
 ``status='quarantined'`` and the raw transcript body is *not* logged back
 anywhere — callers should treat the file on disk as sensitive and delete
 or move it accordingly.
+
+``ingest_file`` chains the deterministic detector after a successful
+(non-quarantined) capture by default; detection is pure regex and free,
+so the hook path naturally produces ``ErrorRecord`` rows without a
+second command. Detect failures are swallowed — capture must succeed
+even if a downstream pass goes wrong.
 """
 
 from __future__ import annotations
 
 import hashlib
 import json
+import logging
 import re
 from collections.abc import Iterable, Iterator
 from dataclasses import dataclass
@@ -18,9 +25,12 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+from bsela.core.detector import detect_errors
 from bsela.memory.models import SessionRecord
 from bsela.memory.store import save_session
 from bsela.utils.config import load_thresholds
+
+_log = logging.getLogger(__name__)
 
 _TURN_TYPES = frozenset({"user", "assistant", "message"})
 _TOOL_TYPES = frozenset({"tool_use", "tool_call"})
@@ -53,6 +63,7 @@ class CaptureResult:
     turn_count: int
     tool_call_count: int
     transcript_path: Path
+    errors_detected: int = 0
 
 
 def _iter_jsonl(path: Path) -> Iterator[dict[str, Any]]:
@@ -93,8 +104,15 @@ def ingest_file(
     *,
     source: str = "claude_code",
     scrubber: Scrubber | None = None,
+    auto_detect: bool = True,
 ) -> CaptureResult:
-    """Ingest a JSONL transcript, scrub, and persist a ``SessionRecord``."""
+    """Ingest a JSONL transcript, scrub, persist, and run the detector.
+
+    ``auto_detect`` chains the deterministic detector after a successful
+    non-quarantined capture so the hook path produces ``ErrorRecord``
+    rows without a second command. Detect errors are logged and swallowed
+    — a failed detector pass must not roll back a successful capture.
+    """
     transcript = Path(path).expanduser().resolve()
     if not transcript.is_file():
         raise FileNotFoundError(transcript)
@@ -137,6 +155,11 @@ def ingest_file(
         quarantine_reason=reason,
     )
     saved = save_session(record)
+
+    errors_detected = 0
+    if auto_detect and saved.status == "captured":
+        errors_detected = _safe_detect(saved.id)
+
     return CaptureResult(
         session_id=saved.id,
         status=saved.status,
@@ -144,7 +167,23 @@ def ingest_file(
         turn_count=turn_count,
         tool_call_count=tool_call_count,
         transcript_path=transcript,
+        errors_detected=errors_detected,
     )
+
+
+def _safe_detect(session_id: str) -> int:
+    """Run the detector for ``session_id``; log and swallow any failure.
+
+    Capture must never fail on downstream errors, so this intentionally
+    catches ``Exception`` — a broken detector pass must not roll back a
+    successful capture.
+    """
+    try:
+        result = detect_errors(session_id)
+    except Exception:
+        _log.exception("auto-detect failed for session %s", session_id)
+        return 0
+    return len(result.errors)
 
 
 __all__ = ["CaptureResult", "Scrubber", "ingest_file"]

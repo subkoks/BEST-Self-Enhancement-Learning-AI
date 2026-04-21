@@ -149,7 +149,8 @@ def ingest(
 
     typer.secho(
         f"captured {result.session_id} "
-        f"turns={result.turn_count} tool_calls={result.tool_call_count}",
+        f"turns={result.turn_count} tool_calls={result.tool_call_count} "
+        f"errors={result.errors_detected}",
         fg=typer.colors.GREEN,
     )
     raise typer.Exit(code=0)
