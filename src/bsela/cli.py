@@ -21,6 +21,13 @@ from bsela import __version__
 from bsela.core.capture import ingest_file
 from bsela.core.detector import detect_errors
 from bsela.core.gate import evaluate as evaluate_gate
+from bsela.core.report import (
+    DEFAULT_RECENT_LIMIT,
+    DEFAULT_WINDOW_DAYS,
+    build_report,
+    render_markdown,
+    write_report,
+)
 from bsela.core.retention import sweep
 from bsela.core.updater import UpdaterError, propose_lesson
 from bsela.llm.client import AnthropicClient
@@ -282,6 +289,50 @@ def prune() -> None:
     """Drop sessions + errors older than the retention windows in thresholds.toml."""
     result = sweep()
     typer.echo(f"pruned sessions: {result.sessions_deleted}  errors: {result.errors_deleted}")
+    raise typer.Exit(code=0)
+
+
+@app.command()
+def report(
+    window_days: Annotated[
+        int,
+        typer.Option(
+            "--window-days",
+            "-w",
+            min=1,
+            help="Rolling window in days.",
+        ),
+    ] = DEFAULT_WINDOW_DAYS,
+    output: Annotated[
+        Path | None,
+        typer.Option(
+            "--output",
+            "-o",
+            dir_okay=False,
+            file_okay=True,
+            help="Target path. Defaults to ~/.bsela/reports/dogfood.md.",
+        ),
+    ] = None,
+    to_stdout: Annotated[
+        bool,
+        typer.Option("--stdout", help="Print markdown to stdout instead of writing."),
+    ] = False,
+    recent: Annotated[
+        int,
+        typer.Option(
+            "--recent",
+            min=0,
+            help="Number of recent lessons to list.",
+        ),
+    ] = DEFAULT_RECENT_LIMIT,
+) -> None:
+    """Generate the P4 dogfood report from the BSELA store."""
+    data = build_report(window_days=window_days, recent_limit=recent)
+    if to_stdout:
+        typer.echo(render_markdown(data))
+        raise typer.Exit(code=0)
+    target = write_report(data, output)
+    typer.echo(f"report: wrote {data.lessons_total} lesson(s) over {window_days}d to {target}")
     raise typer.Exit(code=0)
 
 
