@@ -6,7 +6,7 @@ BSELA captures every session, distills recurring failures into durable rules, pr
 
 ## Status
 
-P0 — bootstrap. No runtime logic yet. See [`docs/roadmap.md`](docs/roadmap.md).
+P0–P3 complete. **P4 — MVP Dogfood** is active: live ingestion, metric collection, and threshold tuning. See [`docs/roadmap.md`](docs/roadmap.md).
 
 ## Mission
 
@@ -17,13 +17,31 @@ Move improvement out of the model weights (expensive, slow, wrong leverage) into
 
 Every failed or wasteful session becomes a candidate lesson. Every lesson becomes a rule-change proposal. Every approved proposal flows through the existing `agents-md` canonical repo and syncs to all six editor targets.
 
-## Quickstart (coming in P1)
+## Quickstart
 
 ```bash
 uv sync
 uv tool install -e .
 bsela --help
 ```
+
+Core commands:
+
+```bash
+bsela ingest <transcript.jsonl>           # capture a session into the store
+bsela detect [--session-id <id>]          # run the deterministic error detector
+bsela distill --session-id <id>           # judge + distill (needs ANTHROPIC_API_KEY)
+bsela review                              # list pending lessons with AUTO/REVIEW/SAFETY tags
+bsela review propose <lesson-id>          # write a proposal branch on agents-md
+bsela review reject  <lesson-id> -n ...   # reject a pending lesson with a note
+bsela report [--window-days 7] [--stdout] # P4 dogfood report → ~/.bsela/reports/dogfood.md
+bsela status                              # session / error / lesson counts
+bsela prune                               # drop rows outside retention windows
+```
+
+Install the Claude Code `Stop` hook to auto-ingest sessions; see
+[`docs/architecture.md`](docs/architecture.md) for the full pipeline and
+[`config/thresholds.toml`](config/thresholds.toml) for tunables.
 
 ## Architecture
 
