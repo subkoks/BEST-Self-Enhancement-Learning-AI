@@ -91,6 +91,20 @@ decision_app = typer.Typer(
     add_completion=False,
 )
 app.add_typer(decision_app, name="decision")
+sessions_app = typer.Typer(
+    name="sessions",
+    help="Inspect captured sessions and their detected errors.",
+    no_args_is_help=True,
+    add_completion=False,
+)
+app.add_typer(sessions_app, name="sessions")
+errors_app = typer.Typer(
+    name="errors",
+    help="Inspect detected error records.",
+    no_args_is_help=True,
+    add_completion=False,
+)
+app.add_typer(errors_app, name="errors")
 
 
 def _version_callback(value: bool) -> None:
@@ -344,6 +358,100 @@ def decision_list(
     for row in rows:
         stamp = row.created_at.strftime("%Y-%m-%d %H:%M")
         typer.echo(f"- {row.id}  {stamp}  {row.title}")
+    raise typer.Exit(code=0)
+
+
+@sessions_app.command("list")
+def sessions_list(
+    limit: Annotated[
+        int,
+        typer.Option("--limit", "-n", min=1, help="Max sessions to show."),
+    ] = 20,
+    status: Annotated[
+        str | None,
+        typer.Option(
+            "--status",
+            "-s",
+            help="Filter by status (captured / quarantined).",
+        ),
+    ] = None,
+) -> None:
+    """List captured sessions (newest first)."""
+    rows = list_sessions(status=status, limit=limit)
+    if not rows:
+        typer.echo("sessions: no entries.")
+        raise typer.Exit(code=0)
+    for row in rows:
+        stamp = row.ingested_at.strftime("%Y-%m-%d %H:%M")
+        tag = row.status.upper()
+        typer.echo(
+            f"- {row.id}  {stamp}  {tag:<11} "
+            f"turns={row.turn_count} tools={row.tool_call_count} src={row.source}"
+        )
+    raise typer.Exit(code=0)
+
+
+@sessions_app.command("show")
+def sessions_show(
+    session_id: Annotated[str, typer.Argument(help="Session id (uuid).")],
+) -> None:
+    """Show session metadata and its detected errors."""
+    row = get_session(session_id)
+    if row is None:
+        typer.secho(f"sessions: {session_id} not found.", fg=typer.colors.RED)
+        raise typer.Exit(code=1)
+
+    typer.echo(f"id:              {row.id}")
+    typer.echo(f"source:          {row.source}")
+    typer.echo(f"status:          {row.status}")
+    if row.quarantine_reason:
+        typer.echo(f"quarantine:      {row.quarantine_reason}")
+    typer.echo(f"transcript:      {row.transcript_path}")
+    typer.echo(f"content_hash:    {row.content_hash}")
+    typer.echo(f"started_at:      {row.started_at.isoformat()}")
+    if row.ended_at is not None:
+        typer.echo(f"ended_at:        {row.ended_at.isoformat()}")
+    typer.echo(f"ingested_at:     {row.ingested_at.isoformat()}")
+    typer.echo(f"turn_count:      {row.turn_count}")
+    typer.echo(f"tool_call_count: {row.tool_call_count}")
+    typer.echo(f"tokens_in:       {row.tokens_in}")
+    typer.echo(f"tokens_out:      {row.tokens_out}")
+    typer.echo(f"cost_usd:        {row.cost_usd:.4f}")
+
+    errs = list_errors(session_id=row.id, limit=50)
+    typer.echo(f"\nerrors ({len(errs)}):")
+    if not errs:
+        typer.echo("  (none)")
+    else:
+        for err in errs:
+            line = f"L{err.line_number}" if err.line_number is not None else "L-"
+            typer.echo(f"  - {err.id}  [{err.category}/{err.severity}] {line}: {err.snippet[:80]}")
+    raise typer.Exit(code=0)
+
+
+@errors_app.command("list")
+def errors_list(
+    session_id: Annotated[
+        str | None,
+        typer.Option("--session-id", "-s", help="Filter by session id."),
+    ] = None,
+    limit: Annotated[
+        int,
+        typer.Option("--limit", "-n", min=1, help="Max errors to show."),
+    ] = 50,
+) -> None:
+    """List detected error records (newest first)."""
+    rows = list_errors(session_id=session_id, limit=limit)
+    if not rows:
+        typer.echo("errors: no entries.")
+        raise typer.Exit(code=0)
+    for row in rows:
+        stamp = row.detected_at.strftime("%Y-%m-%d %H:%M")
+        line = f"L{row.line_number}" if row.line_number is not None else "L-"
+        typer.echo(
+            f"- {row.id}  {stamp}  [{row.category}/{row.severity}] "
+            f"sess={row.session_id[:8]}… {line}: {row.snippet[:80]}"
+        )
     raise typer.Exit(code=0)
 
 
