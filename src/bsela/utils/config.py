@@ -77,6 +77,8 @@ class ModelsConfig(BaseModel):
     reviewer: ModelRole
     researcher: ModelRole
     auditor: ModelRole
+    debugger: ModelRole
+    memory_updater: ModelRole
 
 
 def find_config_dir() -> Path:
