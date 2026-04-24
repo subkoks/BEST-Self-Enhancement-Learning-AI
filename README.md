@@ -37,6 +37,9 @@ bsela review propose <lesson-id>          # write a proposal branch on agents-md
 bsela review reject  <lesson-id> -n ...   # reject a pending lesson with a note
 bsela report [--window-days 7] [--stdout] # P4 dogfood report → ~/.bsela/reports/dogfood.md
 bsela status                              # session / error / lesson counts
+bsela sessions list [--status captured]   # list captured sessions, newest first
+bsela sessions show <session-id>          # metadata + detected errors for one session
+bsela errors list [--session-id <id>]     # list detected error records
 bsela prune                               # drop rows outside retention windows
 bsela hook install [--apply]              # wire the Claude Code Stop hook (dry-run by default)
 bsela decision add "<title>" -c ... -d ... -x ...  # log a load-bearing autonomous decision
