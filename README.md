@@ -62,8 +62,9 @@ for tunables.
 
 Developer gate: `make check` runs the full local gate
 (ruff check → ruff format --check → mypy → pytest). `make fix`
-auto-resolves what ruff can. Targets mirror what CI will enforce
-once wired up.
+auto-resolves what ruff can. The same checks run in CI
+([`.github/workflows/ci.yml`](.github/workflows/ci.yml)) on every push
+to `main` and every PR.
 
 ## Architecture
 
