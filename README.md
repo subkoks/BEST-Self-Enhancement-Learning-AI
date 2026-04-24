@@ -6,7 +6,7 @@ BSELA captures every session, distills recurring failures into durable rules, pr
 
 ## Status
 
-P0–P3 complete. **P4 — MVP Dogfood** is active: live ingestion, metric collection, and threshold tuning. **P5 — Router + Auditor** is scaffolded in parallel per [ADR 0005](docs/decisions/0005-p5-router-and-auditor.md). See [`docs/roadmap.md`](docs/roadmap.md).
+P0–P3 complete. **P4 — MVP Dogfood** is active: live ingestion, metric collection, and threshold tuning. **P5 — Router + Auditor** is scaffolded per [ADR 0005](docs/decisions/0005-p5-router-and-auditor.md). **P6 — MCP server** (TypeScript) is bootstrapped per [ADR 0006](docs/decisions/0006-p6-mcp-and-adapters.md) — see [`mcp/`](mcp/). Full phase status in [`docs/roadmap.md`](docs/roadmap.md).
 
 ## Mission
 

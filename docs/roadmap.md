@@ -10,7 +10,7 @@
 | **P3 — Propose + Gate** | ✅ done | 2 days | Updater writes branches on `agents-md`. `bsela review` UX live. |
 | **P4 — MVP Dogfood** | 🔄 active | 7 days | Daily use. Measure lesson quality, false positives. Tune thresholds. Self-serve tooling in place (`bsela report`, `bsela process`, `bsela hook install`, `bsela decision`, weekly launchd plist). Remaining work is runtime — ingest live sessions, inspect output, tune. |
 | **P5 — Router + Auditor** | 🔄 scaffolded | 5 days | Task classifier + weekly `launchd` audit. `bsela route` and `bsela audit` land behind ADR 0005 in parallel with P4 dogfood; declared shipped once dogfood data validates routing + auditor alerts. |
-| **P6 — MCP + Multi-editor** | ⬜ | 7 days | MCP server (TypeScript); Codex + Windsurf adapters. |
+| **P6 — MCP + Multi-editor** | 🔄 scaffolded | 7 days | MCP server (TypeScript) + Codex/Windsurf adapters. `mcp/` TS workspace bootstrapped behind ADR 0006 with a read-only `BselaClient` (route / audit / status); MCP server binary + adapters pending. |
 | **P7 — A/B + Drift** | ⬜ | 5 days | Replay harness, drift alarms, rollback tooling. |
 
 ## MVP Scope (P0–P4)
@@ -87,3 +87,19 @@ What still gates "P5 shipped":
   non-default routing decision in a real session before we can tune
   the keyword buckets or thresholds.
 * Review misroute rate. ADR 0005 sets the re-open condition at ≥ 10%.
+
+## P6 — workspace bootstrapped
+
+Per ADR 0006, the TS side landed as:
+
+* `mcp/` pnpm workspace — strict TS, vitest, eslint, prettier.
+* `BselaClient` — shells to the `bsela` CLI and returns typed
+  `RouteDecision` / raw audit + status output. Six integration
+  tests green against the real CLI.
+
+What still gates "P6 shipped":
+* MCP server binary exposing `bsela_route`, `bsela_audit`,
+  `bsela_status` as MCP tools.
+* Codex + Windsurf adapters under `adapters/<editor>/`.
+* CI job that runs `pnpm check` inside `mcp/` on PRs touching
+  `mcp/**` (the Python gates explicitly exclude `mcp/`).
