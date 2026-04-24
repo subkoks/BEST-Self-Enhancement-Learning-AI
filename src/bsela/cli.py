@@ -490,6 +490,38 @@ def prune() -> None:
     raise typer.Exit(code=0)
 
 
+_DOCTOR_COLOR = {
+    PASS: typer.colors.GREEN,
+    WARN: typer.colors.YELLOW,
+    FAIL: typer.colors.RED,
+}
+
+
+def _format_doctor_line(result: CheckResult) -> tuple[str, str]:
+    tag = result.status.upper()
+    return (
+        f"[{tag:<4}] {result.name:<20} {result.detail}",
+        _DOCTOR_COLOR[result.status],
+    )
+
+
+@app.command()
+def doctor() -> None:
+    """Check environment health (API key, store, hook, agents-md repo)."""
+    results = run_checks()
+    for row in results:
+        line, color = _format_doctor_line(row)
+        typer.secho(line, fg=color)
+    overall = worst_status(results)
+    summary = {
+        PASS: "all checks passed.",
+        WARN: "some checks warned.",
+        FAIL: "some checks failed.",
+    }[overall]
+    typer.secho(f"doctor: {summary}", fg=_DOCTOR_COLOR[overall])
+    raise typer.Exit(code=1 if overall == FAIL else 0)
+
+
 @app.command()
 def report(
     window_days: Annotated[
