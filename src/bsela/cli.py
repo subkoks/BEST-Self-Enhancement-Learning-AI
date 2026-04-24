@@ -54,6 +54,7 @@ from bsela.memory.store import (
     count_sessions,
     db_path,
     get_lesson,
+    get_session,
     list_decisions,
     list_errors,
     list_lessons,
