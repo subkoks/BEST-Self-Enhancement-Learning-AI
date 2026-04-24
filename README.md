@@ -41,6 +41,7 @@ bsela sessions list [--status captured]   # list captured sessions, newest first
 bsela sessions show <session-id>          # metadata + detected errors for one session
 bsela errors list [--session-id <id>]     # list detected error records
 bsela prune                               # drop rows outside retention windows
+bsela doctor                              # environment health check (API key, hook, agents-md repo)
 bsela hook install [--apply]              # wire the Claude Code Stop hook (dry-run by default)
 bsela decision add "<title>" -c ... -d ... -x ...  # log a load-bearing autonomous decision
 bsela decision list [-n 20]               # show recent decisions, newest first
