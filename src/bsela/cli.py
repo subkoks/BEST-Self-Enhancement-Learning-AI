@@ -18,6 +18,18 @@ from typing import Annotated
 import typer
 
 from bsela import __version__
+from bsela.core.auditor import (
+    DEFAULT_WINDOW_DAYS as AUDIT_DEFAULT_WINDOW_DAYS,
+)
+from bsela.core.auditor import (
+    build_audit,
+)
+from bsela.core.auditor import (
+    render_markdown as render_audit_markdown,
+)
+from bsela.core.auditor import (
+    write_report as write_audit_report,
+)
 from bsela.core.capture import ingest_file
 from bsela.core.detector import detect_errors
 from bsela.core.doctor import FAIL, PASS, WARN, CheckResult, run_checks, worst_status
@@ -45,6 +57,7 @@ from bsela.core.report import (
     write_report,
 )
 from bsela.core.retention import sweep
+from bsela.core.router import classify as classify_task
 from bsela.core.updater import UpdaterError, propose_lesson
 from bsela.llm.client import AnthropicClient
 from bsela.llm.distiller import distill_session
@@ -565,6 +578,84 @@ def report(
     target = write_report(data, output)
     typer.echo(f"report: wrote {data.lessons_total} lesson(s) over {window_days}d to {target}")
     raise typer.Exit(code=0)
+
+
+@app.command()
+def route(
+    task: Annotated[str, typer.Argument(help="Free-form task description.")],
+    as_json: Annotated[
+        bool,
+        typer.Option("--json", help="Emit the decision as JSON for machine consumption."),
+    ] = False,
+) -> None:
+    """Route a task to a model class via the keyword-based router (P5)."""
+    decision = classify_task(task)
+    if as_json:
+        typer.echo(
+            json.dumps(
+                {
+                    "task_class": decision.task_class,
+                    "model": decision.model,
+                    "confidence": decision.confidence,
+                    "reason": decision.reason,
+                    "matched_keywords": list(decision.matched_keywords),
+                }
+            )
+        )
+    else:
+        typer.echo(f"class:      {decision.task_class}")
+        typer.echo(f"model:      {decision.model}")
+        typer.echo(f"confidence: {decision.confidence:.2f}")
+        typer.echo(f"reason:     {decision.reason}")
+        if decision.matched_keywords:
+            typer.echo(f"keywords:   {', '.join(decision.matched_keywords)}")
+    raise typer.Exit(code=0)
+
+
+@app.command()
+def audit(
+    window_days: Annotated[
+        int,
+        typer.Option(
+            "--window-days",
+            "-w",
+            min=1,
+            help="Rolling window in days.",
+        ),
+    ] = AUDIT_DEFAULT_WINDOW_DAYS,
+    weekly: Annotated[
+        bool,
+        typer.Option(
+            "--weekly",
+            help="Shorthand used by the launchd plist; equivalent to the default 30d window.",
+        ),
+    ] = False,
+    output: Annotated[
+        Path | None,
+        typer.Option(
+            "--output",
+            "-o",
+            dir_okay=False,
+            file_okay=True,
+            help="Target path. Defaults to ~/.bsela/reports/audit.md.",
+        ),
+    ] = None,
+    to_stdout: Annotated[
+        bool,
+        typer.Option("--stdout", help="Print markdown to stdout instead of writing."),
+    ] = False,
+) -> None:
+    """Generate the P5 weekly audit from the BSELA store."""
+    # --weekly is presentational; it just pins the window to the default.
+    window = AUDIT_DEFAULT_WINDOW_DAYS if weekly else window_days
+    report_data = build_audit(window_days=window)
+    if to_stdout:
+        typer.echo(render_audit_markdown(report_data))
+    else:
+        target = write_audit_report(report_data, output)
+        typer.echo(f"audit: wrote window={window}d, alerts={len(report_data.alerts)} to {target}")
+    # Non-zero exit on active alerts so the weekly launchd run surfaces in logs.
+    raise typer.Exit(code=1 if report_data.alerts else 0)
 
 
 @app.command()
