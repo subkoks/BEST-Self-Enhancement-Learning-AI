@@ -9,7 +9,7 @@
 | **P2 — Detect + Distill** | ✅ done | 4 days | Regex detector + Haiku distiller. Lessons produced on seeded failures. |
 | **P3 — Propose + Gate** | ✅ done | 2 days | Updater writes branches on `agents-md`. `bsela review` UX live. |
 | **P4 — MVP Dogfood** | 🔄 active | 7 days | Daily use. Measure lesson quality, false positives. Tune thresholds. Self-serve tooling in place (`bsela report`, `bsela process`, `bsela hook install`, `bsela decision`, weekly launchd plist). Remaining work is runtime — ingest live sessions, inspect output, tune. |
-| **P5 — Router + Auditor** | ⬜ | 5 days | Task classifier + weekly `launchd` audit. |
+| **P5 — Router + Auditor** | 🔄 scaffolded | 5 days | Task classifier + weekly `launchd` audit. `bsela route` and `bsela audit` land behind ADR 0005 in parallel with P4 dogfood; declared shipped once dogfood data validates routing + auditor alerts. |
 | **P6 — MCP + Multi-editor** | ⬜ | 7 days | MCP server (TypeScript); Codex + Windsurf adapters. |
 | **P7 — A/B + Drift** | ⬜ | 5 days | Replay harness, drift alarms, rollback tooling. |
 
@@ -65,4 +65,25 @@ P4 tooling is self-serve. Runtime work left for the operator:
    correction_markers, scrubber patterns) based on the false-positive
    rate observed. Any change that overrides a gate / budget / retention
    window is a Hard Stop — it requires a matching ADR in `docs/decisions/`.
-7. When comfortable, declare P4 shipped and enter P5 (Router + Auditor).
+7. When comfortable, declare P4 shipped and close out P5 (Router +
+   Auditor already scaffolded per ADR 0005; the dogfood data is the
+   last piece needed to tune and declare it shipped).
+
+## P5 — already landed
+
+The code-side of P5 ships in parallel with P4 dogfood:
+
+* `bsela route "<task>"` classifies a free-form task into one of the
+  model roles in `config/models.toml` (keyword-based v1). `--json` for
+  machine consumers.
+* `bsela audit [--weekly|--window-days N|--stdout]` produces the
+  30-day audit digest at `~/.bsela/reports/audit.md`. Exits non-zero
+  on any active alert (cost burn, drift, ADR hygiene).
+* `config/launchd/com.blackterminal.bsela.audit.plist` is now
+  loadable; the command it references exists.
+
+What still gates "P5 shipped":
+* Real dogfood data — need at least one non-empty audit run and one
+  non-default routing decision in a real session before we can tune
+  the keyword buckets or thresholds.
+* Review misroute rate. ADR 0005 sets the re-open condition at ≥ 10%.

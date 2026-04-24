@@ -6,7 +6,7 @@ BSELA captures every session, distills recurring failures into durable rules, pr
 
 ## Status
 
-P0–P3 complete. **P4 — MVP Dogfood** is active: live ingestion, metric collection, and threshold tuning. See [`docs/roadmap.md`](docs/roadmap.md).
+P0–P3 complete. **P4 — MVP Dogfood** is active: live ingestion, metric collection, and threshold tuning. **P5 — Router + Auditor** is scaffolded in parallel per [ADR 0005](docs/decisions/0005-p5-router-and-auditor.md). See [`docs/roadmap.md`](docs/roadmap.md).
 
 ## Mission
 
@@ -45,6 +45,8 @@ bsela doctor                              # environment health check (API key, h
 bsela hook install [--apply]              # wire the Claude Code Stop hook (dry-run by default)
 bsela decision add "<title>" -c ... -d ... -x ...  # log a load-bearing autonomous decision
 bsela decision list [-n 20]               # show recent decisions, newest first
+bsela route "<task>" [--json]             # P5 router: classify task → model role
+bsela audit [--weekly|--window-days N] [--stdout]  # P5 weekly audit digest → ~/.bsela/reports/audit.md
 ```
 
 The detector now runs inline during `bsela ingest` (and therefore during

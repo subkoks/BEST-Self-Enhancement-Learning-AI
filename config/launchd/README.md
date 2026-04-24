@@ -30,11 +30,30 @@ Unload:
 launchctl unload -w ~/Library/LaunchAgents/com.blackterminal.bsela.report.plist
 ```
 
-### `com.blackterminal.bsela.audit.plist` (P5, reserved)
+### `com.blackterminal.bsela.audit.plist` (P5, active)
 
-Reserved for the P5 weekly auditor (`bsela audit --weekly`). The
-command does not yet exist — keep this plist on disk but do not load
-it until P5 ships.
+Runs `bsela audit --weekly` every Monday at 09:00 local time. Writes
+the 30-day digest to `~/.bsela/reports/audit.md` and appends
+stdout/stderr to `~/.bsela/logs/audit.*.log`. Exits non-zero on any
+active alert (cost burn, drift, ADR hygiene) so the stderr log
+surfaces the signal.
+
+```bash
+cp config/launchd/com.blackterminal.bsela.audit.plist ~/Library/LaunchAgents/
+launchctl load -w ~/Library/LaunchAgents/com.blackterminal.bsela.audit.plist
+```
+
+Verify it's queued:
+
+```bash
+launchctl list | grep bsela.audit
+```
+
+Unload:
+
+```bash
+launchctl unload -w ~/Library/LaunchAgents/com.blackterminal.bsela.audit.plist
+```
 
 ## Notes
 
