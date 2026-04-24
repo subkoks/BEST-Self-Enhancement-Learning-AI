@@ -35,7 +35,13 @@ jobs:
       - name: Pytest with coverage
         run: uv run pytest -q --cov=bsela --cov-report=term-missing
 
-      - name: Stale decisions check
+      - name: Stale ADRs check
         run: |
-          echo "Scanning docs/decisions/ for ADRs with status != 'Accepted'..."
-          ! grep -rL "Status:\*\* Accepted" docs/decisions/ | grep -E '\.md$' || true
+          echo "Scanning docs/decisions/*.md for a '**Status:**' header..."
+          missing=$(grep -L '^- \*\*Status:\*\*' docs/decisions/*.md || true)
+          if [ -n "$missing" ]; then
+            echo "::warning::ADRs missing a Status line:"
+            echo "$missing"
+          else
+            echo "All ADRs carry a **Status:** header."
+          fi
