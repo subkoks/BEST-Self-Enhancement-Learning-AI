@@ -20,6 +20,7 @@ import typer
 from bsela import __version__
 from bsela.core.capture import ingest_file
 from bsela.core.detector import detect_errors
+from bsela.core.doctor import FAIL, PASS, WARN, CheckResult, run_checks, worst_status
 from bsela.core.gate import evaluate as evaluate_gate
 from bsela.core.hook_install import (
     DEFAULT_HOOK_COMMAND,

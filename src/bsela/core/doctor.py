@@ -16,6 +16,7 @@ from __future__ import annotations
 import json
 import os
 import shutil
+import sys
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -40,8 +41,6 @@ class CheckResult:
 
 
 def _check_python() -> CheckResult:
-    import sys
-
     major, minor = sys.version_info[:2]
     version = f"{major}.{minor}.{sys.version_info.micro}"
     if (major, minor) < (3, 13):

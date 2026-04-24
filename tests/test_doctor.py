@@ -13,6 +13,7 @@ from bsela.core.doctor import (
     FAIL,
     PASS,
     WARN,
+    CheckResult,
     _check_agents_md_repo,
     _check_anthropic_api_key,
     _check_claude_hook,
@@ -114,7 +115,6 @@ def test_check_claude_hook_pass_when_registered(tmp_path: Path) -> None:
 
 
 def test_worst_status_picks_fail() -> None:
-    from bsela.core.doctor import CheckResult
 
     results = [
         CheckResult("a", PASS, ""),
@@ -125,13 +125,11 @@ def test_worst_status_picks_fail() -> None:
 
 
 def test_worst_status_picks_warn() -> None:
-    from bsela.core.doctor import CheckResult
 
     assert worst_status([CheckResult("x", PASS, ""), CheckResult("y", WARN, "")]) == WARN
 
 
 def test_worst_status_all_pass() -> None:
-    from bsela.core.doctor import CheckResult
 
     assert worst_status([CheckResult("x", PASS, ""), CheckResult("y", PASS, "")]) == PASS
 
