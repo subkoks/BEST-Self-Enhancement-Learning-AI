@@ -30,7 +30,7 @@ jobs:
         run: uv run ruff check . --output-format=github
 
       - name: Mypy strict
-        run: uv run mypy src
+        run: uv run mypy src tests
 
       - name: Pytest with coverage
         run: uv run pytest -q --cov=bsela --cov-report=term-missing
