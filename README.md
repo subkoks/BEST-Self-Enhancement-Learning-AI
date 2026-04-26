@@ -6,7 +6,7 @@ BSELA captures every session, distills recurring failures into durable rules, pr
 
 ## Status
 
-P0–P3 complete. **P4 — MVP Dogfood** is active: live ingestion, metric collection, and threshold tuning. **P5 — Router + Auditor** is scaffolded per [ADR 0005](docs/decisions/0005-p5-router-and-auditor.md). **P6 — MCP server** (TypeScript) is wired per [ADR 0006](docs/decisions/0006-p6-mcp-and-adapters.md): the `bsela-mcp` stdio binary ships three read-only tools (`bsela_route`, `bsela_audit`, `bsela_status`) — see [`mcp/`](mcp/). Codex/Windsurf adapters still pending. Full phase status in [`docs/roadmap.md`](docs/roadmap.md).
+P0–P3 complete. **P4 — MVP Dogfood** is active: live ingestion, metric collection, and threshold tuning. **P5 — Router + Auditor** is scaffolded per [ADR 0005](docs/decisions/0005-p5-router-and-auditor.md). **P6 — MCP server** (TypeScript) is wired per [ADR 0006](docs/decisions/0006-p6-mcp-and-adapters.md): the `bsela-mcp` stdio binary ships three read-only tools (`bsela_route`, `bsela_audit`, `bsela_status`) — see [`mcp/`](mcp/). **Codex** wiring instructions live in [`adapters/codex/README.md`](adapters/codex/README.md); **Windsurf** adapter and live dogfood proof still pending. Full phase status in [`docs/roadmap.md`](docs/roadmap.md).
 
 ## Mission
 

@@ -10,7 +10,7 @@
 | **P3 — Propose + Gate** | ✅ done | 2 days | Updater writes branches on `agents-md`. `bsela review` UX live. |
 | **P4 — MVP Dogfood** | 🔄 active | 7 days | Daily use. Measure lesson quality, false positives. Tune thresholds. Self-serve tooling in place (`bsela report`, `bsela process`, `bsela hook install`, `bsela decision`, weekly launchd plist). Remaining work is runtime — ingest live sessions, inspect output, tune. |
 | **P5 — Router + Auditor** | 🔄 scaffolded | 5 days | Task classifier + weekly `launchd` audit. `bsela route` and `bsela audit` land behind ADR 0005 in parallel with P4 dogfood; declared shipped once dogfood data validates routing + auditor alerts. |
-| **P6 — MCP + Multi-editor** | 🔄 scaffolded | 7 days | MCP server (TypeScript) + Codex/Windsurf adapters. `mcp/` TS workspace bootstrapped behind ADR 0006 with a read-only `BselaClient` and a stdio MCP server binary (`bsela-mcp`) exposing `bsela_route`, `bsela_audit`, `bsela_status`. CI runs `pnpm check` on `mcp/**` PRs. Codex/Windsurf adapters pending. |
+| **P6 — MCP + Multi-editor** | 🔄 scaffolded | 7 days | MCP server (TypeScript) + Codex/Windsurf adapters. `mcp/` TS workspace bootstrapped behind ADR 0006 with a read-only `BselaClient` and a stdio MCP server binary (`bsela-mcp`) exposing `bsela_route`, `bsela_audit`, `bsela_status`. CI runs `pnpm check` on `mcp/**` PRs. Codex wiring doc: [`adapters/codex/README.md`](../adapters/codex/README.md). Windsurf adapter + live dogfood proof still pending. |
 | **P7 — A/B + Drift** | ⬜ | 5 days | Replay harness, drift alarms, rollback tooling. |
 
 ## MVP Scope (P0–P4)
@@ -105,9 +105,8 @@ Per ADR 0006, the TS side landed as:
   depends on. Python gates still explicitly exclude `mcp/`.
 
 What still gates "P6 shipped":
-* Codex + Windsurf adapters under `adapters/<editor>/` — the
-  per-editor config snippets that point each editor at the
-  `bsela-mcp` binary.
+* Windsurf adapter under `adapters/windsurf/` (Codex: see
+  [`adapters/codex/README.md`](../adapters/codex/README.md)).
 * At least one real editor session that uses an MCP tool against
   live BSELA state, captured in the dogfood report. Until that
   happens, the binary is "wired but unproven".
