@@ -1,36 +1,69 @@
-# Codex CLI — BSELA MCP adapter
+# Codex CLI adapter
 
-Registers the read-only [`bsela-mcp`](../../mcp/) stdio server so Codex can call `bsela_route`, `bsela_audit`, and `bsela_status`. Spec: [ADR 0006](../../docs/decisions/0006-p6-mcp-and-adapters.md).
+Wires the [`bsela-mcp`](../../mcp/) stdio server into Codex CLI's MCP
+config. Read-only tools (`bsela_route`, `bsela_audit`, `bsela_status`)
+become callable inside any Codex session.
 
 ## Prerequisites
 
-- Node.js 22+ and `pnpm` (see [`mcp/README.md`](../../mcp/README.md)).
-- `bsela` on `PATH`: from repo root, `uv sync && uv tool install -e .`, then `bsela doctor`.
-- Built server: `cd mcp && pnpm install --frozen-lockfile && pnpm build`. Note the absolute path to `mcp/dist/server.js`.
+See [`adapters/README.md`](../README.md#prerequisites-shared-across-all-editors).
+`bsela` must be on `PATH` and `mcp/dist/server.js` must exist.
 
-## Option A — `codex mcp add` (recommended)
+## Option A — `codex mcp add` (quick)
 
-From any directory (adjust paths to your clone):
+From any directory (adjust the path to your clone):
 
 ```bash
 codex mcp add bsela -- node /absolute/path/to/BEST-Self-Enhancement-Learning-AI/mcp/dist/server.js
 ```
 
-Use `codex mcp list` to confirm. Approve tools in the Codex UI the first time if prompted.
+Ensure the environment Codex uses includes `bsela` on `PATH` (you may need `--env PATH=...` if the default is too narrow). Use `codex mcp list` to confirm.
 
-## Option B — `~/.codex/config.toml`
+## Option B — append to `~/.codex/config.toml`
 
-Add a table (use your real path):
+1. Build the MCP server if you have not already:
 
-```toml
-[mcp_servers.bsela]
-command = "node"
-args = ["/absolute/path/to/BEST-Self-Enhancement-Learning-AI/mcp/dist/server.js"]
-# Read-only tools; parallel calls are optional — leave default unless you measure safe overlap.
+   ```bash
+   cd <BSELA_REPO>/mcp
+   pnpm install --frozen-lockfile
+   pnpm build
+   ```
+
+2. Open `~/.codex/config.toml`. Codex stores MCP servers under
+   `[mcp_servers.<name>]` tables. Append the block from
+   [`config.toml`](config.toml), substituting `<BSELA_REPO>` with the
+   absolute path to this repo (e.g. `/Users/<you>/Projects/Current/Active/BEST-Self-Enhancement-Learning-AI`).
+
+3. Adjust the `PATH` line in that snippet so it includes the directory
+   holding the `bsela` binary (typically `~/.local/bin`) and your Node 22
+   install.
+
+4. Restart Codex CLI so it re-reads `config.toml`.
+
+Full MCP options: [Codex config docs](https://github.com/openai/codex/blob/main/docs/config.md).
+
+## Verify
+
+Inside a Codex session, ask the model to call `bsela_status`. You
+should see the same store counts that `bsela status` prints from the
+shell.
+
+If Codex reports the tool is missing, run:
+
+```bash
+node <BSELA_REPO>/mcp/dist/server.js
 ```
 
-Restart Codex after editing. Full MCP options: [Codex config docs](https://github.com/openai/codex/blob/main/docs/config.md).
+manually and check the process boots without errors. Then re-check
+that `[mcp_servers.bsela]` is present in `~/.codex/config.toml` and
+that the `command` / `args` paths are absolute.
 
-## Smoke test
+## Notes
 
-In Codex, ask the agent to use the BSELA MCP tool `bsela_status` and confirm counts print. If the server fails to start, verify `node` resolves, the `dist/server.js` path exists, and `which bsela` succeeds in the same environment Codex uses.
+- The snippet uses `node` + an absolute `args` path rather than the
+  package's `bsela-mcp` bin, because the workspace is not published to
+  npm and Codex resolves `command` against `PATH`. Pointing at
+  `dist/server.js` directly avoids requiring a global install.
+- Updating BSELA: re-run `pnpm build` in `mcp/` after pulling. Codex
+  re-spawns the server on each session, so no Codex restart is needed
+  unless you change `config.toml` itself.

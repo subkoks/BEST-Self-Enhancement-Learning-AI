@@ -13,7 +13,8 @@
 
 ## Wire BSELA into Codex
 
-Follow [`adapters/codex/README.md`](adapters/codex/README.md) — register the stdio MCP server in `~/.codex/config.toml` (or `codex mcp add`). `bsela` must be on `PATH` (`uv tool install -e .` from repo root).
+Index: [`adapters/README.md`](adapters/README.md). Codex-specific steps:
+[`adapters/codex/README.md`](adapters/codex/README.md) (includes `codex mcp add` and a `config.toml` template). `bsela` must be on `PATH` (`uv tool install -e .` from repo root).
 
 ## Suggested next build (P6)
 

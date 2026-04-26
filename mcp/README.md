@@ -11,8 +11,9 @@ CLI client it is built on. Part of P6 per
 - MCP server binary `bsela-mcp` — implemented. Stdio transport,
   three read-only tools (`bsela_route`, `bsela_audit`,
   `bsela_status`). Built artefact at `dist/server.js`.
-- Codex — see [`../adapters/codex/README.md`](../adapters/codex/README.md).
-  Windsurf adapter — still deferred under `../adapters/windsurf/`.
+- Codex / Windsurf adapters — config snippets + per-editor READMEs
+  shipped under [`../adapters/`](../adapters/). Real-session
+  validation against live BSELA state still pending.
 
 ## Prerequisites
 

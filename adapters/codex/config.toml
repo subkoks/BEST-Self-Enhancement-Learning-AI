@@ -1,0 +1,16 @@
+# BSELA MCP server — Codex CLI snippet.
+#
+# Append to ~/.codex/config.toml. Replace <BSELA_REPO> with the
+# absolute path to this repository (e.g.
+# /Users/<you>/Projects/Current/Active/BEST-Self-Enhancement-Learning-AI).
+#
+# The PATH below must include the directory holding the `bsela`
+# binary (typically ~/.local/bin from `uv tool install -e .`) and a
+# Node 22 LTS install. Adjust if your machine differs.
+
+[mcp_servers.bsela]
+command = "node"
+args = ["<BSELA_REPO>/mcp/dist/server.js"]
+
+[mcp_servers.bsela.env]
+PATH = "/Users/<you>/.local/bin:/Users/<you>/.nvm/versions/node/v22.22.0/bin:/usr/local/bin:/usr/bin:/bin"
