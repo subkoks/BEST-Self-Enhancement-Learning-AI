@@ -179,7 +179,7 @@ def list_lessons(
     status: str | None = None,
     scope: str | None = None,
     session_id: str | None = None,
-    limit: int = 100,
+    limit: int | None = 100,
 ) -> list[Lesson]:
     stmt = select(Lesson).order_by(Lesson.created_at.desc())  # type: ignore[attr-defined]
     if status is not None:
@@ -190,7 +190,8 @@ def list_lessons(
         stmt = stmt.join(ErrorRecord, Lesson.source_error_id == ErrorRecord.id).where(  # type: ignore[arg-type]
             ErrorRecord.session_id == session_id
         )
-    stmt = stmt.limit(limit)
+    if limit is not None:
+        stmt = stmt.limit(limit)
     with session_scope() as s:
         return list(s.exec(stmt).all())
 

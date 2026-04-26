@@ -17,18 +17,21 @@ Usage:
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Literal
 
 from bsela.llm.client import LLMClient
 from bsela.llm.distiller import DistillationResult, distill_session
 from bsela.memory.models import Lesson
 from bsela.memory.store import get_session, list_lessons
 
+_CONFIDENCE_DRIFT_THRESHOLD = 0.1
+
 
 @dataclass(frozen=True)
 class LessonDiff:
     """One entry in the diff between stored and replayed lessons."""
 
-    kind: str  # "added" | "removed" | "unchanged"
+    kind: Literal["added", "removed", "unchanged", "changed"]
     rule: str
     confidence: float
     scope: str
@@ -49,15 +52,16 @@ class ReplayResult:
             return f"session {self.session_id}: judge rated healthy — no lessons produced"
         added = [d for d in self.diff if d.kind == "added"]
         removed = [d for d in self.diff if d.kind == "removed"]
+        changed = [d for d in self.diff if d.kind == "changed"]
         unchanged = [d for d in self.diff if d.kind == "unchanged"]
         parts = [f"session {self.session_id}: replay diff"]
         parts.append(
             f"  stored={len(self.stored_lessons)}"
             f"  replayed={len(self.replayed_lessons)}"
-            f"  +{len(added)} -{len(removed)} ={len(unchanged)}"
+            f"  +{len(added)} -{len(removed)} ~{len(changed)} ={len(unchanged)}"
         )
         for d in self.diff:
-            prefix = {"added": "+", "removed": "-", "unchanged": "="}[d.kind]
+            prefix = {"added": "+", "removed": "-", "unchanged": "=", "changed": "~"}[d.kind]
             parts.append(f"  {prefix} [{d.scope}] {d.rule} (conf={d.confidence:.2f})")
         return "\n".join(parts)
 
@@ -71,7 +75,12 @@ def _diff_lessons(
     stored: list[Lesson],
     replayed: list[Lesson],
 ) -> tuple[LessonDiff, ...]:
-    """Rule-level diff: exact match on normalised rule text."""
+    """Rule-level diff with scope/confidence drift detection.
+
+    Rules are matched on normalised text. When a rule matches, scope or a
+    confidence delta ≥ _CONFIDENCE_DRIFT_THRESHOLD produces "changed" rather
+    than "unchanged", so safety-gate-affecting replay differences surface.
+    """
     stored_rules = {_normalize(s.rule): s for s in stored}
     replayed_rules = {_normalize(r.rule): r for r in replayed}
 
@@ -79,8 +88,14 @@ def _diff_lessons(
     all_keys = stored_rules.keys() | replayed_rules.keys()
     for key in sorted(all_keys):
         if key in stored_rules and key in replayed_rules:
+            s = stored_rules[key]
             r = replayed_rules[key]
-            diffs.append(LessonDiff("unchanged", r.rule, r.confidence, r.scope))
+            scope_drifted = s.scope != r.scope
+            conf_drifted = abs(s.confidence - r.confidence) >= _CONFIDENCE_DRIFT_THRESHOLD
+            kind: Literal["unchanged", "changed"] = (
+                "changed" if (scope_drifted or conf_drifted) else "unchanged"
+            )
+            diffs.append(LessonDiff(kind, r.rule, r.confidence, r.scope))
         elif key in replayed_rules:
             r = replayed_rules[key]
             diffs.append(LessonDiff("added", r.rule, r.confidence, r.scope))
@@ -103,7 +118,7 @@ def replay_session(
     if session is None:
         raise LookupError(f"session not found: {session_id}")
 
-    stored = list_lessons(session_id=session_id)
+    stored = list_lessons(session_id=session_id, limit=None)
 
     result: DistillationResult = distill_session(
         session_id,
