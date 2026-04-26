@@ -10,7 +10,7 @@
 | **P3 — Propose + Gate** | ✅ done | 2 days | Updater writes branches on `agents-md`. `bsela review` UX live. |
 | **P4 — MVP Dogfood** | 🔄 active | 7 days | Daily use. Measure lesson quality, false positives. Tune thresholds. Self-serve tooling in place (`bsela report`, `bsela process`, `bsela hook install`, `bsela decision`, weekly launchd plist). Remaining work is runtime — ingest live sessions, inspect output, tune. |
 | **P5 — Router + Auditor** | 🔄 scaffolded | 5 days | Task classifier + weekly `launchd` audit. `bsela route` and `bsela audit` land behind ADR 0005 in parallel with P4 dogfood; declared shipped once dogfood data validates routing + auditor alerts. |
-| **P6 — MCP + Multi-editor** | 🔄 scaffolded | 7 days | MCP server (TypeScript) + Codex/Windsurf adapters. `mcp/` TS workspace bootstrapped behind ADR 0006 with a read-only `BselaClient` (route / audit / status); MCP server binary + adapters pending. |
+| **P6 — MCP + Multi-editor** | 🔄 scaffolded | 7 days | MCP server (TypeScript) + Codex/Windsurf adapters. `mcp/` TS workspace bootstrapped behind ADR 0006 with a read-only `BselaClient` and a stdio MCP server binary (`bsela-mcp`) exposing `bsela_route`, `bsela_audit`, `bsela_status`. CI runs `pnpm check` on `mcp/**` PRs. Codex/Windsurf adapters pending. |
 | **P7 — A/B + Drift** | ⬜ | 5 days | Replay harness, drift alarms, rollback tooling. |
 
 ## MVP Scope (P0–P4)
@@ -96,10 +96,18 @@ Per ADR 0006, the TS side landed as:
 * `BselaClient` — shells to the `bsela` CLI and returns typed
   `RouteDecision` / raw audit + status output. Six integration
   tests green against the real CLI.
+* `bsela-mcp` server binary (`mcp/src/server.ts`, dist entry
+  `mcp/dist/server.js`) — stdio transport, three tools registered:
+  `bsela_route`, `bsela_audit`, `bsela_status`. Smoke-tested via the
+  MCP SDK `Client` over `InMemoryTransport` and over real `stdio`.
+* `.github/workflows/mcp.yml` — runs `pnpm check` inside `mcp/` on
+  PRs that touch `mcp/**` or any Python surface the JSON contract
+  depends on. Python gates still explicitly exclude `mcp/`.
 
 What still gates "P6 shipped":
-* MCP server binary exposing `bsela_route`, `bsela_audit`,
-  `bsela_status` as MCP tools.
-* Codex + Windsurf adapters under `adapters/<editor>/`.
-* CI job that runs `pnpm check` inside `mcp/` on PRs touching
-  `mcp/**` (the Python gates explicitly exclude `mcp/`).
+* Codex + Windsurf adapters under `adapters/<editor>/` — the
+  per-editor config snippets that point each editor at the
+  `bsela-mcp` binary.
+* At least one real editor session that uses an MCP tool against
+  live BSELA state, captured in the dogfood report. Until that
+  happens, the binary is "wired but unproven".
