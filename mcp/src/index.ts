@@ -1,9 +1,9 @@
 /**
  * Public entry point for the BSELA MCP package.
  *
- * The MCP server itself is added in a follow-up commit once the
- * tool schema stabilises; this file currently exports only the CLI
- * client so downstream packages can exercise the shell-out path.
+ * Re-exports the CLI client and the MCP server factory. The runnable
+ * MCP binary lives at `dist/server.js` (registered as `bsela-mcp`
+ * via package.json `bin`).
  */
 
 export {
@@ -13,3 +13,14 @@ export {
   type RouteDecision,
   type TaskClass,
 } from "./bsela-client.js";
+
+export { createServer, main, type CreateServerOptions } from "./server.js";
+
+export {
+  handleAudit,
+  handleRoute,
+  handleStatus,
+  toolDefinitions,
+  type ToolName,
+  type ToolTextResult,
+} from "./server-tools.js";
