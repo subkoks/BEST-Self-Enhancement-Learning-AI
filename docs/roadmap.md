@@ -11,7 +11,7 @@
 | **P4 — MVP Dogfood** | 🔄 active | 7 days | Daily use. Measure lesson quality, false positives. Tune thresholds. Self-serve tooling in place (`bsela report`, `bsela process`, `bsela hook install`, `bsela decision`, weekly launchd plist). Remaining work is runtime — ingest live sessions, inspect output, tune. |
 | **P5 — Router + Auditor** | 🔄 scaffolded | 5 days | Task classifier + weekly `launchd` audit. `bsela route` and `bsela audit` land behind ADR 0005 in parallel with P4 dogfood; declared shipped once dogfood data validates routing + auditor alerts. |
 | **P6 — MCP + Multi-editor** | 🔄 scaffolded | 7 days | MCP server (TypeScript) + Codex/Windsurf adapters. `mcp/` TS workspace bootstrapped behind ADR 0006 with a read-only `BselaClient` and a stdio MCP server binary (`bsela-mcp`) exposing `bsela_route`, `bsela_audit`, `bsela_status`. CI runs `pnpm check` on `mcp/**` PRs. Codex + Windsurf adapter snippets landed under [`adapters/`](../adapters/README.md); only real-editor validation against live BSELA state still gates "shipped". |
-| **P7 — A/B + Drift** | 🔄 scaffolded | 5 days | Replay harness, drift alarms, rollback tooling. `bsela replay <session-id>` lands as `core/replay.py` + CLI command; diffs stored vs. re-distilled lessons, exits 1 on drift. Drift alarms and `bsela rollback` still pending. |
+| **P7 — A/B + Drift** | 🔄 active | 5 days | Replay harness, drift alarms, rollback tooling. `bsela replay <session-id>` lands as `core/replay.py` + CLI command; diffs stored vs. re-distilled lessons, exits 1 on drift (scope/confidence drift also detected). `bsela rollback <lesson-id>` marks a lesson `rolled_back`. Drift alarms still pending. |
 
 ## MVP Scope (P0–P4)
 

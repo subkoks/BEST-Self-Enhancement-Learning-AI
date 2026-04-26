@@ -95,12 +95,13 @@ def get_session(session_id: str) -> SessionRecord | None:
 def list_sessions(
     *,
     status: str | None = None,
-    limit: int = 100,
+    limit: int | None = 100,
 ) -> list[SessionRecord]:
     stmt = select(SessionRecord).order_by(SessionRecord.ingested_at.desc())  # type: ignore[attr-defined]
     if status is not None:
         stmt = stmt.where(SessionRecord.status == status)
-    stmt = stmt.limit(limit)
+    if limit is not None:
+        stmt = stmt.limit(limit)
     with session_scope() as s:
         return list(s.exec(stmt).all())
 
@@ -124,11 +125,12 @@ def save_error(record: ErrorRecord) -> ErrorRecord:
         return record
 
 
-def list_errors(*, session_id: str | None = None, limit: int = 100) -> list[ErrorRecord]:
+def list_errors(*, session_id: str | None = None, limit: int | None = 100) -> list[ErrorRecord]:
     stmt = select(ErrorRecord).order_by(ErrorRecord.detected_at.desc())  # type: ignore[attr-defined]
     if session_id is not None:
         stmt = stmt.where(ErrorRecord.session_id == session_id)
-    stmt = stmt.limit(limit)
+    if limit is not None:
+        stmt = stmt.limit(limit)
     with session_scope() as s:
         return list(s.exec(stmt).all())
 
@@ -227,8 +229,10 @@ def save_decision(record: Decision) -> Decision:
         return record
 
 
-def list_decisions(*, limit: int = 100) -> list[Decision]:
-    stmt = select(Decision).order_by(Decision.created_at.desc()).limit(limit)  # type: ignore[attr-defined]
+def list_decisions(*, limit: int | None = 100) -> list[Decision]:
+    stmt = select(Decision).order_by(Decision.created_at.desc())  # type: ignore[attr-defined]
+    if limit is not None:
+        stmt = stmt.limit(limit)
     with session_scope() as s:
         return list(s.exec(stmt).all())
 
@@ -248,14 +252,15 @@ def list_metrics(
     *,
     session_id: str | None = None,
     stage: str | None = None,
-    limit: int = 100,
+    limit: int | None = 100,
 ) -> list[Metric]:
     stmt = select(Metric).order_by(Metric.created_at.desc())  # type: ignore[attr-defined]
     if session_id is not None:
         stmt = stmt.where(Metric.session_id == session_id)
     if stage is not None:
         stmt = stmt.where(Metric.stage == stage)
-    stmt = stmt.limit(limit)
+    if limit is not None:
+        stmt = stmt.limit(limit)
     with session_scope() as s:
         return list(s.exec(stmt).all())
 
