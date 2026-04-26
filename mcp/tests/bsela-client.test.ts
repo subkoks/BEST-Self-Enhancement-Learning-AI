@@ -1,3 +1,6 @@
+import { homedir } from "node:os";
+import { join } from "node:path";
+
 import { describe, expect, it } from "vitest";
 
 import { BselaClient, BselaClientError } from "../src/index.js";
@@ -6,9 +9,19 @@ import { BselaClient, BselaClientError } from "../src/index.js";
  * These are integration tests: they shell out to the `bsela`
  * Python CLI that ships with this repo. `bsela` must be on PATH
  * and `.venv` must be initialised (`uv sync` + `uv tool install -e .`).
+ *
+ * We prepend `~/.local/bin` to PATH so the uv-installed binary (which
+ * tracks the current worktree) wins over pyenv shims, which may point
+ * to an older install from the main branch.
  */
+function makeClient(): BselaClient {
+  const localBin = join(homedir(), ".local", "bin");
+  const path = `${localBin}:${process.env["PATH"] ?? ""}`;
+  return new BselaClient({ env: { ...process.env, PATH: path } });
+}
+
 describe("BselaClient.route", () => {
-  const client = new BselaClient();
+  const client = makeClient();
 
   it("routes a planning task to the planner role", async () => {
     const decision = await client.route("plan the migration to P6");
@@ -33,7 +46,7 @@ describe("BselaClient.route", () => {
 });
 
 describe("BselaClient.audit", () => {
-  const client = new BselaClient();
+  const client = makeClient();
 
   it("returns markdown starting with the audit header", async () => {
     const markdown = await client.audit({ windowDays: 30 });
@@ -43,11 +56,17 @@ describe("BselaClient.audit", () => {
 });
 
 describe("BselaClient.status", () => {
-  const client = new BselaClient();
+  const client = makeClient();
 
-  it("prints the BSELA home and counts", async () => {
-    const output = await client.status();
-    expect(output).toMatch(/(BSELA home|no store)/);
+  it("returns a typed StatusPayload with numeric counts and bsela_home", async () => {
+    const payload = await client.status();
+    expect(typeof payload.sessions).toBe("number");
+    expect(typeof payload.sessions_quarantined).toBe("number");
+    expect(typeof payload.errors).toBe("number");
+    expect(typeof payload.lessons).toBe("number");
+    expect(typeof payload.lessons_pending).toBe("number");
+    expect(typeof payload.bsela_home).toBe("string");
+    expect(payload.bsela_home.length).toBeGreaterThan(0);
   });
 });
 

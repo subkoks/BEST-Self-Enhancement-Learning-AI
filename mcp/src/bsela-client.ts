@@ -34,6 +34,15 @@ export interface RouteDecision {
   matched_keywords: Array<string>;
 }
 
+export interface StatusPayload {
+  sessions: number;
+  sessions_quarantined: number;
+  errors: number;
+  lessons: number;
+  lessons_pending: number;
+  bsela_home: string;
+}
+
 export interface BselaClientOptions {
   binary?: string;
   cwd?: string;
@@ -136,6 +145,19 @@ function isRouteDecision(value: unknown): value is RouteDecision {
   );
 }
 
+function isStatusPayload(value: unknown): value is StatusPayload {
+  if (typeof value !== "object" || value === null) return false;
+  const v = value as Record<string, unknown>;
+  return (
+    typeof v.sessions === "number" &&
+    typeof v.sessions_quarantined === "number" &&
+    typeof v.errors === "number" &&
+    typeof v.lessons === "number" &&
+    typeof v.lessons_pending === "number" &&
+    typeof v.bsela_home === "string"
+  );
+}
+
 export class BselaClient {
   private readonly options: BselaClientOptions;
 
@@ -170,10 +192,18 @@ export class BselaClient {
     return result.stdout;
   }
 
-  async status(): Promise<string> {
-    const args = ["status"];
+  async status(): Promise<StatusPayload> {
+    const args = ["status", "--json"];
     const result = await runBsela(args, this.options);
     assertSuccess(args, result);
-    return result.stdout;
+    const parsed = parseJson(result.stdout.trim());
+    if (!isStatusPayload(parsed)) {
+      throw new BselaClientError(
+        "bsela status returned an unexpected payload shape",
+        result.exitCode,
+        JSON.stringify(parsed).slice(0, 200),
+      );
+    }
+    return parsed;
   }
 }

@@ -12,7 +12,7 @@
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import { z } from "zod";
 
-import { BselaClientError, type BselaClient } from "./bsela-client.js";
+import { BselaClientError, type BselaClient, type StatusPayload } from "./bsela-client.js";
 
 export type ToolTextResult = CallToolResult;
 
@@ -72,9 +72,10 @@ export async function handleAudit(
 
 export async function handleStatus(client: BselaClient): Promise<ToolTextResult> {
   try {
-    const text = await client.status();
+    const payload: StatusPayload = await client.status();
     return {
-      content: [{ type: "text", text }],
+      content: [{ type: "text", text: JSON.stringify(payload, null, 2) }],
+      structuredContent: payload as unknown as Record<string, unknown>,
     };
   } catch (err) {
     return errorResult(err, "bsela status failed");

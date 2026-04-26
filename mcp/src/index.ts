@@ -11,6 +11,7 @@ export {
   BselaClientError,
   type BselaClientOptions,
   type RouteDecision,
+  type StatusPayload,
   type TaskClass,
 } from "./bsela-client.js";
 

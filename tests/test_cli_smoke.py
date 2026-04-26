@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 import pytest
@@ -31,6 +32,20 @@ def test_status_exits_zero_when_store_missing(
     result = CliRunner().invoke(app, ["status"])
     assert result.exit_code == 0
     assert "no store" in result.stdout
+
+
+def test_status_json_exits_zero_when_store_missing(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("BSELA_HOME", str(tmp_path))
+    result = CliRunner().invoke(app, ["status", "--json"])
+    assert result.exit_code == 0
+    payload = json.loads(result.stdout)
+    assert payload["sessions"] == 0
+    assert payload["errors"] == 0
+    assert payload["lessons"] == 0
+    assert payload["lessons_pending"] == 0
+    assert "bsela_home" in payload
 
 
 def test_review_with_empty_store_exits_zero(
