@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Literal
 
 import pytest
 from typer.testing import CliRunner
@@ -39,17 +40,22 @@ def _healthy_verdict() -> JudgeVerdict:
     )
 
 
-def _distill_response(rule: str = "Do not retry on the same error twice") -> DistillResponse:
+def _distill_response(
+    rule: str = "Do not retry on the same error twice",
+    *,
+    scope: Literal["project", "global"] = "project",
+    confidence: float = 0.88,
+) -> DistillResponse:
     return DistillResponse(
         status="ok",
-        confidence=0.88,
+        confidence=confidence,
         lessons=[
             LessonCandidate(
                 rule=rule,
                 why="loop detector flagged retries",
                 how_to_apply="switch strategy after second failure",
-                scope="project",
-                confidence=0.88,
+                scope=scope,
+                confidence=confidence,
                 evidence={},
             )
         ],
@@ -200,6 +206,93 @@ def test_replay_diff_normalization_ignores_case_and_whitespace(
     assert len(unchanged) >= 1
 
 
+def test_replay_scope_change_shows_changed(
+    tmp_bsela_home: Path, sample_clean_session: Path
+) -> None:
+    ingest_file(sample_clean_session)
+    session_id = list_sessions(status="captured")[0].id
+    err = _seed_error(session_id)
+
+    rule = "Do not retry on the same error twice"
+    save_lesson(
+        Lesson(
+            source_error_id=err.id,
+            scope="project",
+            rule=rule,
+            why="reason",
+            how_to_apply="action",
+            confidence=0.88,
+            status="pending",
+        )
+    )
+
+    result = replay_session(
+        session_id,
+        client=_fake_client(distill=_distill_response(rule, scope="global")),
+    )
+
+    changed = [d for d in result.diff if d.kind == "changed"]
+    assert any(d.rule == rule for d in changed), result.diff
+
+
+def test_replay_confidence_drift_shows_changed(
+    tmp_bsela_home: Path, sample_clean_session: Path
+) -> None:
+    ingest_file(sample_clean_session)
+    session_id = list_sessions(status="captured")[0].id
+    err = _seed_error(session_id)
+
+    rule = "Do not retry on the same error twice"
+    save_lesson(
+        Lesson(
+            source_error_id=err.id,
+            scope="project",
+            rule=rule,
+            why="reason",
+            how_to_apply="action",
+            confidence=0.60,
+            status="pending",
+        )
+    )
+
+    result = replay_session(
+        session_id,
+        client=_fake_client(distill=_distill_response(rule, confidence=0.88)),
+    )
+
+    changed = [d for d in result.diff if d.kind == "changed"]
+    assert any(d.rule == rule for d in changed), result.diff
+
+
+def test_replay_small_confidence_delta_shows_unchanged(
+    tmp_bsela_home: Path, sample_clean_session: Path
+) -> None:
+    ingest_file(sample_clean_session)
+    session_id = list_sessions(status="captured")[0].id
+    err = _seed_error(session_id)
+
+    rule = "Do not retry on the same error twice"
+    save_lesson(
+        Lesson(
+            source_error_id=err.id,
+            scope="project",
+            rule=rule,
+            why="reason",
+            how_to_apply="action",
+            confidence=0.82,
+            status="pending",
+        )
+    )
+
+    result = replay_session(
+        session_id,
+        client=_fake_client(distill=_distill_response(rule, confidence=0.88)),
+    )
+
+    unchanged = [d for d in result.diff if d.kind == "unchanged"]
+    assert any(d.rule == rule for d in unchanged), result.diff
+
+
 # ---- ReplayResult.summary() -------------------------------------------------
 
 
@@ -212,12 +305,14 @@ def test_summary_shows_session_id_and_counts() -> None:
         diff=(
             LessonDiff("added", "new rule", 0.9, "project"),
             LessonDiff("removed", "old rule", 0.7, "project"),
+            LessonDiff("changed", "drifted rule", 0.5, "global"),
         ),
     )
     summary = result.summary()
     assert "abc-123" in summary
     assert "+1" in summary
     assert "-1" in summary
+    assert "~1" in summary
 
 
 # ---- CLI bsela replay -------------------------------------------------------
