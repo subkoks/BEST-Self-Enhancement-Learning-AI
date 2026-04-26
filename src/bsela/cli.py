@@ -49,6 +49,7 @@ from bsela.core.process import (
 from bsela.core.process import (
     process_sessions,
 )
+from bsela.core.replay import replay_session
 from bsela.core.report import (
     DEFAULT_RECENT_LIMIT,
     DEFAULT_WINDOW_DAYS,
@@ -144,11 +145,30 @@ def main(
 
 
 @app.command()
-def status() -> None:
+def status(
+    as_json: Annotated[
+        bool,
+        typer.Option("--json", help="Emit counts as JSON for machine consumption."),
+    ] = False,
+) -> None:
     """Show storage metrics: sessions, errors, lessons, pending proposals."""
     home = bsela_home()
     if not db_path().exists():
-        typer.echo(f"status: no store at {home} yet — run `bsela ingest` first.")
+        if as_json:
+            typer.echo(
+                json.dumps(
+                    {
+                        "sessions": 0,
+                        "sessions_quarantined": 0,
+                        "errors": 0,
+                        "lessons": 0,
+                        "lessons_pending": 0,
+                        "bsela_home": str(home),
+                    }
+                )
+            )
+        else:
+            typer.echo(f"status: no store at {home} yet — run `bsela ingest` first.")
         raise typer.Exit(code=0)
 
     sessions_total = count_sessions()
@@ -157,10 +177,24 @@ def status() -> None:
     lessons_pending = count_lessons(status="pending")
     lessons_total = count_lessons()
 
-    typer.echo(f"BSELA home: {home}")
-    typer.echo(f"sessions: {sessions_total} (quarantined: {sessions_quarantined})")
-    typer.echo(f"errors:   {errors_total}")
-    typer.echo(f"lessons:  {lessons_total} (pending: {lessons_pending})")
+    if as_json:
+        typer.echo(
+            json.dumps(
+                {
+                    "sessions": sessions_total,
+                    "sessions_quarantined": sessions_quarantined,
+                    "errors": errors_total,
+                    "lessons": lessons_total,
+                    "lessons_pending": lessons_pending,
+                    "bsela_home": str(home),
+                }
+            )
+        )
+    else:
+        typer.echo(f"BSELA home: {home}")
+        typer.echo(f"sessions: {sessions_total} (quarantined: {sessions_quarantined})")
+        typer.echo(f"errors:   {errors_total}")
+        typer.echo(f"lessons:  {lessons_total} (pending: {lessons_pending})")
     raise typer.Exit(code=0)
 
 
@@ -310,6 +344,30 @@ def rollback(
     """Revert a previously applied lesson."""
     typer.echo(f"rollback {lesson_id}: not implemented (P7).")
     raise typer.Exit(code=0)
+
+
+@app.command()
+def replay(
+    session_id: Annotated[str, typer.Argument(help="Session ID to replay.")],
+) -> None:
+    """Re-distill a stored session and show a diff against its existing lessons.
+
+    Requires ANTHROPIC_API_KEY. Does not persist anything — the diff is
+    printed only so it can be inspected for drift.
+
+    Exit code 0: no drift (replayed lessons match stored).
+    Exit code 1: drift detected or session not found.
+    """
+    try:
+        llm = AnthropicClient.from_config()
+        result = replay_session(session_id, client=llm)
+    except LookupError as exc:
+        typer.secho(str(exc), fg=typer.colors.RED)
+        raise typer.Exit(code=1) from exc
+
+    typer.echo(result.summary())
+    drift = any(d.kind != "unchanged" for d in result.diff)
+    raise typer.Exit(code=1 if drift else 0)
 
 
 @decision_app.command("add")

@@ -8,7 +8,7 @@ import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import { describe, expect, it, vi } from "vitest";
 
-import { BselaClient, createServer, type RouteDecision } from "../src/index.js";
+import { BselaClient, createServer, type RouteDecision, type StatusPayload } from "../src/index.js";
 
 function stubClient(overrides: Partial<BselaClient>): BselaClient {
   return Object.assign(Object.create(BselaClient.prototype), overrides) as BselaClient;
@@ -33,10 +33,18 @@ describe("createServer", () => {
       reason: "matched keyword",
       matched_keywords: ["plan"],
     };
+    const statusPayload: StatusPayload = {
+      sessions: 0,
+      sessions_quarantined: 0,
+      errors: 0,
+      lessons: 0,
+      lessons_pending: 0,
+      bsela_home: "/tmp/.bsela",
+    };
     const client = stubClient({
       route: vi.fn().mockResolvedValue(decision),
       audit: vi.fn().mockResolvedValue("# BSELA Weekly Audit\n"),
-      status: vi.fn().mockResolvedValue("BSELA home: /tmp/.bsela\n"),
+      status: vi.fn().mockResolvedValue(statusPayload),
     });
 
     const mcp = await connectClient(client);

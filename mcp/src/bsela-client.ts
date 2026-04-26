@@ -14,6 +14,8 @@
  */
 
 import { spawn } from "node:child_process";
+import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 
 export type TaskClass =
   | "judge"
@@ -32,6 +34,15 @@ export interface RouteDecision {
   confidence: number;
   reason: string;
   matched_keywords: Array<string>;
+}
+
+export interface StatusPayload {
+  sessions: number;
+  sessions_quarantined: number;
+  errors: number;
+  lessons: number;
+  lessons_pending: number;
+  bsela_home: string;
 }
 
 export interface BselaClientOptions {
@@ -54,11 +65,21 @@ export class BselaClientError extends Error {
 }
 
 const DEFAULT_TIMEOUT_MS = 30_000;
+const MODULE_DIR = dirname(fileURLToPath(import.meta.url));
+const DEFAULT_BSELA_CONFIG_DIR = resolve(MODULE_DIR, "..", "..", "config");
 
 interface RunResult {
   stdout: string;
   stderr: string;
   exitCode: number | null;
+}
+
+function resolveEnv(env: NodeJS.ProcessEnv | undefined): NodeJS.ProcessEnv {
+  const merged = { ...process.env, ...(env ?? {}) };
+  if (!merged["BSELA_CONFIG_DIR"]) {
+    merged["BSELA_CONFIG_DIR"] = DEFAULT_BSELA_CONFIG_DIR;
+  }
+  return merged;
 }
 
 function runBsela(
@@ -70,7 +91,7 @@ function runBsela(
   return new Promise((resolve, reject) => {
     const child = spawn(binary, args, {
       cwd: options?.cwd,
-      env: options?.env ?? process.env,
+      env: resolveEnv(options?.env),
       stdio: ["ignore", "pipe", "pipe"],
     });
 
@@ -136,6 +157,19 @@ function isRouteDecision(value: unknown): value is RouteDecision {
   );
 }
 
+function isStatusPayload(value: unknown): value is StatusPayload {
+  if (typeof value !== "object" || value === null) return false;
+  const v = value as Record<string, unknown>;
+  return (
+    typeof v.sessions === "number" &&
+    typeof v.sessions_quarantined === "number" &&
+    typeof v.errors === "number" &&
+    typeof v.lessons === "number" &&
+    typeof v.lessons_pending === "number" &&
+    typeof v.bsela_home === "string"
+  );
+}
+
 export class BselaClient {
   private readonly options: BselaClientOptions;
 
@@ -170,10 +204,18 @@ export class BselaClient {
     return result.stdout;
   }
 
-  async status(): Promise<string> {
-    const args = ["status"];
+  async status(): Promise<StatusPayload> {
+    const args = ["status", "--json"];
     const result = await runBsela(args, this.options);
     assertSuccess(args, result);
-    return result.stdout;
+    const parsed = parseJson(result.stdout.trim());
+    if (!isStatusPayload(parsed)) {
+      throw new BselaClientError(
+        "bsela status returned an unexpected payload shape",
+        result.exitCode,
+        JSON.stringify(parsed).slice(0, 200),
+      );
+    }
+    return parsed;
   }
 }

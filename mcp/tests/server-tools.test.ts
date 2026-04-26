@@ -15,6 +15,7 @@ import {
   handleStatus,
   toolDefinitions,
   type RouteDecision,
+  type StatusPayload,
 } from "../src/index.js";
 
 function stubClient(overrides: Partial<BselaClient> = {}): BselaClient {
@@ -113,15 +114,25 @@ describe("handleAudit", () => {
 });
 
 describe("handleStatus", () => {
-  it("returns the raw status text", async () => {
-    const status = vi.fn().mockResolvedValue("BSELA home: /tmp/.bsela\n");
+  it("returns structured JSON payload with counts and bsela_home", async () => {
+    const payload: StatusPayload = {
+      sessions: 3,
+      sessions_quarantined: 1,
+      errors: 5,
+      lessons: 2,
+      lessons_pending: 1,
+      bsela_home: "/tmp/.bsela",
+    };
+    const status = vi.fn().mockResolvedValue(payload);
     const client = stubClient({ status });
 
     const result = await handleStatus(client);
 
     expect(status).toHaveBeenCalledWith();
     expect(result.isError).toBeUndefined();
-    expect((result.content[0] as { text: string }).text).toContain("BSELA home");
+    const text = (result.content[0] as { text: string }).text;
+    expect(JSON.parse(text)).toEqual(payload);
+    expect(result.structuredContent).toEqual(payload);
   });
 
   it("returns an error result when the client throws", async () => {
