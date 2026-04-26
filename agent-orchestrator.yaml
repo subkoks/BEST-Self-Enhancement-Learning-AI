@@ -1,0 +1,67 @@
+# Agent Orchestrator — BSELA project config
+# Run: ao start
+# Dashboard: http://localhost:3000
+$schema: https://raw.githubusercontent.com/ComposioHQ/agent-orchestrator/main/schema/config.schema.json
+
+port: 3000
+
+defaults:
+  runtime: tmux
+  agent: claude-code
+  workspace: worktree
+  notifiers: [desktop]
+
+projects:
+  bsela:
+    name: BSELA — Self-Enhancement Learning Agent
+    repo: subkoks/BEST-Self-Enhancement-Learning-AI
+    path: ~/Projects/Current/Active/BEST-Self-Enhancement-Learning-AI
+    defaultBranch: main
+    sessionPrefix: bsela
+
+    # After every new worktree is created, bootstrap the Python + TS environments
+    postCreate:
+      - "uv sync --all-extras"
+      - "uv tool install -e ."
+      - "cd mcp && /usr/local/bin/pnpm install --frozen-lockfile"
+
+    # Bring the API key into every agent workspace
+    symlinks: [.env]
+
+    # Agents read AGENTS.md as their canonical rules
+    agentRulesFile: AGENTS.md
+
+    # Additional runtime hints for coding agents on this repo
+    agentRules: |
+      This is the BSELA project (Python 3.13 + TypeScript MCP server).
+      Before pushing any commit run: make check (ruff + mypy + pytest, must be 0 failures).
+      For MCP changes also run: cd mcp && /usr/local/bin/pnpm check
+      Use `uv run --extra dev <tool>` when running dev-only tools (mypy, pytest).
+      Use /usr/local/bin/node and /usr/local/bin/pnpm — nvm is not available in subshells.
+      Commit format: type(scope): description  (imperative, present tense)
+      Never force-push or amend published commits.
+      Never commit .env or secrets.
+      When a phase gate moves, update docs/roadmap.md in the same PR.
+      ADR required for any change to: config/thresholds.toml gates, budget limits, retention windows.
+
+    agentConfig:
+      permissions: skip   # agents need full tool access to run tests and installs
+
+    reactions:
+      ci-failed:
+        auto: true
+        action: send-to-agent
+        retries: 2
+        escalateAfter: 2
+      changes-requested:
+        auto: true
+        action: send-to-agent
+        escalateAfter: 30m
+      approved-and-green:
+        auto: false        # manual merge — BSELA PRs need human review before landing
+        action: notify
+        priority: action
+      agent-stuck:
+        threshold: 10m
+        action: notify
+        priority: urgent
