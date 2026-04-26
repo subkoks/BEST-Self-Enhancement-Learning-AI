@@ -28,7 +28,7 @@ format-check:
 	uv run ruff format --check .
 
 type:
-	uv run mypy src tests
+	uv run --extra dev mypy src tests
 
 test:
 	uv run pytest -q
