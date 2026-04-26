@@ -1,7 +1,7 @@
 """BSELA command-line interface.
 
 P1 wires ``bsela ingest`` and ``bsela status`` to the capture pipeline +
-SQLite memory store. ``review`` and ``rollback`` stay stubbed until P3/P7.
+SQLite memory store.
 
 Output uses ``typer.echo`` / ``typer.secho`` for deterministic, ANSI-free
 text by default. Colour activates only when stdout is a TTY, so test
@@ -173,7 +173,7 @@ def status(
 
     sessions_total = count_sessions()
     sessions_quarantined = count_sessions(status="quarantined")
-    errors_total = len(list_errors(limit=10_000))
+    errors_total = len(list_errors(limit=None))
     lessons_pending = count_lessons(status="pending")
     lessons_total = count_lessons()
 
@@ -340,10 +340,37 @@ def review_reject(
 @app.command()
 def rollback(
     lesson_id: Annotated[str, typer.Argument(help="Lesson identifier to revert.")],
+    note: Annotated[str | None, typer.Option("--note", "-n", help="Reason for rollback.")] = None,
 ) -> None:
-    """Revert a previously applied lesson."""
-    typer.echo(f"rollback {lesson_id}: not implemented (P7).")
-    raise typer.Exit(code=0)
+    """Mark a lesson as rolled back.
+
+    Sets the lesson status to ``rolled_back`` so it no longer participates
+    in routing or audit counts. If the lesson was already written to your
+    agents-md repo you will need to revert that change there manually — this
+    command only updates the local BSELA store.
+
+    Exit code 0: rolled back successfully or already rolled back.
+    Exit code 1: lesson not found.
+    """
+    lesson = get_lesson(lesson_id)
+    if lesson is None:
+        typer.secho(f"rollback: lesson not found: {lesson_id}", fg=typer.colors.RED)
+        raise typer.Exit(code=1)
+
+    if lesson.status == "rolled_back":
+        typer.echo(f"rollback: {lesson_id} is already rolled back — nothing to do.")
+        raise typer.Exit(code=0)
+
+    prev_status = lesson.status
+    update_lesson_status(lesson_id, status="rolled_back", note=note)
+    typer.secho(
+        f"rolled back: [{prev_status}] {lesson.rule}",
+        fg=typer.colors.YELLOW,
+    )
+    if prev_status in ("approved", "proposed", "applied"):
+        typer.echo(
+            "  If this lesson was already written to agents-md, revert that branch manually."
+        )
 
 
 @app.command()
@@ -545,7 +572,7 @@ def detect(
         typer.echo(f"session {result.session_id}: {len(result.errors)} candidate errors")
         raise typer.Exit(code=0)
 
-    targets = [s for s in list_sessions(status="captured", limit=10_000)]
+    targets = list_sessions(status="captured", limit=None)
     total = 0
     for sess in targets:
         result = detect_errors(sess.id)

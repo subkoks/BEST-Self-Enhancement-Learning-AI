@@ -1,4 +1,4 @@
-"""P0 smoke tests: CLI loads and stub commands respond."""
+"""Smoke tests: CLI loads and all commands respond without crashing."""
 
 from __future__ import annotations
 
@@ -10,6 +10,9 @@ from typer.testing import CliRunner
 
 from bsela import __version__
 from bsela.cli import app
+from bsela.core.capture import ingest_file
+from bsela.memory.models import ErrorRecord, Lesson
+from bsela.memory.store import list_sessions, save_error, save_lesson
 
 
 def test_version_flag() -> None:
@@ -55,3 +58,87 @@ def test_review_with_empty_store_exits_zero(
     result = CliRunner().invoke(app, ["review"])
     assert result.exit_code == 0
     assert "no pending lessons" in result.stdout
+
+
+def test_rollback_not_found_exits_1(tmp_bsela_home: Path) -> None:
+    result = CliRunner().invoke(app, ["rollback", "no-such-id"])
+    assert result.exit_code == 1
+    assert "not found" in result.stdout
+
+
+def test_rollback_pending_lesson_succeeds(tmp_bsela_home: Path, sample_clean_session: Path) -> None:
+    ingest_file(sample_clean_session)
+    session_id = list_sessions()[0].id
+    err = save_error(
+        ErrorRecord(
+            session_id=session_id,
+            category="loop",
+            severity="medium",
+            snippet="test",
+        )
+    )
+    lesson = save_lesson(
+        Lesson(
+            source_error_id=err.id,
+            scope="project",
+            rule="Never do X",
+            why="reason",
+            how_to_apply="action",
+            confidence=0.9,
+            status="pending",
+        )
+    )
+    result = CliRunner().invoke(app, ["rollback", lesson.id])
+    assert result.exit_code == 0
+    assert "rolled back" in result.stdout
+
+
+def test_rollback_already_rolled_back_exits_0(
+    tmp_bsela_home: Path, sample_clean_session: Path
+) -> None:
+    ingest_file(sample_clean_session)
+    session_id = list_sessions()[0].id
+    err = save_error(
+        ErrorRecord(
+            session_id=session_id,
+            category="loop",
+            severity="medium",
+            snippet="test",
+        )
+    )
+    lesson = save_lesson(
+        Lesson(
+            source_error_id=err.id,
+            scope="project",
+            rule="Never do Y",
+            why="reason",
+            how_to_apply="action",
+            confidence=0.9,
+            status="rolled_back",
+        )
+    )
+    result = CliRunner().invoke(app, ["rollback", lesson.id])
+    assert result.exit_code == 0
+    assert "already rolled back" in result.stdout
+
+
+def test_doctor_exits_without_crash(tmp_bsela_home: Path) -> None:
+    result = CliRunner().invoke(app, ["doctor"])
+    assert result.exit_code in (0, 1)
+    assert "doctor:" in result.stdout
+
+
+def test_route_exits_without_crash(tmp_bsela_home: Path) -> None:
+    result = CliRunner().invoke(app, ["route", "write a unit test"])
+    assert result.exit_code == 0
+    assert len(result.stdout.strip()) > 0
+
+
+def test_audit_stdout_exits_without_crash(tmp_bsela_home: Path) -> None:
+    result = CliRunner().invoke(app, ["audit", "--stdout"])
+    assert result.exit_code in (0, 1)
+
+
+def test_report_stdout_exits_without_crash(tmp_bsela_home: Path) -> None:
+    result = CliRunner().invoke(app, ["report", "--stdout"])
+    assert result.exit_code == 0
