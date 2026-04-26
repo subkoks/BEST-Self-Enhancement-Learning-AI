@@ -18,6 +18,6 @@ Index: `[adapters/README.md](adapters/README.md)`. Codex-specific steps:
 
 ## Suggested next build (P6)
 
-1. **Windsurf adapter** — mirror `adapters/codex/` under `adapters/windsurf/` with editor-specific paths.
-2. **Dogfood** — one real Codex session calling `bsela_route` / `bsela_audit` / `bsela_status` against live data; note it in the roadmap when done.
-3. Optional: JSON output on the Python side for `bsela audit` / `bsela status` to tighten the MCP contract (ADR 0006 mentions this follow-up).
+1. **Cross-editor dogfood** — run one real Codex session and one real Claude Code session against the same `~/.bsela` store, then record parity/notes in `docs/roadmap.md`.
+2. **MCP parity checks** — verify `bsela_route` / `bsela_audit` / `bsela_status` results match shell `bsela route|audit|status` output in both editors.
+3. Optional: JSON output on the Python side for `bsela audit` / `bsela status` to tighten the MCP contract (ADR 0006 follow-up).
