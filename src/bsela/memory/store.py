@@ -10,7 +10,7 @@ from __future__ import annotations
 import os
 from collections.abc import Iterator
 from contextlib import contextmanager
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from functools import lru_cache
 from pathlib import Path
 
@@ -23,6 +23,7 @@ from bsela.memory.models import (
     ErrorRecord,
     Lesson,
     Metric,
+    ReplayRecord,
     SessionRecord,
 )
 
@@ -265,6 +266,32 @@ def list_metrics(
         return list(s.exec(stmt).all())
 
 
+# ---- Replay records --------------------------------------------------------
+
+
+def save_replay_record(record: ReplayRecord) -> ReplayRecord:
+    with session_scope() as s:
+        s.add(record)
+        s.commit()
+        s.refresh(record)
+    return record
+
+
+def list_replay_records(
+    *,
+    window_days: int | None = None,
+    limit: int | None = 100,
+) -> list[ReplayRecord]:
+    stmt = select(ReplayRecord).order_by(ReplayRecord.replayed_at.desc())  # type: ignore[attr-defined]
+    if window_days is not None:
+        cutoff = datetime.now(UTC) - timedelta(days=window_days)
+        stmt = stmt.where(ReplayRecord.replayed_at >= cutoff)
+    if limit is not None:
+        stmt = stmt.limit(limit)
+    with session_scope() as s:
+        return list(s.exec(stmt).all())
+
+
 __all__ = [
     "bsela_home",
     "count_lessons",
@@ -277,12 +304,14 @@ __all__ = [
     "list_errors",
     "list_lessons",
     "list_metrics",
+    "list_replay_records",
     "list_sessions",
     "reset_engine_cache",
     "save_decision",
     "save_error",
     "save_lesson",
     "save_metric",
+    "save_replay_record",
     "save_session",
     "session_scope",
     "update_lesson_status",

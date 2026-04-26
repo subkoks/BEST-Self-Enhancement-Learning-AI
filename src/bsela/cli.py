@@ -376,18 +376,26 @@ def rollback(
 @app.command()
 def replay(
     session_id: Annotated[str, typer.Argument(help="Session ID to replay.")],
+    no_save: Annotated[
+        bool,
+        typer.Option(
+            "--no-save",
+            help="Skip persisting the replay result (default: save to store for drift tracking).",
+        ),
+    ] = False,
 ) -> None:
     """Re-distill a stored session and show a diff against its existing lessons.
 
-    Requires ANTHROPIC_API_KEY. Does not persist anything — the diff is
-    printed only so it can be inspected for drift.
+    Requires ANTHROPIC_API_KEY. Lessons are not persisted; by default the
+    diff summary is saved to the store so ``bsela audit`` can track drift rate
+    over time. Use --no-save to suppress this.
 
     Exit code 0: no drift (replayed lessons match stored).
     Exit code 1: drift detected or session not found.
     """
     try:
         llm = AnthropicClient.from_config()
-        result = replay_session(session_id, client=llm)
+        result = replay_session(session_id, client=llm, persist_result=not no_save)
     except LookupError as exc:
         typer.secho(str(exc), fg=typer.colors.RED)
         raise typer.Exit(code=1) from exc

@@ -15,7 +15,7 @@ from bsela.core.replay import LessonDiff, ReplayResult, replay_session
 from bsela.llm.client import FakeLLMClient
 from bsela.llm.types import DistillResponse, JudgeVerdict, LessonCandidate
 from bsela.memory.models import ErrorRecord, Lesson
-from bsela.memory.store import list_sessions, save_error, save_lesson
+from bsela.memory.store import list_replay_records, list_sessions, save_error, save_lesson
 
 FIXTURES = Path(__file__).parent / "fixtures" / "sample-sessions"
 
@@ -313,6 +313,62 @@ def test_summary_shows_session_id_and_counts() -> None:
     assert "+1" in summary
     assert "-1" in summary
     assert "~1" in summary
+
+
+# ---- ReplayRecord persistence -----------------------------------------------
+
+
+def test_replay_persist_result_writes_record(
+    tmp_bsela_home: Path, sample_clean_session: Path
+) -> None:
+    ingest_file(sample_clean_session)
+    session_id = list_sessions(status="captured")[0].id
+
+    replay_session(session_id, client=_fake_client(), persist_result=True)
+
+    records = list_replay_records()
+    assert len(records) == 1
+    assert records[0].session_id == session_id
+
+
+def test_replay_no_save_skips_record(tmp_bsela_home: Path, sample_clean_session: Path) -> None:
+    ingest_file(sample_clean_session)
+    session_id = list_sessions(status="captured")[0].id
+
+    replay_session(session_id, client=_fake_client(), persist_result=False)
+
+    assert list_replay_records() == []
+
+
+def test_replay_persist_had_drift_true_when_drift(
+    tmp_bsela_home: Path, sample_clean_session: Path
+) -> None:
+    ingest_file(sample_clean_session)
+    session_id = list_sessions(status="captured")[0].id
+
+    # Stored lesson with different scope → drift
+    err = _seed_error(session_id)
+    rule = "Do not retry on the same error twice"
+    save_lesson(
+        Lesson(
+            source_error_id=err.id,
+            scope="global",
+            rule=rule,
+            why="r",
+            how_to_apply="a",
+            confidence=0.88,
+            status="pending",
+        )
+    )
+
+    replay_session(
+        session_id,
+        client=_fake_client(distill=_distill_response(rule, scope="project")),
+        persist_result=True,
+    )
+
+    records = list_replay_records()
+    assert records[0].had_drift is True
 
 
 # ---- CLI bsela replay -------------------------------------------------------

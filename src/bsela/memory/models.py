@@ -1,11 +1,12 @@
 """SQLModel tables for the BSELA memory store.
 
-Five typed tables live in one SQLite database per BSELA home:
-    sessions   — raw captured sessions (+ scrubber status)
-    errors     — candidate error records produced by the detector
-    lessons    — distilled lessons awaiting / applied to agents-md
-    decisions  — ADR-style decisions
-    metrics    — per-stage cost / latency counters
+Six typed tables live in one SQLite database per BSELA home:
+    sessions       — raw captured sessions (+ scrubber status)
+    errors         — candidate error records produced by the detector
+    lessons        — distilled lessons awaiting / applied to agents-md
+    decisions      — ADR-style decisions
+    metrics        — per-stage cost / latency counters
+    replay_records — persisted outcomes of ``bsela replay`` runs (P7 drift alarms)
 """
 
 from __future__ import annotations
@@ -96,10 +97,30 @@ class Metric(SQLModel, table=True):
     created_at: datetime = Field(default_factory=_utcnow, index=True)
 
 
+class ReplayRecord(SQLModel, table=True):
+    """Persisted outcome of a single ``bsela replay`` run.
+
+    Stored so ``bsela audit`` can compute a replay-based drift rate without
+    re-invoking the LLM. One row per (session_id, replayed_at) pair.
+    """
+
+    __tablename__ = "replay_records"
+
+    id: str = Field(default_factory=_new_id, primary_key=True)
+    session_id: str = Field(foreign_key="sessions.id", index=True)
+    replayed_at: datetime = Field(default_factory=_utcnow, index=True)
+    had_drift: bool = Field(default=False, index=True)
+    added_count: int = Field(default=0)
+    removed_count: int = Field(default=0)
+    changed_count: int = Field(default=0)
+    unchanged_count: int = Field(default=0)
+
+
 __all__ = [
     "Decision",
     "ErrorRecord",
     "Lesson",
     "Metric",
+    "ReplayRecord",
     "SessionRecord",
 ]

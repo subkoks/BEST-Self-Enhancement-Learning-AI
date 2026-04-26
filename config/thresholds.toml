@@ -50,6 +50,10 @@ digest_day = 0
 # Drift alarm: fraction of lessons whose hit-rate dropped vs. 30-day baseline.
 drift_alarm_threshold = 0.5
 
+# Replay drift alarm: fraction of replayed sessions (30d window) that showed drift.
+# Fires when the pipeline's distillation changes too often vs. stored lessons.
+replay_drift_threshold = 0.25
+
 [scrubber]
 # Pre-ingest secret patterns. Any match quarantines the session.
 patterns = [

@@ -12,9 +12,11 @@ so the two are easy to hold in one head.
 
 Alerts are derived from ``config/thresholds.toml``:
 
-* ``cost.monthly_budget_usd``       — trip if prorated burn > budget.
-* ``audit.drift_alarm_threshold``   — trip if stale-lesson fraction
+* ``cost.monthly_budget_usd``         — trip if prorated burn > budget.
+* ``audit.drift_alarm_threshold``     — trip if stale-lesson fraction
   exceeds threshold.
+* ``audit.replay_drift_threshold``    — trip if fraction of replayed
+  sessions that showed drift exceeds threshold (P7 replay drift alarm).
 * ADR status header — surface any ADR file missing ``**Status:**``.
 """
 
@@ -27,7 +29,7 @@ from pathlib import Path
 
 from sqlmodel import select
 
-from bsela.memory.models import ErrorRecord, Lesson, Metric, SessionRecord
+from bsela.memory.models import ErrorRecord, Lesson, Metric, ReplayRecord, SessionRecord
 from bsela.memory.store import bsela_home, session_scope
 from bsela.utils.config import Thresholds, find_config_dir, load_thresholds
 
@@ -73,6 +75,25 @@ class DriftSnapshot:
 
 
 @dataclass(frozen=True)
+class ReplayDriftSnapshot:
+    """Drift rate computed from persisted ``bsela replay`` outcomes (P7)."""
+
+    sessions_replayed: int
+    sessions_with_drift: int
+    threshold: float
+
+    @property
+    def drift_rate(self) -> float:
+        if self.sessions_replayed == 0:
+            return 0.0
+        return self.sessions_with_drift / self.sessions_replayed
+
+    @property
+    def over_threshold(self) -> bool:
+        return self.sessions_replayed > 0 and self.drift_rate > self.threshold
+
+
+@dataclass(frozen=True)
 class AdrSnapshot:
     total: int
     missing_status: tuple[str, ...]
@@ -93,6 +114,7 @@ class AuditReport:
     errors_total: int
     cost: CostSnapshot
     drift: DriftSnapshot
+    replay_drift: ReplayDriftSnapshot
     adrs: AdrSnapshot
     alerts: tuple[str, ...] = field(default_factory=tuple)
 
@@ -188,6 +210,13 @@ def build_audit(
                 select(Metric).where(Metric.created_at >= start).where(Metric.created_at <= end)
             ).all()
         )
+        replay_records = list(
+            s.exec(
+                select(ReplayRecord)
+                .where(ReplayRecord.replayed_at >= start)
+                .where(ReplayRecord.replayed_at <= end)
+            ).all()
+        )
 
     sessions_quarantined = sum(1 for sess in sessions if sess.status == "quarantined")
 
@@ -206,6 +235,12 @@ def build_audit(
         threshold=cfg.audit.drift_alarm_threshold,
     )
 
+    replay_drift_snapshot = ReplayDriftSnapshot(
+        sessions_replayed=len(replay_records),
+        sessions_with_drift=sum(1 for r in replay_records if r.had_drift),
+        threshold=cfg.audit.replay_drift_threshold,
+    )
+
     adrs = _scan_adrs()
 
     alerts: list[str] = []
@@ -221,6 +256,14 @@ def build_audit(
             f"applied lessons unused for {STALE_LESSON_AGE_DAYS}+ days "
             f"({drift_snapshot.drift_fraction:.1%} > "
             f"{drift_snapshot.threshold:.1%} threshold)"
+        )
+    if replay_drift_snapshot.over_threshold:
+        alerts.append(
+            f"REPLAY DRIFT: {replay_drift_snapshot.sessions_with_drift}/"
+            f"{replay_drift_snapshot.sessions_replayed} replayed sessions showed drift "
+            f"({replay_drift_snapshot.drift_rate:.1%} > "
+            f"{replay_drift_snapshot.threshold:.1%} threshold) — "
+            f"distillation output is diverging from stored lessons"
         )
     if adrs.missing_status:
         alerts.append(
@@ -238,6 +281,7 @@ def build_audit(
         errors_total=len(errors),
         cost=cost_snapshot,
         drift=drift_snapshot,
+        replay_drift=replay_drift_snapshot,
         adrs=adrs,
         alerts=tuple(alerts),
     )
@@ -297,6 +341,22 @@ def render_markdown(report: AuditReport) -> str:
     )
     lines.append("")
 
+    lines.append("## Replay Drift")
+    lines.append("")
+    if report.replay_drift.sessions_replayed == 0:
+        lines.append("_No replay records in window — run `bsela replay <session-id>` to populate._")
+    else:
+        lines.append(
+            f"- Sessions replayed ({report.window_days}d): "
+            f"**{report.replay_drift.sessions_replayed}**"
+        )
+        lines.append(
+            f"- Sessions with drift: {report.replay_drift.sessions_with_drift} "
+            f"({report.replay_drift.drift_rate:.1%}, "
+            f"threshold {report.replay_drift.threshold:.1%})"
+        )
+    lines.append("")
+
     lines.append("## ADRs")
     lines.append("")
     if not report.adrs.scanned:
@@ -331,6 +391,7 @@ __all__ = [
     "AuditReport",
     "CostSnapshot",
     "DriftSnapshot",
+    "ReplayDriftSnapshot",
     "build_audit",
     "default_report_path",
     "render_markdown",

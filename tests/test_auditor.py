@@ -16,8 +16,14 @@ from bsela.core.auditor import (
     render_markdown,
     write_report,
 )
-from bsela.memory.models import ErrorRecord, Lesson, Metric, SessionRecord
-from bsela.memory.store import save_error, save_lesson, save_metric, save_session
+from bsela.memory.models import ErrorRecord, Lesson, Metric, ReplayRecord, SessionRecord
+from bsela.memory.store import (
+    save_error,
+    save_lesson,
+    save_metric,
+    save_replay_record,
+    save_session,
+)
 
 NOW = datetime(2026, 4, 24, 12, 0, 0, tzinfo=UTC)
 
@@ -222,3 +228,109 @@ def test_write_report_custom_path(tmp_bsela_home: Path, tmp_path: Path) -> None:
     path = write_report(report, custom)
     assert path == custom
     assert custom.exists()
+
+
+# ---- replay drift alarm ----
+
+
+def _replay_rec(
+    session_id: str, *, had_drift: bool, replayed_at: datetime | None = None
+) -> ReplayRecord:
+    return save_replay_record(
+        ReplayRecord(
+            session_id=session_id,
+            had_drift=had_drift,
+            replayed_at=replayed_at or NOW - timedelta(hours=1),
+        )
+    )
+
+
+def test_replay_drift_no_records(tmp_bsela_home: Path) -> None:
+    report = build_audit(window_days=30, now=NOW)
+    assert report.replay_drift.sessions_replayed == 0
+    assert report.replay_drift.drift_rate == 0.0
+    assert not report.replay_drift.over_threshold
+    assert not any("REPLAY DRIFT" in a for a in report.alerts)
+
+
+def test_replay_drift_below_threshold_no_alert(tmp_bsela_home: Path) -> None:
+    sess = save_session(
+        SessionRecord(
+            source="claude_code",
+            transcript_path="/tmp/fake.jsonl",
+            content_hash="h1",
+            ingested_at=NOW - timedelta(hours=2),
+        )
+    )
+    _replay_rec(sess.id, had_drift=False)
+    _replay_rec(sess.id, had_drift=False)
+    _replay_rec(sess.id, had_drift=False)
+    _replay_rec(sess.id, had_drift=True)  # 1/4 = 25% == threshold, not over
+
+    report = build_audit(window_days=30, now=NOW)
+    assert report.replay_drift.sessions_replayed == 4
+    assert report.replay_drift.sessions_with_drift == 1
+    assert report.replay_drift.drift_rate == pytest.approx(0.25)
+    assert not report.replay_drift.over_threshold
+    assert not any("REPLAY DRIFT" in a for a in report.alerts)
+
+
+def test_replay_drift_above_threshold_triggers_alert(tmp_bsela_home: Path) -> None:
+    sess = save_session(
+        SessionRecord(
+            source="claude_code",
+            transcript_path="/tmp/fake.jsonl",
+            content_hash="h2",
+            ingested_at=NOW - timedelta(hours=2),
+        )
+    )
+    _replay_rec(sess.id, had_drift=True)
+    _replay_rec(sess.id, had_drift=True)
+    _replay_rec(sess.id, had_drift=True)
+    _replay_rec(sess.id, had_drift=False)  # 3/4 = 75% > 25% threshold
+
+    report = build_audit(window_days=30, now=NOW)
+    assert report.replay_drift.drift_rate == pytest.approx(0.75)
+    assert report.replay_drift.over_threshold
+    assert any("REPLAY DRIFT" in a for a in report.alerts)
+
+
+def test_replay_drift_outside_window_excluded(tmp_bsela_home: Path) -> None:
+    sess = save_session(
+        SessionRecord(
+            source="claude_code",
+            transcript_path="/tmp/fake.jsonl",
+            content_hash="h3",
+            ingested_at=NOW - timedelta(days=40),
+        )
+    )
+    # Record from 35 days ago — outside the 30-day window.
+    _replay_rec(sess.id, had_drift=True, replayed_at=NOW - timedelta(days=35))
+
+    report = build_audit(window_days=30, now=NOW)
+    assert report.replay_drift.sessions_replayed == 0
+
+
+def test_render_markdown_includes_replay_drift_section(tmp_bsela_home: Path) -> None:
+    report = build_audit(window_days=30, now=NOW)
+    md = render_markdown(report)
+    assert "## Replay Drift" in md
+    assert "bsela replay" in md
+
+
+def test_render_markdown_shows_replay_counts(tmp_bsela_home: Path) -> None:
+    sess = save_session(
+        SessionRecord(
+            source="claude_code",
+            transcript_path="/tmp/fake.jsonl",
+            content_hash="h4",
+            ingested_at=NOW - timedelta(hours=2),
+        )
+    )
+    _replay_rec(sess.id, had_drift=False)
+    _replay_rec(sess.id, had_drift=True)
+
+    report = build_audit(window_days=30, now=NOW)
+    md = render_markdown(report)
+    assert "Sessions replayed" in md
+    assert "2" in md

@@ -21,8 +21,8 @@ from typing import Literal
 
 from bsela.llm.client import LLMClient
 from bsela.llm.distiller import DistillationResult, distill_session
-from bsela.memory.models import Lesson
-from bsela.memory.store import get_session, list_lessons
+from bsela.memory.models import Lesson, ReplayRecord
+from bsela.memory.store import get_session, list_lessons, save_replay_record
 
 _CONFIDENCE_DRIFT_THRESHOLD = 0.1
 
@@ -109,8 +109,13 @@ def replay_session(
     session_id: str,
     *,
     client: LLMClient,
+    persist_result: bool = True,
 ) -> ReplayResult:
     """Re-distill a stored session without persisting; diff against current lessons.
+
+    When ``persist_result`` is True (the default), the diff summary is written
+    to the ``replay_records`` table so ``bsela audit`` can compute a drift rate
+    over a rolling window without re-invoking the LLM.
 
     Raises ``LookupError`` if ``session_id`` is not in the store.
     """
@@ -129,7 +134,7 @@ def replay_session(
     replayed = list(result.persisted)
     diff = _diff_lessons(stored, replayed)
 
-    return ReplayResult(
+    replay_result = ReplayResult(
         session_id=session_id,
         distilled=result.distilled,
         stored_lessons=tuple(stored),
@@ -137,9 +142,28 @@ def replay_session(
         diff=diff,
     )
 
+    if persist_result:
+        added = sum(1 for d in diff if d.kind == "added")
+        removed = sum(1 for d in diff if d.kind == "removed")
+        changed = sum(1 for d in diff if d.kind == "changed")
+        unchanged = sum(1 for d in diff if d.kind == "unchanged")
+        save_replay_record(
+            ReplayRecord(
+                session_id=session_id,
+                had_drift=(added + removed + changed) > 0,
+                added_count=added,
+                removed_count=removed,
+                changed_count=changed,
+                unchanged_count=unchanged,
+            )
+        )
+
+    return replay_result
+
 
 __all__ = [
     "LessonDiff",
+    "ReplayRecord",
     "ReplayResult",
     "replay_session",
 ]

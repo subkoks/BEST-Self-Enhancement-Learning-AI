@@ -46,6 +46,7 @@ class RetentionConfig(BaseModel):
 class AuditConfig(BaseModel):
     digest_day: int
     drift_alarm_threshold: float
+    replay_drift_threshold: float = 0.25
 
 
 class ScrubberConfig(BaseModel):
