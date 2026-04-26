@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "bsela": {
+      "command": "node",
+      "args": ["<BSELA_REPO>/mcp/dist/server.js"],
+      "env": {
+        "PATH": "/Users/<you>/.local/bin:/Users/<you>/.nvm/versions/node/v22.22.0/bin:/usr/local/bin:/usr/bin:/bin"
+      }
+    }
+  }
+}
