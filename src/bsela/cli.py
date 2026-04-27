@@ -73,6 +73,7 @@ from bsela.memory.store import (
     list_decisions,
     list_errors,
     list_lessons,
+    list_replay_records,
     list_sessions,
     save_decision,
     update_lesson_status,
@@ -163,6 +164,7 @@ def status(
                         "errors": 0,
                         "lessons": 0,
                         "lessons_pending": 0,
+                        "replay_records": 0,
                         "bsela_home": str(home),
                     }
                 )
@@ -176,6 +178,7 @@ def status(
     errors_total = len(list_errors(limit=None))
     lessons_pending = count_lessons(status="pending")
     lessons_total = count_lessons()
+    replay_total = len(list_replay_records(limit=None))
 
     if as_json:
         typer.echo(
@@ -186,6 +189,7 @@ def status(
                     "errors": errors_total,
                     "lessons": lessons_total,
                     "lessons_pending": lessons_pending,
+                    "replay_records": replay_total,
                     "bsela_home": str(home),
                 }
             )
@@ -195,6 +199,7 @@ def status(
         typer.echo(f"sessions: {sessions_total} (quarantined: {sessions_quarantined})")
         typer.echo(f"errors:   {errors_total}")
         typer.echo(f"lessons:  {lessons_total} (pending: {lessons_pending})")
+        typer.echo(f"replays:  {replay_total}")
     raise typer.Exit(code=0)
 
 

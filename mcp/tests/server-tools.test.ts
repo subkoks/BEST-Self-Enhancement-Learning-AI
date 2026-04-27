@@ -121,6 +121,7 @@ describe("handleStatus", () => {
       errors: 5,
       lessons: 2,
       lessons_pending: 1,
+      replay_records: 4,
       bsela_home: "/tmp/.bsela",
     };
     const status = vi.fn().mockResolvedValue(payload);

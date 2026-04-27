@@ -98,7 +98,7 @@ export const toolDefinitions = {
   bsela_status: {
     title: "BSELA status",
     description:
-      "Return BSELA store counts (sessions, errors, lessons, pending lessons) and the bsela home path.",
+      "Return BSELA store counts (sessions, errors, lessons, pending lessons, replay records) and the bsela home path.",
     inputSchema: statusInputSchema,
   },
 } as const;

@@ -65,6 +65,7 @@ describe("BselaClient.status", () => {
     expect(typeof payload.errors).toBe("number");
     expect(typeof payload.lessons).toBe("number");
     expect(typeof payload.lessons_pending).toBe("number");
+    expect(typeof payload.replay_records).toBe("number");
     expect(typeof payload.bsela_home).toBe("string");
     expect(payload.bsela_home.length).toBeGreaterThan(0);
   });

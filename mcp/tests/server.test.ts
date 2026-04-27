@@ -39,6 +39,7 @@ describe("createServer", () => {
       errors: 0,
       lessons: 0,
       lessons_pending: 0,
+      replay_records: 0,
       bsela_home: "/tmp/.bsela",
     };
     const client = stubClient({
