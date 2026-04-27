@@ -381,12 +381,8 @@ def test_cli_replay_not_found_exits_1(tmp_bsela_home: Path) -> None:
 
 
 def test_cli_replay_no_save_skips_record(tmp_bsela_home: Path, sample_clean_session: Path) -> None:
-    from bsela.core.capture import ingest_file as _ingest
-
-    _ingest(sample_clean_session)
-    from bsela.memory.store import list_sessions as _ls
-
-    session_id = _ls(status="captured")[0].id
+    ingest_file(sample_clean_session)
+    session_id = list_sessions(status="captured")[0].id
 
     result = CliRunner().invoke(app, ["replay", session_id, "--no-save"])
     # replay may exit 0 (no drift) or 1 (drift detected) — both valid
