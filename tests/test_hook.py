@@ -50,3 +50,5 @@ def test_prune_command_runs(tmp_bsela_home: Path) -> None:
     result = CliRunner().invoke(app, ["prune"])
     assert result.exit_code == 0
     assert "pruned sessions:" in result.stdout
+    assert "errors:" in result.stdout
+    assert "replay_records:" in result.stdout
