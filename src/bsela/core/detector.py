@@ -49,14 +49,57 @@ def _iter_jsonl(path: Path) -> Iterator[tuple[int, dict[str, Any]]]:
             yield idx, json.loads(line)
 
 
+def _nested_content_blocks(event: dict[str, Any]) -> list[dict[str, Any]]:
+    """Return content blocks from event.message.content[] (Claude Code JSONL format)."""
+    msg = event.get("message")
+    if not isinstance(msg, dict):
+        return []
+    content = msg.get("content", [])
+    return content if isinstance(content, list) else []
+
+
+def _extract_block_text(block: dict[str, Any]) -> str:
+    """Return text content from a single content block (text or tool_result)."""
+    if block.get("type") == "text":
+        return block.get("text", "")
+    if block.get("type") == "tool_result":
+        inner = block.get("content", "")
+        if isinstance(inner, str):
+            return inner
+        if isinstance(inner, list):
+            return "\n".join(
+                ib.get("text", "")
+                for ib in inner
+                if isinstance(ib, dict) and ib.get("type") == "text"
+            )
+    return ""
+
+
 def _text_of(event: dict[str, Any]) -> str:
-    value = event.get("content") or event.get("result") or ""
-    if isinstance(value, str):
-        return value
-    try:
-        return json.dumps(value, ensure_ascii=False)
-    except (TypeError, ValueError):
-        return str(value)
+    """Extract all searchable text from an event in either flat or nested format."""
+    parts: list[str] = []
+
+    # Flat format: top-level content / result fields
+    flat = event.get("content") or event.get("result")
+    if isinstance(flat, str) and flat:
+        parts.append(flat)
+
+    # Claude Code nested format: event.message.content[] blocks
+    for block in _nested_content_blocks(event):
+        t = _extract_block_text(block)
+        if t:
+            parts.append(t)
+
+    if parts:
+        return "\n".join(parts)
+
+    # Fallback: JSON-dump whatever is there
+    if flat is not None and not isinstance(flat, str):
+        try:
+            return json.dumps(flat, ensure_ascii=False)
+        except (TypeError, ValueError):
+            return str(flat)
+    return ""
 
 
 def _truncate(text: str) -> str:
@@ -104,12 +147,30 @@ def _scan_correction(
     return out
 
 
+def _iter_tool_uses(
+    events: list[tuple[int, dict[str, Any]]],
+) -> Iterator[tuple[int, dict[str, Any]]]:
+    """Yield (line_no, tool_use_block) for every tool call in the event stream.
+
+    Handles both the flat legacy format (top-level type=tool_use) and the
+    Claude Code nested format (assistant.message.content[].type=tool_use).
+    """
+    for ln, event in events:
+        etype = event.get("type")
+        if etype in {"tool_use", "tool_call"}:
+            yield ln, event
+        elif etype == "assistant":
+            for block in _nested_content_blocks(event):
+                if block.get("type") in {"tool_use", "tool_call"}:
+                    yield ln, block
+
+
 def _scan_loop(
     events: list[tuple[int, dict[str, Any]]],
     session_id: str,
     loop_threshold: int,
 ) -> list[ErrorRecord]:
-    calls = [(ln, ev) for ln, ev in events if ev.get("type") in {"tool_use", "tool_call"}]
+    calls = list(_iter_tool_uses(events))
     out: list[ErrorRecord] = []
     run_fp: str | None = None
     run_start_line = 0
@@ -143,7 +204,9 @@ def _scan_stack_trace(
 ) -> list[ErrorRecord]:
     out: list[ErrorRecord] = []
     for line_no, event in events:
-        if event.get("type") not in {"assistant", "tool_result", "message"}:
+        # Flat format: assistant / tool_result / message events
+        # Nested format: user events whose message.content[] contains tool_result blocks
+        if event.get("type") not in {"assistant", "tool_result", "message", "user"}:
             continue
         text = _text_of(event)
         if not text:

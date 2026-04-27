@@ -66,3 +66,24 @@ def test_persist_false_skips_write(tmp_bsela_home: Path) -> None:
     result = detect_errors(sid, persist=False)
     assert result.errors
     assert list_errors(session_id=sid) == []
+
+
+# ---- Claude Code nested format (event.message.content[]) --------------------
+
+
+def test_detects_loop_in_nested_format(tmp_bsela_home: Path) -> None:
+    """Loop detector must find repeated tool_use blocks in assistant.message.content[]."""
+    sid = _ingest(FIXTURES / "nested-looped-read.jsonl")
+    result = detect_errors(sid)
+    loops = [e for e in result.errors if e.category == "loop"]
+    assert len(loops) == 1
+    assert "Read" in loops[0].snippet
+
+
+def test_detects_stack_trace_in_nested_tool_result(tmp_bsela_home: Path) -> None:
+    """Stack-trace detector must find tracebacks inside user.message.content[tool_result]."""
+    sid = _ingest(FIXTURES / "nested-stack-trace.jsonl")
+    result = detect_errors(sid)
+    traces = [e for e in result.errors if e.category == "stack_trace"]
+    assert len(traces) >= 1
+    assert "Traceback" in traces[0].snippet or "ValueError" in traces[0].snippet

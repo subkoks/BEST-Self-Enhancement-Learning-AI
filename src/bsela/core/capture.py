@@ -132,6 +132,14 @@ def ingest_file(
             turn_count += 1
         if etype in _TOOL_TYPES or event.get("tool_calls"):
             tool_call_count += 1
+        elif etype == "assistant":
+            # Claude Code nested format: tool_use blocks inside message.content[]
+            msg = event.get("message") or {}
+            nested = msg.get("content", []) if isinstance(msg, dict) else []
+            if isinstance(nested, list):
+                tool_call_count += sum(
+                    1 for b in nested if isinstance(b, dict) and b.get("type") in _TOOL_TYPES
+                )
         scrub_hits.update(_scan_event(event, scan))
         ts = _parse_ts(event.get("ts"))
         if ts is not None:
