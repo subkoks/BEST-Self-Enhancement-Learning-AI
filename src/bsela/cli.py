@@ -593,7 +593,11 @@ def detect(
 def prune() -> None:
     """Drop sessions + errors older than the retention windows in thresholds.toml."""
     result = sweep()
-    typer.echo(f"pruned sessions: {result.sessions_deleted}  errors: {result.errors_deleted}")
+    typer.echo(
+        f"pruned sessions: {result.sessions_deleted}"
+        f"  errors: {result.errors_deleted}"
+        f"  replay_records: {result.replay_records_deleted}"
+    )
     raise typer.Exit(code=0)
 
 

@@ -6,13 +6,15 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 from bsela.core.retention import sweep, sweep_errors, sweep_sessions
-from bsela.memory.models import ErrorRecord, Metric, SessionRecord
+from bsela.memory.models import ErrorRecord, Metric, ReplayRecord, SessionRecord
 from bsela.memory.store import (
     count_sessions,
     list_errors,
     list_metrics,
+    list_replay_records,
     save_error,
     save_metric,
+    save_replay_record,
     save_session,
 )
 
@@ -75,6 +77,61 @@ def test_sweep_sessions_cascades_to_errors_and_metrics(tmp_bsela_home: Path) -> 
     assert list_errors(session_id=old_sess.id) == []
     assert list_metrics(session_id=old_sess.id) == []
     assert list_metrics(session_id=new_sess.id) == []  # never had any
+
+
+def test_sweep_sessions_cascades_to_replay_records(tmp_bsela_home: Path) -> None:
+    now = datetime.now(UTC).replace(tzinfo=None)
+    old_sess = _session(now - timedelta(days=120))
+    new_sess = _session(now - timedelta(days=5))
+    save_replay_record(
+        ReplayRecord(
+            session_id=old_sess.id,
+            had_drift=False,
+            added_count=0,
+            removed_count=0,
+            changed_count=0,
+            unchanged_count=3,
+        )
+    )
+    save_replay_record(
+        ReplayRecord(
+            session_id=new_sess.id,
+            had_drift=True,
+            added_count=1,
+            removed_count=0,
+            changed_count=0,
+            unchanged_count=2,
+        )
+    )
+
+    deleted = sweep_sessions(days=90, now=now)
+
+    assert deleted == 1
+    assert count_sessions() == 1
+    # old session's replay record deleted; new session's replay record kept
+    remaining = list_replay_records()
+    assert len(remaining) == 1
+    assert remaining[0].session_id == new_sess.id
+
+
+def test_sweep_reports_replay_records_deleted_count(tmp_bsela_home: Path) -> None:
+    now = datetime.now(UTC).replace(tzinfo=None)
+    old_sess = _session(now - timedelta(days=200))
+    save_replay_record(
+        ReplayRecord(
+            session_id=old_sess.id,
+            had_drift=True,
+            added_count=1,
+            removed_count=0,
+            changed_count=0,
+            unchanged_count=1,
+        )
+    )
+
+    result = sweep(now=now)
+
+    assert result.sessions_deleted == 1
+    assert result.replay_records_deleted == 1
 
 
 def test_sweep_uses_thresholds_config(tmp_bsela_home: Path) -> None:
