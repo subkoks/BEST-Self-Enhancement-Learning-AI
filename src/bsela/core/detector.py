@@ -61,7 +61,7 @@ def _nested_content_blocks(event: dict[str, Any]) -> list[dict[str, Any]]:
 def _extract_block_text(block: dict[str, Any]) -> str:
     """Return text content from a single content block (text or tool_result)."""
     if block.get("type") == "text":
-        return block.get("text", "")
+        return str(block.get("text") or "")
     if block.get("type") == "tool_result":
         inner = block.get("content", "")
         if isinstance(inner, str):

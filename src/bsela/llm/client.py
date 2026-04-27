@@ -1,10 +1,19 @@
-"""LLM client abstraction: Anthropic live client + in-memory fake for tests."""
+"""LLM client abstraction: Anthropic + OpenRouter live clients + in-memory fake.
+
+Provider selection (``make_llm_client``):
+    1. ``OPENROUTER_API_KEY`` set → ``OpenRouterClient`` (free tier available).
+    2. ``ANTHROPIC_API_KEY`` set → ``AnthropicClient``.
+    3. Neither set → raises ``RuntimeError`` with a clear message.
+"""
 
 from __future__ import annotations
 
 import importlib
+import json
 import os
 import re
+import urllib.error
+import urllib.request
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Protocol
 
@@ -100,6 +109,106 @@ class AnthropicClient:
 
 
 @dataclass
+class OpenRouterClient:
+    """Live client for the OpenRouter API (OpenAI-compatible, free tier available).
+
+    Free models: ``meta-llama/llama-3.3-70b-instruct:free``,
+    ``google/gemini-2.0-flash-exp:free``.  Model ids come from
+    ``config/models.toml [openrouter]`` unless overridden at construction.
+
+    Uses only stdlib (``urllib.request``) — no extra dependencies required.
+    """
+
+    judge_model: str
+    distiller_model: str
+    judge_max_tokens: int = 512
+    distiller_max_tokens: int = 4096
+    base_url: str = "https://openrouter.ai/api/v1"
+    api_key: str | None = None
+
+    @classmethod
+    def from_config(cls, *, api_key: str | None = None) -> OpenRouterClient:
+        cfg = load_models().openrouter
+        return cls(
+            judge_model=cfg.judge_model,
+            distiller_model=cfg.distiller_model,
+            judge_max_tokens=cfg.judge_max_tokens,
+            distiller_max_tokens=cfg.distiller_max_tokens,
+            base_url=cfg.base_url,
+            api_key=api_key or os.environ.get("OPENROUTER_API_KEY"),
+        )
+
+    def _complete(self, *, model: str, system: str, user: str, max_tokens: int) -> str:
+        key = self.api_key
+        if not key:
+            raise RuntimeError(
+                "OPENROUTER_API_KEY is not set. Get a free key at https://openrouter.ai/keys"
+            )
+        payload = json.dumps(
+            {
+                "model": model,
+                "max_tokens": max_tokens,
+                "messages": [
+                    {"role": "system", "content": system},
+                    {"role": "user", "content": user},
+                ],
+            }
+        ).encode()
+        req = urllib.request.Request(
+            f"{self.base_url}/chat/completions",
+            data=payload,
+            headers={
+                "Authorization": f"Bearer {key}",
+                "Content-Type": "application/json",
+                "HTTP-Referer": "https://github.com/subkoks/BEST-Self-Enhancement-Learning-AI",
+                "X-Title": "BSELA",
+            },
+            method="POST",
+        )
+        try:
+            with urllib.request.urlopen(req, timeout=120) as resp:
+                body = json.loads(resp.read().decode())
+        except urllib.error.HTTPError as exc:
+            detail = exc.read().decode(errors="replace")
+            raise RuntimeError(f"OpenRouter API error {exc.code}: {detail}") from exc
+        return str(body["choices"][0]["message"]["content"])
+
+    def judge(self, *, system: str, user: str) -> JudgeVerdict:
+        raw = self._complete(
+            model=self.judge_model,
+            system=system,
+            user=user,
+            max_tokens=self.judge_max_tokens,
+        )
+        return JudgeVerdict.model_validate_json(_extract_json_object(raw))
+
+    def distill(self, *, system: str, user: str) -> DistillResponse:
+        raw = self._complete(
+            model=self.distiller_model,
+            system=system,
+            user=user,
+            max_tokens=self.distiller_max_tokens,
+        )
+        return DistillResponse.model_validate_json(_extract_json_object(raw))
+
+
+def make_llm_client() -> AnthropicClient | OpenRouterClient:
+    """Return a live LLM client based on available env vars.
+
+    Priority: OPENROUTER_API_KEY > ANTHROPIC_API_KEY.
+    Raises RuntimeError if neither is set.
+    """
+    if os.environ.get("OPENROUTER_API_KEY"):
+        return OpenRouterClient.from_config()
+    if os.environ.get("ANTHROPIC_API_KEY"):
+        return AnthropicClient.from_config()
+    raise RuntimeError(
+        "No LLM provider configured. Set OPENROUTER_API_KEY (free at openrouter.ai) "
+        "or ANTHROPIC_API_KEY."
+    )
+
+
+@dataclass
 class FakeLLMClient:
     """Deterministic in-memory client used by tests and dry-runs."""
 
@@ -125,5 +234,7 @@ __all__ = [
     "AnthropicClient",
     "FakeLLMClient",
     "LLMClient",
+    "OpenRouterClient",
     "_extract_json_object",
+    "make_llm_client",
 ]

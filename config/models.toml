@@ -9,6 +9,15 @@ prompt_cache = true
 max_retries = 3
 timeout_seconds = 120
 
+# OpenRouter free-tier fallback (set OPENROUTER_API_KEY to use)
+# Free models: https://openrouter.ai/models?q=free
+[openrouter]
+judge_model = "meta-llama/llama-3.3-70b-instruct:free"
+distiller_model = "meta-llama/llama-3.3-70b-instruct:free"
+judge_max_tokens = 512
+distiller_max_tokens = 4096
+base_url = "https://openrouter.ai/api/v1"
+
 # High-volume, low-complexity scoring on session-end. Cheap + fast.
 [judge]
 model = "claude-haiku-4-5-20251001"

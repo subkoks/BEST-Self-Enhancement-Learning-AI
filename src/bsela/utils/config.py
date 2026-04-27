@@ -69,6 +69,14 @@ class ModelRole(BaseModel):
     temperature: float = Field(default=0.0)
 
 
+class OpenRouterConfig(BaseModel):
+    judge_model: str = "meta-llama/llama-3.3-70b-instruct:free"
+    distiller_model: str = "meta-llama/llama-3.3-70b-instruct:free"
+    judge_max_tokens: int = 512
+    distiller_max_tokens: int = 4096
+    base_url: str = "https://openrouter.ai/api/v1"
+
+
 class ModelsConfig(BaseModel):
     default: dict[str, Any]
     judge: ModelRole
@@ -80,6 +88,7 @@ class ModelsConfig(BaseModel):
     auditor: ModelRole
     debugger: ModelRole
     memory_updater: ModelRole
+    openrouter: OpenRouterConfig = Field(default_factory=OpenRouterConfig)
 
 
 def find_config_dir() -> Path:
@@ -134,6 +143,7 @@ __all__ = [
     "GatesConfig",
     "ModelRole",
     "ModelsConfig",
+    "OpenRouterConfig",
     "RetentionConfig",
     "ScrubberConfig",
     "Thresholds",

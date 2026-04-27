@@ -60,7 +60,7 @@ from bsela.core.report import (
 from bsela.core.retention import sweep
 from bsela.core.router import classify as classify_task
 from bsela.core.updater import UpdaterError, propose_lesson
-from bsela.llm.client import AnthropicClient
+from bsela.llm.client import make_llm_client
 from bsela.llm.distiller import distill_session
 from bsela.memory.models import Decision, Lesson
 from bsela.memory.store import (
@@ -399,7 +399,7 @@ def replay(
     Exit code 1: drift detected or session not found.
     """
     try:
-        llm = AnthropicClient.from_config()
+        llm = make_llm_client()
         result = replay_session(session_id, client=llm, persist_result=not no_save)
     except LookupError as exc:
         typer.secho(str(exc), fg=typer.colors.RED)
@@ -772,7 +772,7 @@ def distill(
     ] = True,
 ) -> None:
     """Run judge → distill over one session (requires ANTHROPIC_API_KEY)."""
-    client = AnthropicClient.from_config()
+    client = make_llm_client()
     result = distill_session(session_id, client=client, persist=persist)
     if not result.distilled:
         typer.echo(
@@ -815,7 +815,7 @@ def process(
     ] = True,
 ) -> None:
     """Batch-distill recent captured sessions (requires ANTHROPIC_API_KEY)."""
-    client = AnthropicClient.from_config()
+    client = make_llm_client()
     result = process_sessions(
         client=client,
         limit=limit,

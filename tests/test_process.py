@@ -164,7 +164,7 @@ def test_process_cli_invokes_real_client_path(
     ingest_file(FIXTURES / "looped-read.jsonl")
 
     fake = _client()
-    monkeypatch.setattr("bsela.cli.AnthropicClient.from_config", classmethod(lambda cls: fake))
+    monkeypatch.setattr("bsela.cli.make_llm_client", lambda: fake)
 
     runner = CliRunner()
     result = runner.invoke(app, ["process", "--limit", "5"])
