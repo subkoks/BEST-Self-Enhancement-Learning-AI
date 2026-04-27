@@ -832,6 +832,12 @@ def process(
         f"already_distilled={result.skipped_already_distilled} "
         f"judge_healthy={result.skipped_judge_healthy} errors={result.errors}"
     )
+    if result.errors:
+        typer.secho(
+            "  hint: check ANTHROPIC_API_KEY and credit balance "
+            "(run `bsela distill <session-id>` to see the full error)",
+            fg=typer.colors.YELLOW,
+        )
     raise typer.Exit(code=0)
 
 

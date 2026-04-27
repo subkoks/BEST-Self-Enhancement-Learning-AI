@@ -17,6 +17,7 @@ Skips are explicit so the operator can see why a session was ignored:
 
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 
@@ -24,6 +25,8 @@ from bsela.llm.client import LLMClient
 from bsela.llm.distiller import DistillationResult, distill_session
 from bsela.memory.models import SessionRecord
 from bsela.memory.store import list_errors, list_sessions, session_has_lessons
+
+_log = logging.getLogger(__name__)
 
 DEFAULT_LIMIT = 10
 DEFAULT_SINCE_DAYS = 7
@@ -110,10 +113,15 @@ def process_sessions(
 
         try:
             result: DistillationResult = distill_session(session.id, client=client, persist=persist)
-        except Exception:
+        except Exception as exc:
+            _log.warning("distill failed for %s: %s", session.id[:8], exc)
             errors_count += 1
             outcomes.append(SessionOutcome(session.id, "error"))
             processed += 1
+            # Propagate billing / auth errors immediately — no point processing more
+            err_str = str(exc).lower()
+            if "credit" in err_str or "billing" in err_str or "authentication" in err_str:
+                break
             continue
 
         if not result.distilled:
