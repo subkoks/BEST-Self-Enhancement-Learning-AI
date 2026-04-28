@@ -12,10 +12,10 @@ timeout_seconds = 120
 # OpenRouter free-tier fallback (set OPENROUTER_API_KEY to use)
 # Free models: https://openrouter.ai/models?q=free
 [openrouter]
-# google/gemma-3-12b-it:free — available free tier, good JSON adherence
-# Alternatives: google/gemma-3-27b-it:free, meta-llama/llama-3.3-70b-instruct:free
-judge_model = "google/gemma-3-12b-it:free"
-distiller_model = "google/gemma-3-12b-it:free"
+# openai/gpt-oss-20b:free — clean JSON output, no markdown fences
+# Alternatives: google/gemma-3-4b-it:free, liquid/lfm-2.5-1.2b-instruct:free
+judge_model = "openai/gpt-oss-20b:free"
+distiller_model = "openai/gpt-oss-20b:free"
 judge_max_tokens = 512
 distiller_max_tokens = 4096
 base_url = "https://openrouter.ai/api/v1"
