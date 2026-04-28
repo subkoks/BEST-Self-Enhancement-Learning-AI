@@ -186,8 +186,24 @@ class OpenRouterClient:
                 raise RuntimeError(f"OpenRouter API error {exc.code}: {detail}") from exc
         raise last_exc or RuntimeError("OpenRouter request failed")
 
+    def _complete_with_json_retry(
+        self, *, model: str, system: str, user: str, max_tokens: int
+    ) -> str:
+        """Retry _complete up to 2× when the model returns prose instead of JSON."""
+        for attempt in range(3):
+            raw = self._complete(model=model, system=system, user=user, max_tokens=max_tokens)
+            try:
+                _extract_json_object(raw)
+                return raw
+            except ValueError:
+                if attempt < 2:
+                    time.sleep(3)
+                    continue
+                raise
+        raise RuntimeError("no JSON object found after retries")  # unreachable
+
     def judge(self, *, system: str, user: str) -> JudgeVerdict:
-        raw = self._complete(
+        raw = self._complete_with_json_retry(
             model=self.judge_model,
             system=system,
             user=user,
@@ -196,7 +212,7 @@ class OpenRouterClient:
         return JudgeVerdict.model_validate_json(_extract_json_object(raw))
 
     def distill(self, *, system: str, user: str) -> DistillResponse:
-        raw = self._complete(
+        raw = self._complete_with_json_retry(
             model=self.distiller_model,
             system=system,
             user=user,
