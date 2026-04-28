@@ -17,7 +17,7 @@ timeout_seconds = 120
 judge_model = "openai/gpt-oss-20b:free"
 distiller_model = "openai/gpt-oss-20b:free"
 judge_max_tokens = 512
-distiller_max_tokens = 4096
+distiller_max_tokens = 8192
 base_url = "https://openrouter.ai/api/v1"
 
 # High-volume, low-complexity scoring on session-end. Cheap + fast.
