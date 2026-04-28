@@ -107,6 +107,25 @@ def list_sessions(
         return list(s.exec(stmt).all())
 
 
+def list_sessions_with_errors(
+    *,
+    status: str | None = None,
+    limit: int | None = 100,
+) -> list[SessionRecord]:
+    """Return sessions that have at least one ErrorRecord, newest first."""
+    stmt = (
+        select(SessionRecord)
+        .where(SessionRecord.id.in_(select(ErrorRecord.session_id).distinct()))  # type: ignore[attr-defined]
+        .order_by(SessionRecord.ingested_at.desc())  # type: ignore[attr-defined]
+    )
+    if status is not None:
+        stmt = stmt.where(SessionRecord.status == status)
+    if limit is not None:
+        stmt = stmt.limit(limit)
+    with session_scope() as s:
+        return list(s.exec(stmt).all())
+
+
 def count_sessions(*, status: str | None = None) -> int:
     stmt = select(SessionRecord)
     if status is not None:
@@ -306,6 +325,8 @@ __all__ = [
     "list_metrics",
     "list_replay_records",
     "list_sessions",
+    "list_sessions_with_errors",
+    "session_has_lessons",
     "reset_engine_cache",
     "save_decision",
     "save_error",

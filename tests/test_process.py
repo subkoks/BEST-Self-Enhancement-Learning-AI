@@ -85,8 +85,11 @@ def test_process_skips_sessions_without_errors(tmp_bsela_home: Path) -> None:
     ingest_file(FIXTURES / "clean.jsonl")
     client = _client()
     result = process_sessions(client=client)
-    assert result.processed == 1
-    assert result.skipped_no_errors == 1
+    # Clean sessions are not fetched by list_sessions_with_errors, so they
+    # never enter the loop — considered=0, no skipped_no_errors counter bump.
+    assert result.considered == 0
+    assert result.processed == 0
+    assert result.skipped_no_errors == 0
     assert result.lessons_created == 0
     assert client.judge_calls == 0
     assert client.distill_calls == 0

@@ -24,7 +24,12 @@ from datetime import UTC, datetime, timedelta
 from bsela.llm.client import LLMClient
 from bsela.llm.distiller import DistillationResult, distill_session
 from bsela.memory.models import SessionRecord
-from bsela.memory.store import list_errors, list_sessions, session_has_lessons
+from bsela.memory.store import (
+    list_errors,
+    list_sessions,
+    list_sessions_with_errors,
+    session_has_lessons,
+)
 
 _log = logging.getLogger(__name__)
 
@@ -82,7 +87,9 @@ def process_sessions(
     reference = now or datetime.now(UTC)
     cutoff = reference - timedelta(days=since_days) if since_days is not None else None
 
-    candidates = list_sessions(status="captured", limit=max(limit * 3, limit))
+    # Only fetch sessions that already have errors — avoids scanning clean sessions
+    # and allows the limit to represent actual work, not wasted no-error skips.
+    candidates = list_sessions_with_errors(status="captured", limit=max(limit * 3, limit))
     outcomes: list[SessionOutcome] = []
     processed = 0
     distilled = 0
@@ -100,9 +107,9 @@ def process_sessions(
 
         errs = list_errors(session_id=session.id, limit=50)
         if not errs:
+            # Shouldn't happen, but guard anyway
             skipped_no_errors += 1
             outcomes.append(SessionOutcome(session.id, "no_errors"))
-            processed += 1
             continue
 
         if skip_already_distilled and session_has_lessons(session.id):
