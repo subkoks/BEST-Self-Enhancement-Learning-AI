@@ -54,9 +54,10 @@ drift_alarm_threshold = 0.5
 
 # Replay drift alarm: fraction of replayed sessions (30d window) that showed drift.
 # Fires when the pipeline's distillation changes too often vs. stored lessons.
-# Free-tier non-deterministic models (OpenRouter) produce ~80% drift naturally;
-# set to 0.80 when using free tier, 0.25 when using Anthropic paid models.
-replay_drift_threshold = 0.80
+# Free-tier non-deterministic models (OpenRouter gpt-oss-20b:free) produce ~85-90%
+# drift on every run. Set to 0.92 while using free tier so the alarm fires only
+# on near-total inconsistency. Lower to 0.25 when switching to Anthropic claude-haiku.
+replay_drift_threshold = 0.92
 
 [scrubber]
 # Pre-ingest secret patterns. Any match quarantines the session.
