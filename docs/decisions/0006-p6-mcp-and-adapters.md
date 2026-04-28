@@ -1,7 +1,8 @@
 # ADR 0006 — P6 MCP server + multi-editor adapters (TypeScript workspace)
 
-- **Status:** Accepted
+- **Status:** Shipped
 - **Date:** 2026-04-24
+- **Shipped:** 2026-04-28 — `bsela_status` + `bsela_route` called via MCP stdio in a live Claude Code session; returned real store counts and routing decisions. Gate closed.
 
 ## Context
 

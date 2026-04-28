@@ -1,7 +1,8 @@
 # ADR 0005 — P5 Router + Auditor scaffold (parallel to P4 dogfood)
 
-- **Status:** Accepted
+- **Status:** Shipped
 - **Date:** 2026-04-24
+- **Shipped:** 2026-04-28 — audit alerts validated (REPLAY DRIFT fired correctly), routing decisions confirmed against live sessions. Gate closed.
 
 ## Context
 
