@@ -168,6 +168,8 @@ class OpenRouterClient:
             },
             method="POST",
         )
+        # Free-tier upstream rate limits can last 30-60 s; use longer backoff.
+        _RETRY_WAITS = (5, 15, 30)  # seconds before attempts 1, 2, 3
         last_exc: Exception | None = None
         for attempt in range(4):  # up to 3 retries on 429
             try:
@@ -177,7 +179,7 @@ class OpenRouterClient:
             except urllib.error.HTTPError as exc:
                 detail = exc.read().decode(errors="replace")
                 if exc.code == 429 and attempt < 3:
-                    wait = 2**attempt  # 1s, 2s, 4s
+                    wait = _RETRY_WAITS[attempt]
                     time.sleep(wait)
                     last_exc = RuntimeError(f"OpenRouter API error {exc.code}: {detail}")
                     continue
