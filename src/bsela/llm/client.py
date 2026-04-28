@@ -145,13 +145,15 @@ class OpenRouterClient:
             raise RuntimeError(
                 "OPENROUTER_API_KEY is not set. Get a free key at https://openrouter.ai/keys"
             )
+        # Fold system into user message — works universally across all OpenRouter
+        # free-tier models, including Gemma which rejects the system role.
+        combined_user = f"{system}\n\n{user}" if system else user
         payload = json.dumps(
             {
                 "model": model,
                 "max_tokens": max_tokens,
                 "messages": [
-                    {"role": "system", "content": system},
-                    {"role": "user", "content": user},
+                    {"role": "user", "content": combined_user},
                 ],
             }
         ).encode()
