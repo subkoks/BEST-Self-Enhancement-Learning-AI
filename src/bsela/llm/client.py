@@ -12,6 +12,7 @@ import importlib
 import json
 import os
 import re
+import time
 import urllib.error
 import urllib.request
 from dataclasses import dataclass, field
@@ -165,13 +166,21 @@ class OpenRouterClient:
             },
             method="POST",
         )
-        try:
-            with urllib.request.urlopen(req, timeout=120) as resp:
-                body = json.loads(resp.read().decode())
-        except urllib.error.HTTPError as exc:
-            detail = exc.read().decode(errors="replace")
-            raise RuntimeError(f"OpenRouter API error {exc.code}: {detail}") from exc
-        return str(body["choices"][0]["message"]["content"])
+        last_exc: Exception | None = None
+        for attempt in range(4):  # up to 3 retries on 429
+            try:
+                with urllib.request.urlopen(req, timeout=120) as resp:
+                    body = json.loads(resp.read().decode())
+                return str(body["choices"][0]["message"]["content"])
+            except urllib.error.HTTPError as exc:
+                detail = exc.read().decode(errors="replace")
+                if exc.code == 429 and attempt < 3:
+                    wait = 2**attempt  # 1s, 2s, 4s
+                    time.sleep(wait)
+                    last_exc = RuntimeError(f"OpenRouter API error {exc.code}: {detail}")
+                    continue
+                raise RuntimeError(f"OpenRouter API error {exc.code}: {detail}") from exc
+        raise last_exc or RuntimeError("OpenRouter request failed")
 
     def judge(self, *, system: str, user: str) -> JudgeVerdict:
         raw = self._complete(
