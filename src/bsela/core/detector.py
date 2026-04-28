@@ -120,6 +120,28 @@ def _correction_markers(markers: Iterable[str]) -> tuple[re.Pattern[str], ...]:
     return tuple(re.compile(rf"\b{re.escape(m)}\b", re.IGNORECASE) for m in markers)
 
 
+def _user_text_only(event: dict[str, Any]) -> str:
+    """Return only the plain user-typed text from a user event.
+
+    Deliberately excludes tool_result blocks (file reads, shell output, etc.)
+    so that correction markers don't fire on file content that happens to
+    contain phrases like 'hard stop'.
+    """
+    # Flat format: top-level content string on a user event
+    flat = event.get("content")
+    if isinstance(flat, str) and flat:
+        return flat
+
+    # Claude Code nested format: collect only plain text blocks, skip tool_result
+    parts: list[str] = []
+    for block in _nested_content_blocks(event):
+        if block.get("type") == "text":
+            t = str(block.get("text") or "")
+            if t:
+                parts.append(t)
+    return "\n".join(parts)
+
+
 def _scan_correction(
     events: list[tuple[int, dict[str, Any]]],
     session_id: str,
@@ -129,7 +151,8 @@ def _scan_correction(
     for line_no, event in events:
         if event.get("type") != "user":
             continue
-        text = _text_of(event)
+        # Only inspect the human-typed text — not tool_result file content
+        text = _user_text_only(event)
         if not text:
             continue
         for pattern in markers:

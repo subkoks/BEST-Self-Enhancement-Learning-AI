@@ -264,13 +264,13 @@ def test_replay_drift_below_threshold_no_alert(tmp_bsela_home: Path) -> None:
     )
     _replay_rec(sess.id, had_drift=False)
     _replay_rec(sess.id, had_drift=False)
-    _replay_rec(sess.id, had_drift=False)
-    _replay_rec(sess.id, had_drift=True)  # 1/4 = 25% == threshold, not over
+    _replay_rec(sess.id, had_drift=True)
+    _replay_rec(sess.id, had_drift=True)  # 2/4 = 50% < 80% threshold, not over
 
     report = build_audit(window_days=30, now=NOW)
     assert report.replay_drift.sessions_replayed == 4
-    assert report.replay_drift.sessions_with_drift == 1
-    assert report.replay_drift.drift_rate == pytest.approx(0.25)
+    assert report.replay_drift.sessions_with_drift == 2
+    assert report.replay_drift.drift_rate == pytest.approx(0.50)
     assert not report.replay_drift.over_threshold
     assert not any("REPLAY DRIFT" in a for a in report.alerts)
 
@@ -287,10 +287,10 @@ def test_replay_drift_above_threshold_triggers_alert(tmp_bsela_home: Path) -> No
     _replay_rec(sess.id, had_drift=True)
     _replay_rec(sess.id, had_drift=True)
     _replay_rec(sess.id, had_drift=True)
-    _replay_rec(sess.id, had_drift=False)  # 3/4 = 75% > 25% threshold
+    _replay_rec(sess.id, had_drift=True)  # 4/4 = 100% > any threshold
 
     report = build_audit(window_days=30, now=NOW)
-    assert report.replay_drift.drift_rate == pytest.approx(0.75)
+    assert report.replay_drift.drift_rate == pytest.approx(1.0)
     assert report.replay_drift.over_threshold
     assert any("REPLAY DRIFT" in a for a in report.alerts)
 

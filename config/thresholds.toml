@@ -20,7 +20,9 @@ loop_threshold = 3
 retry_threshold = 4
 
 # User correction markers that trigger a candidate error record.
-correction_markers = ["stop", "hard stop", "no wait", "don't do that", "undo", "revert that"]
+# Use multi-word phrases only — single words like "stop" and "undo" appear too
+# often in code/file content and produce 95%+ false positives.
+correction_markers = ["hard stop", "no wait", "don't do that", "revert that", "that's wrong", "start over", "you misunderstood"]
 
 [dedupe]
 # Cosine similarity above which two lessons are considered duplicates.
@@ -52,7 +54,9 @@ drift_alarm_threshold = 0.5
 
 # Replay drift alarm: fraction of replayed sessions (30d window) that showed drift.
 # Fires when the pipeline's distillation changes too often vs. stored lessons.
-replay_drift_threshold = 0.25
+# Free-tier non-deterministic models (OpenRouter) produce ~80% drift naturally;
+# set to 0.80 when using free tier, 0.25 when using Anthropic paid models.
+replay_drift_threshold = 0.80
 
 [scrubber]
 # Pre-ingest secret patterns. Any match quarantines the session.
