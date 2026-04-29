@@ -272,6 +272,53 @@ def review_root(ctx: typer.Context) -> None:
     raise typer.Exit(code=0)
 
 
+@review_app.command("list")
+def review_list(
+    status: Annotated[
+        str | None,
+        typer.Option(
+            "--status",
+            "-s",
+            help="Filter by status: pending|proposed|rejected|approved|applied|rolled_back.",
+        ),
+    ] = None,
+    limit: Annotated[int, typer.Option("--limit", "-n", help="Max lessons to show.")] = 50,
+    json_out: Annotated[bool, typer.Option("--json", help="Emit JSON array.")] = False,
+) -> None:
+    """List lessons with optional status filter. Default shows all."""
+    lessons = list_lessons(status=status, limit=limit)
+    if json_out:
+        typer.echo(
+            json.dumps(
+                [
+                    {
+                        "id": lesson.id,
+                        "status": lesson.status,
+                        "scope": lesson.scope,
+                        "confidence": lesson.confidence,
+                        "rule": lesson.rule,
+                        "why": lesson.why,
+                        "how_to_apply": lesson.how_to_apply,
+                        "hit_count": lesson.hit_count,
+                        "created_at": lesson.created_at.isoformat() if lesson.created_at else None,
+                    }
+                    for lesson in lessons
+                ],
+                indent=2,
+            )
+        )
+        return
+    if not lessons:
+        label = f"status={status}" if status else "any status"
+        typer.echo(f"review list: no lessons with {label}.")
+        return
+    for lesson in lessons:
+        typer.echo(
+            f"{lesson.id}  [{lesson.status:12}]  scope={lesson.scope}  "
+            f"conf={lesson.confidence:.2f}  hits={lesson.hit_count}  {_short(lesson.rule)}"
+        )
+
+
 @review_app.command("propose")
 def review_propose(
     lesson_id: Annotated[str, typer.Argument(help="Pending lesson id to propose.")],

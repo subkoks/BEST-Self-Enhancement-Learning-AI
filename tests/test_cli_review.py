@@ -142,3 +142,51 @@ def test_review_reject_unknown_id_exits_nonzero(tmp_bsela_home: Path) -> None:
     result = CliRunner().invoke(app, ["review", "reject", "missing"])
     assert result.exit_code == 1
     assert "not found" in result.stdout
+
+
+# ---- review list subcommand ----
+
+
+def test_review_list_no_filter_shows_all(tmp_bsela_home: Path) -> None:
+    pending = _project_lesson()  # status=pending
+    result = CliRunner().invoke(app, ["review", "list"])
+    assert result.exit_code == 0
+    assert pending.id in result.stdout
+    assert "pending" in result.stdout
+
+
+def test_review_list_status_filter(tmp_bsela_home: Path) -> None:
+    lesson = _project_lesson()
+    # Reject it, then list by status.
+    CliRunner().invoke(app, ["review", "reject", lesson.id])
+    result = CliRunner().invoke(app, ["review", "list", "--status", "rejected"])
+    assert result.exit_code == 0
+    assert lesson.id in result.stdout
+    assert "rejected" in result.stdout
+
+
+def test_review_list_empty_pending_shows_message(tmp_bsela_home: Path) -> None:
+    result = CliRunner().invoke(app, ["review", "list", "--status", "pending"])
+    assert result.exit_code == 0
+    assert "no lessons" in result.stdout
+
+
+def test_review_list_json_output(tmp_bsela_home: Path) -> None:
+    import json as _json
+
+    lesson = _project_lesson()
+    result = CliRunner().invoke(app, ["review", "list", "--json"])
+    assert result.exit_code == 0
+    data = _json.loads(result.stdout)
+    assert isinstance(data, list)
+    assert any(item["id"] == lesson.id for item in data)
+    # Check expected keys present
+    assert all("rule" in item and "status" in item and "confidence" in item for item in data)
+
+
+def test_review_list_limit(tmp_bsela_home: Path) -> None:
+    for _ in range(5):
+        _project_lesson()
+    result = CliRunner().invoke(app, ["review", "list", "--limit", "2"])
+    assert result.exit_code == 0
+    assert result.stdout.count("\n") == 2
