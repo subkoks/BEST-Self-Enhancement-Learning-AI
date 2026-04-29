@@ -116,7 +116,9 @@ def test_process_rerun_forces_redistill(tmp_bsela_home: Path) -> None:
     result = process_sessions(client=client, skip_already_distilled=False)
     assert result.distilled == 1
     assert client.judge_calls == 1
-    assert count_lessons(status="pending") >= 2
+    # Dedup suppresses the identical lesson on re-run; only the first run's lesson persists.
+    assert count_lessons(status="pending") == 1
+    assert result.lessons_created == 0
 
 
 def test_process_skips_judge_healthy(tmp_bsela_home: Path) -> None:

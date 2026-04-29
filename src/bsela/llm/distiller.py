@@ -10,6 +10,7 @@ rows with ``status='pending'`` for the P3 updater to consume.
 from __future__ import annotations
 
 import json
+import re
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -17,6 +18,35 @@ from bsela.llm.client import LLMClient
 from bsela.llm.types import DistillResponse, JudgeVerdict, LessonCandidate
 from bsela.memory.models import ErrorRecord, Lesson, SessionRecord
 from bsela.memory.store import get_session, list_errors, list_lessons, save_lesson
+from bsela.utils.config import load_thresholds
+
+_STOP_WORDS = frozenset(
+    "a an the and or but in on at to for of with by from is are was were be been "
+    "being have has had do does did will would could should may might must can "
+    "it its this that these those i you he she we they all not no any if when "
+    "before after as than so very also only even just".split()
+)
+
+
+def _tokens(text: str) -> frozenset[str]:
+    """Lowercase word tokens, stop-words removed."""
+    return frozenset(
+        w for w in re.findall(r"[a-z]+", text.lower()) if w not in _STOP_WORDS and len(w) > 2
+    )
+
+
+def _jaccard(a: frozenset[str], b: frozenset[str]) -> float:
+    if not a and not b:
+        return 1.0
+    union = a | b
+    return len(a & b) / len(union) if union else 0.0
+
+
+def _is_duplicate(rule: str, existing: list[Lesson], threshold: float) -> bool:
+    """Return True if *rule* is too similar to any existing lesson rule."""
+    new_toks = _tokens(rule)
+    return any(_jaccard(new_toks, _tokens(l.rule)) >= threshold for l in existing)
+
 
 JUDGE_SYSTEM_PROMPT = (
     "You score a completed coding-AI session. Read the summary JSON and return a single "
@@ -136,12 +166,19 @@ def distill_session(
         )
 
     response = client.distill(system=_find_distiller_prompt(), user=user_payload)
+    dedup_threshold = load_thresholds().dedupe.similarity_threshold
     persisted: list[Lesson] = []
     if persist:
         source_error_id = errors[0].id if errors else None
+        # saved_this_batch tracks within-session dedup too
+        saved_this_batch: list[Lesson] = list(recent)
         for candidate in response.lessons:
+            if _is_duplicate(candidate.rule, saved_this_batch, dedup_threshold):
+                continue
             lesson = _candidate_to_lesson(session_id, source_error_id, candidate)
-            persisted.append(save_lesson(lesson))
+            saved = save_lesson(lesson)
+            persisted.append(saved)
+            saved_this_batch.append(saved)
     else:
         persisted = [_candidate_to_lesson(session_id, None, c) for c in response.lessons]
 
