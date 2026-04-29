@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.blackterminal.bsela.process</string>
+
+    <!-- Run bsela process every Monday at 08:00 local time -->
+    <key>StartCalendarInterval</key>
+    <dict>
+        <key>Weekday</key>
+        <integer>1</integer>
+        <key>Hour</key>
+        <integer>8</integer>
+        <key>Minute</key>
+        <integer>0</integer>
+    </dict>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/Users/black.terminal/Projects/Current/Active/BEST-Self-Enhancement-Learning-AI/.venv/bin/bsela</string>
+        <string>process</string>
+        <string>--limit</string>
+        <string>20</string>
+    </array>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+        <!-- Populate via: launchctl setenv OPENROUTER_API_KEY "sk-..." -->
+        <!-- Or copy ~/.zshenv values before loading this agent.         -->
+        <key>OPENROUTER_API_KEY</key>
+        <string>REPLACE_ME</string>
+        <key>HOME</key>
+        <string>/Users/black.terminal</string>
+        <key>PATH</key>
+        <string>/Users/black.terminal/Projects/Current/Active/BEST-Self-Enhancement-Learning-AI/.venv/bin:/usr/local/bin:/usr/bin:/bin</string>
+    </dict>
+
+    <key>StandardOutPath</key>
+    <string>/Users/black.terminal/.bsela/logs/process.log</string>
+
+    <key>StandardErrorPath</key>
+    <string>/Users/black.terminal/.bsela/logs/process.err</string>
+
+    <!-- Do not restart on failure — run is one-shot weekly -->
+    <key>KeepAlive</key>
+    <false/>
+</dict>
+</plist>
