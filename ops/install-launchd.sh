@@ -1,35 +1,34 @@
 #!/usr/bin/env bash
-# Install (or reinstall) the BSELA weekly process launchd agent.
+# Install (or reinstall) all BSELA launchd agents from config/launchd/.
 #
 # Usage:
 #   ./ops/install-launchd.sh
 #
-# Requires OPENROUTER_API_KEY to be set in the environment. The script
-# patches the placeholder in the plist before installing so the key is
-# baked into the LaunchAgent (stored in ~/Library/LaunchAgents/).
+# Each plist uses /bin/zsh -lc so the shell reads ~/.zprofile on launch.
+# Make sure OPENROUTER_API_KEY (or ANTHROPIC_API_KEY) is exported there
+# before loading these agents, otherwise bsela process will fail silently.
 
 set -euo pipefail
 
-PLIST_SRC="$(cd "$(dirname "$0")" && pwd)/com.blackterminal.bsela.process.plist"
-PLIST_DST="$HOME/Library/LaunchAgents/com.blackterminal.bsela.process.plist"
+LAUNCHD_SRC="$(cd "$(dirname "$0")/.." && pwd)/config/launchd"
+LAUNCH_AGENTS="$HOME/Library/LaunchAgents"
 LOG_DIR="$HOME/.bsela/logs"
-LABEL="com.blackterminal.bsela.process"
+REPORTS_DIR="$HOME/.bsela/reports"
 
-if [[ -z "${OPENROUTER_API_KEY:-}" ]]; then
-    echo "ERROR: OPENROUTER_API_KEY is not set." >&2
-    exit 1
-fi
+mkdir -p "$LOG_DIR" "$REPORTS_DIR"
 
-mkdir -p "$LOG_DIR"
+for plist in "$LAUNCHD_SRC"/*.plist; do
+    name="$(basename "$plist")"
+    dst="$LAUNCH_AGENTS/$name"
+    label="${name%.plist}"
 
-# Patch the API key placeholder and write to LaunchAgents.
-sed "s|REPLACE_ME|${OPENROUTER_API_KEY}|g" "$PLIST_SRC" > "$PLIST_DST"
-echo "Wrote $PLIST_DST"
+    cp "$plist" "$dst"
+    launchctl unload "$dst" 2>/dev/null || true
+    launchctl load "$dst"
+    echo "Loaded $label"
+done
 
-# Unload existing agent if loaded (ignore errors if not loaded yet).
-launchctl unload "$PLIST_DST" 2>/dev/null || true
-launchctl load "$PLIST_DST"
-echo "Loaded $LABEL"
-
-echo "Done. bsela process will run every Monday at 08:00."
-echo "Logs: $LOG_DIR/process.{log,err}"
+echo ""
+echo "All BSELA launchd agents installed."
+echo "Logs: $LOG_DIR"
+echo "Reports: $REPORTS_DIR"

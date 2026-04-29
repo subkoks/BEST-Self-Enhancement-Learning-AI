@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.blackterminal.bsela.process</string>
+
+    <!-- Run bsela process every Monday at 08:00 local time. -->
+    <!-- Fires one hour before the audit job (09:00) so fresh lessons -->
+    <!-- are available when the audit digest runs.                     -->
+    <key>StartCalendarInterval</key>
+    <dict>
+        <key>Weekday</key>
+        <integer>1</integer>
+        <key>Hour</key>
+        <integer>8</integer>
+        <key>Minute</key>
+        <integer>0</integer>
+    </dict>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/zsh</string>
+        <string>-lc</string>
+        <string>bsela process --limit 20</string>
+    </array>
+
+    <key>StandardOutPath</key>
+    <string>/Users/black.terminal/.bsela/logs/process.out.log</string>
+
+    <key>StandardErrorPath</key>
+    <string>/Users/black.terminal/.bsela/logs/process.err.log</string>
+
+    <key>RunAtLoad</key>
+    <false/>
+
+    <key>KeepAlive</key>
+    <false/>
+</dict>
+</plist>
