@@ -10,9 +10,10 @@ import pytest
 from bsela.core.capture import ingest_file
 from bsela.core.detector import detect_errors
 from bsela.llm.client import FakeLLMClient, _extract_json_object
-from bsela.llm.distiller import distill_session
+from bsela.llm.distiller import _is_duplicate, _jaccard, _tokens, distill_session
 from bsela.llm.types import DistillResponse, JudgeVerdict, LessonCandidate
-from bsela.memory.store import count_lessons, list_lessons
+from bsela.memory.models import Lesson
+from bsela.memory.store import count_lessons, list_lessons, save_lesson
 
 FIXTURES = Path(__file__).parent / "fixtures" / "sample-sessions"
 
@@ -116,3 +117,124 @@ def test_distill_missing_session_raises(tmp_bsela_home: Path) -> None:
     )
     with pytest.raises(LookupError):
         distill_session("missing", client=client)
+
+
+# ---- dedup unit tests ----
+
+
+def test_tokens_removes_stop_words_and_short_words() -> None:
+    toks = _tokens("Stop retrying Read on a missing path")
+    assert "on" not in toks
+    assert "a" not in toks
+    assert "retrying" in toks
+    assert "missing" in toks
+    assert "path" in toks
+    # "Read" normalises to "read" (len=4 > 2)
+    assert "read" in toks
+
+
+def test_tokens_short_words_excluded() -> None:
+    # words with len <= 2 are dropped
+    toks = _tokens("an ox go do up")
+    assert toks == frozenset()
+
+
+def test_jaccard_identical_sets() -> None:
+    a = frozenset(["read", "retry", "path"])
+    assert _jaccard(a, a) == pytest.approx(1.0)
+
+
+def test_jaccard_disjoint_sets() -> None:
+    a = frozenset(["read", "retry"])
+    b = frozenset(["write", "commit"])
+    assert _jaccard(a, b) == pytest.approx(0.0)
+
+
+def test_jaccard_partial_overlap() -> None:
+    a = frozenset(["read", "retry", "path"])
+    b = frozenset(["read", "retry", "write"])
+    # intersection=2, union=4
+    assert _jaccard(a, b) == pytest.approx(2 / 4)
+
+
+def test_jaccard_both_empty() -> None:
+    assert _jaccard(frozenset(), frozenset()) == pytest.approx(1.0)
+
+
+def _make_lesson(rule: str) -> Lesson:
+    return Lesson(
+        scope="project",
+        rule=rule,
+        why="test",
+        how_to_apply="test",
+        confidence=0.9,
+        status="pending",
+    )
+
+
+def test_is_duplicate_exact_match(tmp_bsela_home: Path) -> None:
+    rule = "Stop retrying Read on a missing path after the first ENOENT"
+    existing = [save_lesson(_make_lesson(rule))]
+    assert _is_duplicate(rule, existing, threshold=0.85) is True
+
+
+def test_is_duplicate_near_match(tmp_bsela_home: Path) -> None:
+    # Differ only by one word — high Jaccard overlap.
+    rule_a = "Stop retrying Read on a missing path after the first ENOENT"
+    rule_b = "Stop retrying Read calls on a missing path after the first ENOENT"
+    existing = [save_lesson(_make_lesson(rule_a))]
+    # intersection=7 / union=8 = 0.875 > 0.5 threshold
+    assert _is_duplicate(rule_b, existing, threshold=0.5) is True
+
+
+def test_is_duplicate_different_rules(tmp_bsela_home: Path) -> None:
+    existing = [save_lesson(_make_lesson("Always use pathlib for filesystem operations"))]
+    assert (
+        _is_duplicate(
+            "Check external CLI tool availability before invoking", existing, threshold=0.85
+        )
+        is False
+    )
+
+
+def test_distill_dedup_suppresses_duplicate_candidate(tmp_bsela_home: Path) -> None:
+    """Candidate that duplicates a recent lesson must not be persisted."""
+    sid = ingest_file(FIXTURES / "looped-read.jsonl").session_id
+    detect_errors(sid)
+
+    # Pre-save a lesson with the same rule the FakeLLMClient will return.
+    rule = "Stop retrying Read on a missing path after the first ENOENT"
+    save_lesson(_make_lesson(rule))
+
+    client = FakeLLMClient(
+        judge_response=_unhealthy_verdict(),
+        distill_response=_sample_distill(),  # returns the same rule as above
+    )
+    result = distill_session(sid, client=client, recent_lessons_limit=10)
+    # Distillation ran but candidate was deduped — nothing new persisted.
+    assert result.distilled is True
+    assert result.persisted == ()
+    assert count_lessons(status="pending") == 1  # only the pre-saved one
+
+
+def test_distill_dedup_within_batch(tmp_bsela_home: Path) -> None:
+    """Two identical candidates in the same response — only one should persist."""
+    sid = ingest_file(FIXTURES / "looped-read.jsonl").session_id
+    detect_errors(sid)
+
+    candidate = LessonCandidate(
+        rule="Stop retrying Read on a missing path after the first ENOENT",
+        why="loop",
+        how_to_apply="change strategy",
+        scope="project",
+        confidence=0.9,
+    )
+    double_response = DistillResponse(status="ok", confidence=0.9, lessons=[candidate, candidate])
+    client = FakeLLMClient(
+        judge_response=_unhealthy_verdict(),
+        distill_response=double_response,
+    )
+    result = distill_session(sid, client=client)
+    assert result.distilled is True
+    assert len(result.persisted) == 1  # second copy deduped within batch
+    assert count_lessons(status="pending") == 1
