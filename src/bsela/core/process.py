@@ -26,7 +26,6 @@ from bsela.llm.distiller import DistillationResult, distill_session
 from bsela.memory.models import SessionRecord
 from bsela.memory.store import (
     list_errors,
-    list_sessions,
     list_sessions_with_errors,
     session_has_lessons,
 )

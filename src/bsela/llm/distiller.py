@@ -21,10 +21,72 @@ from bsela.memory.store import get_session, list_errors, list_lessons, save_less
 from bsela.utils.config import load_thresholds
 
 _STOP_WORDS = frozenset(
-    "a an the and or but in on at to for of with by from is are was were be been "
-    "being have has had do does did will would could should may might must can "
-    "it its this that these those i you he she we they all not no any if when "
-    "before after as than so very also only even just".split()
+    [
+        "a",
+        "an",
+        "the",
+        "and",
+        "or",
+        "but",
+        "in",
+        "on",
+        "at",
+        "to",
+        "for",
+        "of",
+        "with",
+        "by",
+        "from",
+        "is",
+        "are",
+        "was",
+        "were",
+        "be",
+        "been",
+        "being",
+        "have",
+        "has",
+        "had",
+        "do",
+        "does",
+        "did",
+        "will",
+        "would",
+        "could",
+        "should",
+        "may",
+        "might",
+        "must",
+        "can",
+        "it",
+        "its",
+        "this",
+        "that",
+        "these",
+        "those",
+        "i",
+        "you",
+        "he",
+        "she",
+        "we",
+        "they",
+        "all",
+        "not",
+        "no",
+        "any",
+        "if",
+        "when",
+        "before",
+        "after",
+        "as",
+        "than",
+        "so",
+        "very",
+        "also",
+        "only",
+        "even",
+        "just",
+    ]
 )
 
 
@@ -45,7 +107,7 @@ def _jaccard(a: frozenset[str], b: frozenset[str]) -> float:
 def _is_duplicate(rule: str, existing: list[Lesson], threshold: float) -> bool:
     """Return True if *rule* is too similar to any existing lesson rule."""
     new_toks = _tokens(rule)
-    return any(_jaccard(new_toks, _tokens(l.rule)) >= threshold for l in existing)
+    return any(_jaccard(new_toks, _tokens(lesson.rule)) >= threshold for lesson in existing)
 
 
 JUDGE_SYSTEM_PROMPT = (

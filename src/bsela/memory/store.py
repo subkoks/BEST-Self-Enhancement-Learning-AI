@@ -326,7 +326,6 @@ __all__ = [
     "list_replay_records",
     "list_sessions",
     "list_sessions_with_errors",
-    "session_has_lessons",
     "reset_engine_cache",
     "save_decision",
     "save_error",
@@ -334,6 +333,7 @@ __all__ = [
     "save_metric",
     "save_replay_record",
     "save_session",
+    "session_has_lessons",
     "session_scope",
     "update_lesson_status",
 ]

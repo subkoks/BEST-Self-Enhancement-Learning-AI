@@ -169,7 +169,7 @@ class OpenRouterClient:
             method="POST",
         )
         # Free-tier upstream rate limits can last 30-60 s; use longer backoff.
-        _RETRY_WAITS = (5, 15, 30)  # seconds before attempts 1, 2, 3
+        _retry_waits = (5, 15, 30)  # seconds before attempts 1, 2, 3
         last_exc: Exception | None = None
         for attempt in range(4):  # up to 3 retries on 429
             try:
@@ -179,7 +179,7 @@ class OpenRouterClient:
             except urllib.error.HTTPError as exc:
                 detail = exc.read().decode(errors="replace")
                 if exc.code == 429 and attempt < 3:
-                    wait = _RETRY_WAITS[attempt]
+                    wait = _retry_waits[attempt]
                     time.sleep(wait)
                     last_exc = RuntimeError(f"OpenRouter API error {exc.code}: {detail}")
                     continue
@@ -189,7 +189,7 @@ class OpenRouterClient:
     def _complete_with_json_retry(
         self, *, model: str, system: str, user: str, max_tokens: int
     ) -> str:
-        """Retry _complete up to 2× when the model returns prose instead of JSON."""
+        """Retry _complete up to 2x when the model returns prose instead of JSON."""
         for attempt in range(3):
             raw = self._complete(model=model, system=system, user=user, max_tokens=max_tokens)
             try:
