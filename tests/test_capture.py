@@ -8,7 +8,7 @@ from pathlib import Path
 import pytest
 
 from bsela.core import capture as capture_module
-from bsela.core.capture import Scrubber, ingest_file
+from bsela.core.capture import Scrubber, _parse_ts, _stringify, ingest_file
 from bsela.memory.store import get_session, list_errors
 
 FIXTURES = Path(__file__).parent / "fixtures" / "sample-sessions"
@@ -90,3 +90,49 @@ def test_ingest_swallows_detect_failures(
     assert result.status == "captured"
     assert result.errors_detected == 0
     assert capture_module.ingest_file is ingest_file
+
+
+def test_ingest_with_empty_jsonl_lines(tmp_bsela_home: Path, tmp_path: Path) -> None:
+    """Cover line 74: _iter_jsonl skips blank lines."""
+    jsonl = tmp_path / "sparse.jsonl"
+    jsonl.write_text(
+        '{"type":"human","content":"hello"}\n\n\n{"type":"assistant","content":"hi"}\n',
+        encoding="utf-8",
+    )
+    result = ingest_file(jsonl)
+    assert result.status in ("captured", "quarantined")
+
+
+# ---- _parse_ts unit tests ----
+
+
+def test_parse_ts_returns_none_on_non_string() -> None:
+    assert _parse_ts(None) is None
+    assert _parse_ts(42) is None
+    assert _parse_ts("") is None
+
+
+def test_parse_ts_returns_none_on_invalid_date() -> None:
+    assert _parse_ts("not-a-date") is None
+
+
+def test_parse_ts_parses_z_suffix() -> None:
+    result = _parse_ts("2026-01-15T10:00:00Z")
+    assert result is not None
+    assert result.year == 2026
+
+
+# ---- _stringify unit tests ----
+
+
+def test_stringify_returns_json_for_dict() -> None:
+    assert _stringify({"key": "value"}) == '{"key": "value"}'
+
+
+def test_stringify_falls_back_to_str_on_non_serializable() -> None:
+    class Unserializable:
+        def __repr__(self) -> str:
+            return "unserializable"
+
+    result = _stringify(Unserializable())
+    assert "unserializable" in result

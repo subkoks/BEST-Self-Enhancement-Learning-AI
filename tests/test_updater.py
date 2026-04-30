@@ -4,14 +4,17 @@ from __future__ import annotations
 
 import subprocess
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 
 from bsela.core.updater import (
     BRANCH_PREFIX,
+    DEFAULT_AGENTS_MD_REPO,
     DRAFTS_SUBDIR,
     ProposalResult,
     UpdaterError,
+    _detect_base_branch,
     propose_lesson,
     resolve_agents_md_repo,
 )
@@ -130,3 +133,28 @@ def test_propose_lesson_is_idempotent_on_rerun(fake_agents_md: Path) -> None:
     assert log[0].startswith("feat(bsela-lesson): ")
     assert log[-1] == "chore: seed"
     assert len(log) == 2
+
+
+def test_resolve_repo_uses_default_when_no_env(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Cover line 56: neither override nor env var → DEFAULT_AGENTS_MD_REPO.resolve()."""
+    monkeypatch.delenv("BSELA_AGENTS_MD_REPO", raising=False)
+    result = resolve_agents_md_repo()
+    assert result == DEFAULT_AGENTS_MD_REPO.resolve()
+
+
+def test_detect_base_branch_returns_master(fake_agents_md: Path) -> None:
+    """Cover line 102-103: repo has 'master' not 'main'."""
+    # Create a master-only repo by renaming the default main branch.
+    _run(fake_agents_md, "branch", "-m", "main", "master")
+    with patch.dict("os.environ", {"BSELA_AGENTS_MD_REPO": str(fake_agents_md)}):
+        branch = _detect_base_branch(fake_agents_md)
+    assert branch == "master"
+
+
+def test_detect_base_branch_raises_when_neither(fake_agents_md: Path) -> None:
+    """Cover line 104: no main or master branch raises UpdaterError."""
+    _run(fake_agents_md, "branch", "-m", "main", "trunk")
+    with pytest.raises(UpdaterError, match="no main/master branch"):
+        _detect_base_branch(fake_agents_md)

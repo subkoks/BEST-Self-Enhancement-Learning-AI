@@ -11,6 +11,8 @@ from typer.testing import CliRunner
 from bsela.cli import app
 from bsela.core.hook_install import (
     DEFAULT_HOOK_COMMAND,
+    _find_matching_command,
+    _load_settings,
     apply_install,
     plan_install,
 )
@@ -172,3 +174,30 @@ def test_cli_custom_command_flag(tmp_path: Path) -> None:
     )
     assert result.exit_code == 0, result.stdout
     assert _stop_commands(json.loads(target.read_text())) == ["my-cmd"]
+
+
+# ---- branch coverage for _find_matching_command / _load_settings ----
+
+
+def test_find_matching_command_skips_non_dict_group() -> None:
+    """group not a dict → continue; still finds match later."""
+    groups = [
+        42,  # not a dict → skip
+        {"hooks": "not-a-list"},  # entries not a list → skip
+        {"hooks": [{"not": "dict"}]},  # entry not a dict → skip
+        {"hooks": [{"type": "command", "command": "target-cmd"}]},  # match
+    ]
+    assert _find_matching_command(groups, "target-cmd") is True
+
+
+def test_find_matching_command_returns_false_when_no_match() -> None:
+    groups = [{"hooks": [{"type": "command", "command": "other-cmd"}]}]
+    assert _find_matching_command(groups, "target-cmd") is False
+
+
+def test_load_settings_returns_empty_on_empty_file(tmp_path: Path) -> None:
+    """_load_settings: file exists but is empty → returns {}."""
+    settings = tmp_path / "empty.json"
+    settings.write_text("", encoding="utf-8")
+    result = _load_settings(settings)
+    assert result == {}

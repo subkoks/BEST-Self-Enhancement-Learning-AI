@@ -7,8 +7,15 @@ from pathlib import Path
 import pytest
 
 from bsela.core.capture import ingest_file
-from bsela.core.detector import detect_errors
-from bsela.memory.store import list_errors
+from bsela.core.detector import (
+    _extract_block_text,
+    _fingerprint,
+    _text_of,
+    _user_text_only,
+    detect_errors,
+)
+from bsela.memory.models import SessionRecord
+from bsela.memory.store import list_errors, save_session
 
 FIXTURES = Path(__file__).parent / "fixtures" / "sample-sessions"
 
@@ -87,3 +94,98 @@ def test_detects_stack_trace_in_nested_tool_result(tmp_bsela_home: Path) -> None
     traces = [e for e in result.errors if e.category == "stack_trace"]
     assert len(traces) >= 1
     assert "Traceback" in traces[0].snippet or "ValueError" in traces[0].snippet
+
+
+def test_detect_missing_transcript(tmp_bsela_home: Path, tmp_path: Path) -> None:
+    """Cover _detect_for line 269: transcript file doesn't exist."""
+    phantom = tmp_path / "ghost.jsonl"  # does not exist
+    rec = SessionRecord(
+        source="test",
+        transcript_path=str(phantom),
+        content_hash="abc",
+        started_at=None,
+        ended_at=None,
+        turn_count=0,
+        tool_call_count=0,
+        tokens_in=0,
+        tokens_out=0,
+        cost_usd=0.0,
+        status="captured",
+    )
+    save_session(rec)
+    result = detect_errors(rec.id, persist=False)
+    assert result.errors == ()
+
+
+# ---- internal function unit tests ----
+
+
+def test_extract_block_text_returns_text_block() -> None:
+    assert _extract_block_text({"type": "text", "text": "hello"}) == "hello"
+
+
+def test_extract_block_text_returns_empty_for_none_text() -> None:
+    assert _extract_block_text({"type": "text", "text": None}) == ""
+
+
+def test_extract_block_text_tool_result_string() -> None:
+    assert _extract_block_text({"type": "tool_result", "content": "output"}) == "output"
+
+
+def test_extract_block_text_tool_result_list() -> None:
+    content = [{"type": "text", "text": "line1"}, {"type": "text", "text": "line2"}]
+    result = _extract_block_text({"type": "tool_result", "content": content})
+    assert "line1" in result
+    assert "line2" in result
+
+
+def test_extract_block_text_unknown_type() -> None:
+    assert _extract_block_text({"type": "image", "data": "..."}) == ""
+
+
+def test_text_of_json_dumps_non_string_flat() -> None:
+    """Cover lines 98-99: flat content is a dict, JSON-serializable."""
+    event = {"content": {"key": "value"}}
+    result = _text_of(event)
+    assert '"key"' in result
+
+
+def test_text_of_json_fallback_non_serializable() -> None:
+    """Cover lines 100-101: flat is not JSON-serializable → str()."""
+
+    class Unserializable:
+        def __repr__(self) -> str:
+            return "unserializable_obj"
+
+    event = {"content": Unserializable()}
+    result = _text_of(event)
+    assert "unserializable_obj" in result
+
+
+def test_fingerprint_fallback_on_non_serializable_payload() -> None:
+    """Cover lines 114-115: payload can't be JSON-dumped."""
+
+    class BadPayload:
+        pass
+
+    event = {"name": "Read", "input": BadPayload()}
+    # Should not raise — falls back to str()
+    fp = _fingerprint(event)
+    assert isinstance(fp, str)
+    assert len(fp) == 40  # SHA1 hex
+
+
+def test_user_text_only_returns_nested_text_blocks() -> None:
+    """Cover lines 139-141: user event with nested message.content text blocks."""
+    event = {
+        "type": "user",
+        "message": {
+            "content": [
+                {"type": "tool_result", "content": "ignored"},
+                {"type": "text", "text": "user typed this"},
+            ]
+        },
+    }
+    result = _user_text_only(event)
+    assert "user typed this" in result
+    assert "ignored" not in result
