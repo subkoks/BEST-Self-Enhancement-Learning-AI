@@ -63,7 +63,8 @@ def _check_llm_api_key() -> CheckResult:
     return CheckResult(
         "LLM API key",
         FAIL,
-        "neither ANTHROPIC_API_KEY nor OPENROUTER_API_KEY is set — bsela distill / process will fail",
+        "neither ANTHROPIC_API_KEY nor OPENROUTER_API_KEY is set"
+        " — bsela distill / process will fail",
     )
 
 
