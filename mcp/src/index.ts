@@ -10,6 +10,7 @@ export {
   BselaClient,
   BselaClientError,
   type BselaClientOptions,
+  type LessonItem,
   type RouteDecision,
   type StatusPayload,
   type TaskClass,
@@ -19,6 +20,7 @@ export { createServer, main, type CreateServerOptions } from "./server.js";
 
 export {
   handleAudit,
+  handleLessons,
   handleRoute,
   handleStatus,
   toolDefinitions,

@@ -12,7 +12,12 @@
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import { z } from "zod";
 
-import { BselaClientError, type BselaClient, type StatusPayload } from "./bsela-client.js";
+import {
+  BselaClientError,
+  type BselaClient,
+  type LessonItem,
+  type StatusPayload,
+} from "./bsela-client.js";
 
 export type ToolTextResult = CallToolResult;
 
@@ -25,6 +30,13 @@ export const auditInputSchema = {
 } as const;
 
 export const statusInputSchema = {} as const;
+
+export const lessonsInputSchema = {
+  status: z
+    .enum(["pending", "proposed", "rejected", "approved", "applied", "rolled_back"])
+    .optional(),
+  limit: z.number().int().positive().max(200).optional(),
+} as const;
 
 function errorResult(err: unknown, fallback: string): ToolTextResult {
   const message =
@@ -82,6 +94,23 @@ export async function handleStatus(client: BselaClient): Promise<ToolTextResult>
   }
 }
 
+export async function handleLessons(
+  client: BselaClient,
+  args: { status?: string | undefined; limit?: number | undefined },
+): Promise<ToolTextResult> {
+  try {
+    const opts: { status?: string; limit?: number } = {};
+    if (args.status !== undefined) opts.status = args.status;
+    if (args.limit !== undefined) opts.limit = args.limit;
+    const items: Array<LessonItem> = await client.lessons(opts);
+    return {
+      content: [{ type: "text", text: JSON.stringify(items, null, 2) }],
+    };
+  } catch (err) {
+    return errorResult(err, "bsela review list failed");
+  }
+}
+
 export const toolDefinitions = {
   bsela_route: {
     title: "BSELA route",
@@ -100,6 +129,12 @@ export const toolDefinitions = {
     description:
       "Return BSELA store counts (sessions, errors, lessons, pending lessons, replay records) and the bsela home path.",
     inputSchema: statusInputSchema,
+  },
+  bsela_lessons: {
+    title: "BSELA lessons",
+    description:
+      "Return stored BSELA lessons as a JSON array. Optionally filter by status (pending|proposed|rejected|approved|applied|rolled_back) and cap results with limit. Each item includes id, status, scope, confidence, rule, why, how_to_apply, hit_count, and created_at.",
+    inputSchema: lessonsInputSchema,
   },
 } as const;
 

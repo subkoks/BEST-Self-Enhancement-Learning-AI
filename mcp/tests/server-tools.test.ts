@@ -11,9 +11,11 @@ import {
   BselaClient,
   BselaClientError,
   handleAudit,
+  handleLessons,
   handleRoute,
   handleStatus,
   toolDefinitions,
+  type LessonItem,
   type RouteDecision,
   type StatusPayload,
 } from "../src/index.js";
@@ -23,9 +25,10 @@ function stubClient(overrides: Partial<BselaClient> = {}): BselaClient {
 }
 
 describe("toolDefinitions", () => {
-  it("declares the three read-only tools mandated by ADR 0006", () => {
+  it("declares the four tools including bsela_lessons", () => {
     expect(Object.keys(toolDefinitions).sort()).toEqual([
       "bsela_audit",
+      "bsela_lessons",
       "bsela_route",
       "bsela_status",
     ]);
@@ -144,5 +147,60 @@ describe("handleStatus", () => {
 
     expect(result.isError).toBe(true);
     expect((result.content[0] as { text: string }).text).toContain("nope");
+  });
+});
+
+describe("handleLessons", () => {
+  const sampleLesson: LessonItem = {
+    id: "abc123",
+    status: "pending",
+    scope: "project",
+    confidence: 0.9,
+    rule: "Stop retrying Read on ENOENT after first miss",
+    why: "Loop detector flagged repeated reads",
+    how_to_apply: "Change strategy on second ENOENT",
+    hit_count: 0,
+    created_at: "2026-04-29T10:00:00+00:00",
+  };
+
+  it("returns lessons as JSON text", async () => {
+    const lessons = vi.fn().mockResolvedValue([sampleLesson]);
+    const client = stubClient({ lessons });
+
+    const result = await handleLessons(client, {});
+
+    expect(lessons).toHaveBeenCalledWith({});
+    expect(result.isError).toBeUndefined();
+    const parsed = JSON.parse((result.content[0] as { text: string }).text) as unknown[];
+    expect(parsed).toHaveLength(1);
+    expect((parsed[0] as LessonItem).id).toBe("abc123");
+  });
+
+  it("passes status filter through to the client", async () => {
+    const lessons = vi.fn().mockResolvedValue([]);
+    const client = stubClient({ lessons });
+
+    await handleLessons(client, { status: "rejected" });
+
+    expect(lessons).toHaveBeenCalledWith({ status: "rejected" });
+  });
+
+  it("passes limit through to the client", async () => {
+    const lessons = vi.fn().mockResolvedValue([sampleLesson]);
+    const client = stubClient({ lessons });
+
+    await handleLessons(client, { limit: 5 });
+
+    expect(lessons).toHaveBeenCalledWith({ limit: 5 });
+  });
+
+  it("returns error result on client failure", async () => {
+    const lessons = vi.fn().mockRejectedValue(new BselaClientError("cli failed", 1, "oops"));
+    const client = stubClient({ lessons });
+
+    const result = await handleLessons(client, {});
+
+    expect(result.isError).toBe(true);
+    expect((result.content[0] as { text: string }).text).toContain("cli failed");
   });
 });

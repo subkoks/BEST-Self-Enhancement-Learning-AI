@@ -25,7 +25,7 @@ async function connectClient(client: BselaClient): Promise<Client> {
 }
 
 describe("createServer", () => {
-  it("advertises bsela_route, bsela_audit, and bsela_status via list_tools", async () => {
+  it("advertises all four BSELA tools via list_tools", async () => {
     const decision: RouteDecision = {
       task_class: "planner",
       model: "claude-opus-4-7",
@@ -46,13 +46,14 @@ describe("createServer", () => {
       route: vi.fn().mockResolvedValue(decision),
       audit: vi.fn().mockResolvedValue("# BSELA Weekly Audit\n"),
       status: vi.fn().mockResolvedValue(statusPayload),
+      lessons: vi.fn().mockResolvedValue([]),
     });
 
     const mcp = await connectClient(client);
     try {
       const { tools } = await mcp.listTools();
       const names = tools.map((t) => t.name).sort();
-      expect(names).toEqual(["bsela_audit", "bsela_route", "bsela_status"]);
+      expect(names).toEqual(["bsela_audit", "bsela_lessons", "bsela_route", "bsela_status"]);
     } finally {
       await mcp.close();
     }

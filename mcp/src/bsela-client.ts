@@ -46,6 +46,18 @@ export interface StatusPayload {
   bsela_home: string;
 }
 
+export interface LessonItem {
+  id: string;
+  status: string;
+  scope: string;
+  confidence: number;
+  rule: string;
+  why: string;
+  how_to_apply: string;
+  hit_count: number;
+  created_at: string | null;
+}
+
 export interface BselaClientOptions {
   binary?: string;
   cwd?: string;
@@ -172,6 +184,21 @@ function isStatusPayload(value: unknown): value is StatusPayload {
   );
 }
 
+function isLessonItem(value: unknown): value is LessonItem {
+  if (typeof value !== "object" || value === null) return false;
+  const v = value as Record<string, unknown>;
+  return (
+    typeof v.id === "string" &&
+    typeof v.status === "string" &&
+    typeof v.scope === "string" &&
+    typeof v.confidence === "number" &&
+    typeof v.rule === "string" &&
+    typeof v.why === "string" &&
+    typeof v.how_to_apply === "string" &&
+    typeof v.hit_count === "number"
+  );
+}
+
 export class BselaClient {
   private readonly options: BselaClientOptions;
 
@@ -214,6 +241,27 @@ export class BselaClient {
     if (!isStatusPayload(parsed)) {
       throw new BselaClientError(
         "bsela status returned an unexpected payload shape",
+        result.exitCode,
+        JSON.stringify(parsed).slice(0, 200),
+      );
+    }
+    return parsed;
+  }
+
+  async lessons(options: { status?: string; limit?: number } = {}): Promise<Array<LessonItem>> {
+    const args = ["review", "list", "--json"];
+    if (options.status !== undefined) {
+      args.push("--status", options.status);
+    }
+    if (options.limit !== undefined) {
+      args.push("--limit", String(options.limit));
+    }
+    const result = await runBsela(args, this.options);
+    assertSuccess(args, result);
+    const parsed = parseJson(result.stdout.trim());
+    if (!Array.isArray(parsed) || !parsed.every(isLessonItem)) {
+      throw new BselaClientError(
+        "bsela review list returned an unexpected payload shape",
         result.exitCode,
         JSON.stringify(parsed).slice(0, 200),
       );

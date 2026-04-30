@@ -18,7 +18,13 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 
 import { BselaClient } from "./bsela-client.js";
-import { handleAudit, handleRoute, handleStatus, toolDefinitions } from "./server-tools.js";
+import {
+  handleAudit,
+  handleLessons,
+  handleRoute,
+  handleStatus,
+  toolDefinitions,
+} from "./server-tools.js";
 
 const SERVER_NAME = "bsela";
 const SERVER_VERSION = "0.1.0";
@@ -64,6 +70,16 @@ export function createServer(options: CreateServerOptions = {}): McpServer {
       inputSchema: toolDefinitions.bsela_status.inputSchema,
     },
     async () => handleStatus(client),
+  );
+
+  server.registerTool(
+    "bsela_lessons",
+    {
+      title: toolDefinitions.bsela_lessons.title,
+      description: toolDefinitions.bsela_lessons.description,
+      inputSchema: toolDefinitions.bsela_lessons.inputSchema,
+    },
+    async (args) => handleLessons(client, args),
   );
 
   return server;
