@@ -5,13 +5,15 @@ from __future__ import annotations
 import json
 import subprocess
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 from typer.testing import CliRunner
 
 from bsela.cli import app
+from bsela.core.updater import UpdaterError
 from bsela.memory.models import Lesson
-from bsela.memory.store import get_lesson, save_lesson
+from bsela.memory.store import get_lesson, save_lesson, update_lesson_status
 
 
 def _git(repo: Path, *args: str) -> str:
@@ -189,3 +191,21 @@ def test_review_list_limit(tmp_bsela_home: Path) -> None:
     result = CliRunner().invoke(app, ["review", "list", "--limit", "2"])
     assert result.exit_code == 0
     assert result.stdout.count("\n") == 2
+
+
+def test_review_propose_updater_error(tmp_bsela_home: Path) -> None:
+    """Cover UpdaterError path in review propose (exit 2)."""
+    lesson = _project_lesson()
+    with patch("bsela.cli.propose_lesson", side_effect=UpdaterError("git failed")):
+        result = CliRunner().invoke(app, ["review", "propose", lesson.id])
+    assert result.exit_code == 2
+    assert "proposal failed" in result.stdout
+
+
+def test_review_reject_non_pending_exits_nonzero(tmp_bsela_home: Path) -> None:
+    """Cover 'cannot reject' branch: reject an already-rejected lesson."""
+    lesson = _project_lesson()
+    update_lesson_status(lesson.id, status="rejected", note=None)
+    result = CliRunner().invoke(app, ["review", "reject", lesson.id])
+    assert result.exit_code == 1
+    assert "cannot reject" in result.stdout

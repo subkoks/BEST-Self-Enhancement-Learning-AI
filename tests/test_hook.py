@@ -46,6 +46,14 @@ def test_claude_stop_noops_when_transcript_missing(tmp_bsela_home: Path) -> None
     assert count_sessions() == 0
 
 
+def test_claude_stop_noops_when_no_transcript_key(tmp_bsela_home: Path) -> None:
+    """Cover line 903: transcript not present or not a string."""
+    payload = json.dumps({"session_id": "xyz", "cwd": "/tmp"})
+    result = CliRunner().invoke(app, ["hook", "claude-stop"], input=payload)
+    assert result.exit_code == 0
+    assert count_sessions() == 0
+
+
 def test_prune_command_runs(tmp_bsela_home: Path) -> None:
     result = CliRunner().invoke(app, ["prune"])
     assert result.exit_code == 0
