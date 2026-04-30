@@ -15,8 +15,8 @@ from bsela.core.doctor import (
     WARN,
     CheckResult,
     _check_agents_md_repo,
-    _check_anthropic_api_key,
     _check_claude_hook,
+    _check_llm_api_key,
     _check_python,
     run_checks,
     worst_status,
@@ -29,17 +29,29 @@ def test_check_python_passes_on_current_interpreter() -> None:
     assert row.name == "python"
 
 
-def test_check_api_key_fail_when_missing(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_check_api_key_fail_when_both_missing(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
-    row = _check_anthropic_api_key()
+    monkeypatch.delenv("OPENROUTER_API_KEY", raising=False)
+    row = _check_llm_api_key()
     assert row.status == FAIL
-    assert "not set" in row.detail
+    assert "neither" in row.detail
 
 
-def test_check_api_key_pass_when_set(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_check_api_key_pass_with_anthropic(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-ant-deadbeef")
-    row = _check_anthropic_api_key()
+    monkeypatch.delenv("OPENROUTER_API_KEY", raising=False)
+    row = _check_llm_api_key()
     assert row.status == PASS
+    assert "ANTHROPIC_API_KEY" in row.detail
+    assert "chars" in row.detail
+
+
+def test_check_api_key_pass_with_openrouter(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    monkeypatch.setenv("OPENROUTER_API_KEY", "sk-or-deadbeef")
+    row = _check_llm_api_key()
+    assert row.status == PASS
+    assert "OPENROUTER_API_KEY" in row.detail
     assert "chars" in row.detail
 
 
@@ -140,7 +152,7 @@ def test_run_checks_returns_all_probes(monkeypatch: pytest.MonkeyPatch, tmp_path
     rows = run_checks(settings_path=tmp_path / "settings.json")
     names = [r.name for r in rows]
     assert "python" in names
-    assert "ANTHROPIC_API_KEY" in names
+    assert "LLM API key" in names
     assert "bsela_home" in names
     assert "store" in names
     assert "agents-md repo" in names
@@ -158,13 +170,28 @@ def test_cli_doctor_exit_zero_when_no_fail(
     result = CliRunner().invoke(app, ["doctor"])
     assert result.exit_code == 0, result.stdout
     assert "doctor:" in result.stdout
-    assert "ANTHROPIC_API_KEY" in result.stdout
+    assert "LLM API key" in result.stdout
+
+
+def test_cli_doctor_exit_zero_with_openrouter(
+    tmp_bsela_home: Path, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    monkeypatch.setenv("OPENROUTER_API_KEY", "sk-or-ok")
+    repo = tmp_path / "agents-md"
+    (repo / ".git").mkdir(parents=True)
+    monkeypatch.setenv("BSELA_AGENTS_MD_REPO", str(repo))
+
+    result = CliRunner().invoke(app, ["doctor"])
+    assert result.exit_code == 0, result.stdout
+    assert "OPENROUTER_API_KEY" in result.stdout
 
 
 def test_cli_doctor_exit_one_when_any_fail(
     tmp_bsela_home: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    monkeypatch.delenv("OPENROUTER_API_KEY", raising=False)
     result = CliRunner().invoke(app, ["doctor"])
     assert result.exit_code == 1
     assert "FAIL" in result.stdout

@@ -52,15 +52,19 @@ def _check_python() -> CheckResult:
     return CheckResult("python", PASS, version)
 
 
-def _check_anthropic_api_key() -> CheckResult:
-    key = os.environ.get("ANTHROPIC_API_KEY", "").strip()
-    if not key:
-        return CheckResult(
-            "ANTHROPIC_API_KEY",
-            FAIL,
-            "not set — bsela distill / process will fail",
-        )
-    return CheckResult("ANTHROPIC_API_KEY", PASS, f"set ({len(key)} chars)")
+def _check_llm_api_key() -> CheckResult:
+    """Accept either ANTHROPIC_API_KEY or OPENROUTER_API_KEY."""
+    anthropic = os.environ.get("ANTHROPIC_API_KEY", "").strip()
+    openrouter = os.environ.get("OPENROUTER_API_KEY", "").strip()
+    if anthropic:
+        return CheckResult("LLM API key", PASS, f"ANTHROPIC_API_KEY set ({len(anthropic)} chars)")
+    if openrouter:
+        return CheckResult("LLM API key", PASS, f"OPENROUTER_API_KEY set ({len(openrouter)} chars)")
+    return CheckResult(
+        "LLM API key",
+        FAIL,
+        "neither ANTHROPIC_API_KEY nor OPENROUTER_API_KEY is set — bsela distill / process will fail",
+    )
 
 
 def _check_bsela_home() -> CheckResult:
@@ -183,7 +187,7 @@ def run_checks(*, settings_path: Path | None = None) -> list[CheckResult]:
     return [
         _check_python(),
         _check_bsela_on_path(),
-        _check_anthropic_api_key(),
+        _check_llm_api_key(),
         _check_bsela_home(),
         _check_db(),
         _check_agents_md_repo(),
