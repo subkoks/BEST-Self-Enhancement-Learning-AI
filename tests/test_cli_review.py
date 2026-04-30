@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import subprocess
 from pathlib import Path
 
@@ -172,12 +173,10 @@ def test_review_list_empty_pending_shows_message(tmp_bsela_home: Path) -> None:
 
 
 def test_review_list_json_output(tmp_bsela_home: Path) -> None:
-    import json as _json
-
     lesson = _project_lesson()
     result = CliRunner().invoke(app, ["review", "list", "--json"])
     assert result.exit_code == 0
-    data = _json.loads(result.stdout)
+    data = json.loads(result.stdout)
     assert isinstance(data, list)
     assert any(item["id"] == lesson.id for item in data)
     # Check expected keys present

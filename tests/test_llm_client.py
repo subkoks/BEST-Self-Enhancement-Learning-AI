@@ -18,11 +18,10 @@ from bsela.llm.client import (
     AnthropicClient,
     FakeLLMClient,
     OpenRouterClient,
-    make_llm_client,
     _extract_json_object,
+    make_llm_client,
 )
 from bsela.llm.types import DistillResponse, JudgeVerdict, LessonCandidate
-
 
 # ---- helpers ----
 
@@ -79,9 +78,8 @@ def test_open_router_complete_raises_on_non_429_http_error() -> None:
     err = urllib.error.HTTPError(
         url="https://x", code=401, msg="Unauthorized", hdrs=MagicMock(), fp=BytesIO(b"denied")
     )
-    with patch("urllib.request.urlopen", side_effect=err):
-        with pytest.raises(RuntimeError, match="401"):
-            client._complete(model="m", system="s", user="u", max_tokens=10)
+    with patch("urllib.request.urlopen", side_effect=err), pytest.raises(RuntimeError, match="401"):
+        client._complete(model="m", system="s", user="u", max_tokens=10)
 
 
 def test_open_router_complete_retries_429_then_succeeds() -> None:
@@ -104,9 +102,11 @@ def test_open_router_complete_retries_429_then_succeeds() -> None:
             raise err_429
         return success_resp
 
-    with patch("urllib.request.urlopen", side_effect=side_effect):
-        with patch("time.sleep"):  # don't actually wait
-            result = client._complete(model="m", system="s", user="u", max_tokens=10)
+    with (
+        patch("urllib.request.urlopen", side_effect=side_effect),
+        patch("time.sleep"),
+    ):  # don't actually wait
+        result = client._complete(model="m", system="s", user="u", max_tokens=10)
     assert call_count == 2
     assert '"ok": 1' in result
 
@@ -121,10 +121,12 @@ def test_open_router_complete_raises_after_max_retries() -> None:
         hdrs=MagicMock(),
         fp=BytesIO(b"rate limited"),
     )
-    with patch("urllib.request.urlopen", side_effect=err_429):
-        with patch("time.sleep"):
-            with pytest.raises(RuntimeError):
-                client._complete(model="m", system="s", user="u", max_tokens=10)
+    with (
+        patch("urllib.request.urlopen", side_effect=err_429),
+        patch("time.sleep"),
+        pytest.raises(RuntimeError),
+    ):
+        client._complete(model="m", system="s", user="u", max_tokens=10)
 
 
 # ---- OpenRouterClient._complete_with_json_retry ----
@@ -144,20 +146,19 @@ def test_json_retry_retries_on_prose_then_returns_json() -> None:
     prose = "Sure, here is what I think about the session."
     good_json = '{"goal_achieved": false, "confidence": 0.5}'
     responses = [prose, good_json]
-    with patch.object(client, "_complete", side_effect=responses):
-        with patch("time.sleep"):
-            result = client._complete_with_json_retry(
-                model="m", system="s", user="u", max_tokens=10
-            )
+    with patch.object(client, "_complete", side_effect=responses), patch("time.sleep"):
+        result = client._complete_with_json_retry(model="m", system="s", user="u", max_tokens=10)
     assert result == good_json
 
 
 def test_json_retry_raises_after_all_prose() -> None:
     client = _or_client()
-    with patch.object(client, "_complete", return_value="pure prose, no JSON"):
-        with patch("time.sleep"):
-            with pytest.raises(ValueError, match="no JSON object"):
-                client._complete_with_json_retry(model="m", system="s", user="u", max_tokens=10)
+    with (
+        patch.object(client, "_complete", return_value="pure prose, no JSON"),
+        patch("time.sleep"),
+        pytest.raises(ValueError, match="no JSON object"),
+    ):
+        client._complete_with_json_retry(model="m", system="s", user="u", max_tokens=10)
 
 
 # ---- OpenRouterClient.judge / distill ----

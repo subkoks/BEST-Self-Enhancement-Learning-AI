@@ -163,6 +163,44 @@ def test_process_honours_limit(tmp_bsela_home: Path) -> None:
     assert result.processed == 2
 
 
+def test_process_distill_exception_increments_errors(tmp_bsela_home: Path) -> None:
+    """Distill exceptions are counted and don't abort the whole run."""
+    ingest_file(FIXTURES / "looped-read.jsonl")
+
+    class BoomClient(FakeLLMClient):
+        def judge(self, *, system: str, user: str) -> JudgeVerdict:  # type: ignore[override]
+            raise RuntimeError("transient failure")
+
+    result = process_sessions(
+        client=BoomClient(judge_response=_unhealthy(), distill_response=_one_lesson_distill())
+    )
+    assert result.errors == 1
+    assert result.distilled == 0
+    assert count_lessons() == 0
+
+
+def test_process_billing_error_aborts_early(tmp_bsela_home: Path) -> None:
+    """A billing error in distill stops processing immediately."""
+    for _ in range(3):
+        ingest_file(FIXTURES / "looped-read.jsonl")
+
+    call_count = 0
+
+    class BillingClient(FakeLLMClient):
+        def judge(self, *, system: str, user: str) -> JudgeVerdict:  # type: ignore[override]
+            nonlocal call_count
+            call_count += 1
+            raise RuntimeError("billing error: insufficient credits")
+
+    result = process_sessions(
+        client=BillingClient(judge_response=_unhealthy(), distill_response=_one_lesson_distill()),
+        limit=10,
+    )
+    # Billing error on first session → should abort after 1
+    assert call_count == 1
+    assert result.errors == 1
+
+
 def test_process_cli_invokes_real_client_path(
     tmp_bsela_home: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
