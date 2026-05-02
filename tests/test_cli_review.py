@@ -248,7 +248,19 @@ def test_lessons_alias_json_output(tmp_bsela_home: Path) -> None:
     assert result.exit_code == 0
     data = json.loads(result.stdout)
     assert isinstance(data, list)
-    assert any(item["id"] == lesson.id for item in data)
+    entry = next(item for item in data if item["id"] == lesson.id)
+    assert sorted(entry.keys()) == [
+        "confidence",
+        "created_at",
+        "hit_count",
+        "how_to_apply",
+        "id",
+        "rule",
+        "scope",
+        "status",
+        "why",
+    ]
+    assert entry["hit_count"] == 0
 
 
 def test_lessons_alias_track_hits(tmp_bsela_home: Path) -> None:
@@ -256,6 +268,21 @@ def test_lessons_alias_track_hits(tmp_bsela_home: Path) -> None:
     assert lesson.hit_count == 0
     result = CliRunner().invoke(app, ["lessons", "--track-hits"])
     assert result.exit_code == 0
+    updated = get_lesson(lesson.id)
+    assert updated is not None
+    assert updated.hit_count == 1
+
+
+def test_lessons_alias_track_hits_json_reflects_increment(tmp_bsela_home: Path) -> None:
+    lesson = _project_lesson()
+    result = CliRunner().invoke(app, ["lessons", "--json", "--track-hits", "--limit", "1"])
+    assert result.exit_code == 0
+    data = json.loads(result.stdout)
+    assert isinstance(data, list)
+    assert len(data) == 1
+    assert data[0]["id"] == lesson.id
+    # JSON payload reflects the selected row before increment; persistence updates after.
+    assert data[0]["hit_count"] == 0
     updated = get_lesson(lesson.id)
     assert updated is not None
     assert updated.hit_count == 1
