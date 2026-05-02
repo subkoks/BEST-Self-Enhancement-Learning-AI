@@ -10,6 +10,8 @@ from typer.testing import CliRunner
 
 from bsela import __version__
 from bsela.cli import app
+from bsela.memory.models import Lesson
+from bsela.memory.store import save_lesson
 
 
 @pytest.fixture
@@ -109,6 +111,67 @@ def test_lessons_json_empty_store(tmp_bsela_home: Path, runner: CliRunner) -> No
     result = runner.invoke(app, ["lessons", "--json"])
     assert result.exit_code == 0, result.stdout
     assert json.loads(result.stdout) == []
+
+
+# Must match ``LessonItem`` in ``mcp/src/bsela-client.ts`` (MCP ``bsela_lessons``).
+_LESSON_ITEM_JSON_KEYS = frozenset(
+    {
+        "id",
+        "status",
+        "scope",
+        "confidence",
+        "rule",
+        "why",
+        "how_to_apply",
+        "hit_count",
+        "created_at",
+    }
+)
+
+
+def _assert_lesson_item_row(row: object) -> None:
+    assert isinstance(row, dict)
+    d: dict[str, object] = row
+    assert set(d.keys()) == _LESSON_ITEM_JSON_KEYS
+    assert isinstance(d["id"], str)
+    assert isinstance(d["status"], str)
+    assert isinstance(d["scope"], str)
+    assert isinstance(d["confidence"], (int, float))
+    assert isinstance(d["rule"], str)
+    assert isinstance(d["why"], str)
+    assert isinstance(d["how_to_apply"], str)
+    assert isinstance(d["hit_count"], int)
+    ca = d["created_at"]
+    assert ca is None or isinstance(ca, str)
+
+
+@pytest.mark.parametrize(
+    "argv",
+    [
+        (["lessons", "--json"],),
+        (["review", "list", "--json"],),
+    ],
+)
+def test_lessons_json_row_matches_mcp_lesson_item(
+    tmp_bsela_home: Path, runner: CliRunner, argv: list[str]
+) -> None:
+    """Non-empty rows must match the MCP ``LessonItem`` contract."""
+    saved = save_lesson(
+        Lesson(
+            scope="project",
+            rule="Contract test rule",
+            why="Exercise JSON shape",
+            how_to_apply="Run pytest",
+            confidence=0.88,
+        )
+    )
+    result = runner.invoke(app, argv)
+    assert result.exit_code == 0, result.stdout
+    rows = json.loads(result.stdout)
+    assert len(rows) == 1
+    _assert_lesson_item_row(rows[0])
+    assert rows[0]["id"] == saved.id
+    assert rows[0]["rule"] == "Contract test rule"
 
 
 _AUDIT_JSON_TOP_LEVEL = frozenset(
