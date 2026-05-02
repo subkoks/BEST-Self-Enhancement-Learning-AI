@@ -22,6 +22,7 @@ from bsela.core.auditor import (
     DEFAULT_WINDOW_DAYS as AUDIT_DEFAULT_WINDOW_DAYS,
 )
 from bsela.core.auditor import (
+    AuditReport,
     build_audit,
 )
 from bsela.core.auditor import (
@@ -784,6 +785,51 @@ def route(
     raise typer.Exit(code=0)
 
 
+def _audit_json_payload(report_data: object) -> dict[str, object]:
+    """Serialize ``AuditReport`` into a machine-readable JSON payload."""
+    if not isinstance(report_data, AuditReport):
+        raise TypeError("report_data must be an AuditReport")
+    return {
+        "generated_at": report_data.generated_at.isoformat(),
+        "window_days": report_data.window_days,
+        "window_start": report_data.window_start.isoformat(),
+        "window_end": report_data.window_end.isoformat(),
+        "sessions": {
+            "total": report_data.sessions_total,
+            "quarantined": report_data.sessions_quarantined,
+            "quarantine_rate": report_data.quarantine_rate,
+        },
+        "errors_total": report_data.errors_total,
+        "cost": {
+            "total_usd": report_data.cost.total_usd,
+            "prorated_monthly_usd": report_data.cost.prorated_monthly_usd,
+            "monthly_budget_usd": report_data.cost.monthly_budget_usd,
+            "burn_ratio": report_data.cost.burn_ratio,
+            "over_budget": report_data.cost.over_budget,
+        },
+        "drift": {
+            "lessons_total": report_data.drift.lessons_total,
+            "lessons_stale": report_data.drift.lessons_stale,
+            "threshold": report_data.drift.threshold,
+            "drift_fraction": report_data.drift.drift_fraction,
+            "over_threshold": report_data.drift.over_threshold,
+        },
+        "replay_drift": {
+            "sessions_replayed": report_data.replay_drift.sessions_replayed,
+            "sessions_with_drift": report_data.replay_drift.sessions_with_drift,
+            "threshold": report_data.replay_drift.threshold,
+            "drift_rate": report_data.replay_drift.drift_rate,
+            "over_threshold": report_data.replay_drift.over_threshold,
+        },
+        "adrs": {
+            "total": report_data.adrs.total,
+            "missing_status": list(report_data.adrs.missing_status),
+            "scanned": report_data.adrs.scanned,
+        },
+        "alerts": list(report_data.alerts),
+    }
+
+
 @app.command()
 def audit(
     window_days: Annotated[
@@ -816,12 +862,18 @@ def audit(
         bool,
         typer.Option("--stdout", help="Print markdown to stdout instead of writing."),
     ] = False,
+    as_json: Annotated[
+        bool,
+        typer.Option("--json", help="Emit the audit report as JSON for machine consumption."),
+    ] = False,
 ) -> None:
     """Generate the P5 weekly audit from the BSELA store."""
     # --weekly is presentational; it just pins the window to the default.
     window = AUDIT_DEFAULT_WINDOW_DAYS if weekly else window_days
     report_data = build_audit(window_days=window)
-    if to_stdout:
+    if as_json:
+        typer.echo(json.dumps(_audit_json_payload(report_data)))
+    elif to_stdout:
         typer.echo(render_audit_markdown(report_data))
     else:
         target = write_audit_report(report_data, output)

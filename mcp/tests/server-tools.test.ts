@@ -86,28 +86,88 @@ describe("handleRoute", () => {
 
 describe("handleAudit", () => {
   it("passes window_days through to the client when provided", async () => {
-    const audit = vi.fn().mockResolvedValue("# BSELA Weekly Audit\n");
-    const client = stubClient({ audit });
+    const auditData = vi.fn().mockResolvedValue({
+      generated_at: "2026-05-02T00:00:00+00:00",
+      window_days: 14,
+      window_start: "2026-04-18T00:00:00+00:00",
+      window_end: "2026-05-02T00:00:00+00:00",
+      sessions: { total: 0, quarantined: 0, quarantine_rate: 0 },
+      errors_total: 0,
+      cost: {
+        total_usd: 0,
+        prorated_monthly_usd: 0,
+        monthly_budget_usd: 50,
+        burn_ratio: 0,
+        over_budget: false,
+      },
+      drift: {
+        lessons_total: 0,
+        lessons_stale: 0,
+        threshold: 0.25,
+        drift_fraction: 0,
+        over_threshold: false,
+      },
+      replay_drift: {
+        sessions_replayed: 0,
+        sessions_with_drift: 0,
+        threshold: 0.25,
+        drift_rate: 0,
+        over_threshold: false,
+      },
+      adrs: { total: 0, missing_status: [], scanned: false },
+      alerts: [],
+    });
+    const client = stubClient({ auditData });
 
     const result = await handleAudit(client, { window_days: 14 });
 
-    expect(audit).toHaveBeenCalledWith({ windowDays: 14 });
+    expect(auditData).toHaveBeenCalledWith({ windowDays: 14 });
     expect(result.isError).toBeUndefined();
-    expect((result.content[0] as { text: string }).text).toContain("BSELA Weekly Audit");
+    expect(result.structuredContent).toMatchObject({ window_days: 14 });
   });
 
   it("omits windowDays when window_days is undefined", async () => {
-    const audit = vi.fn().mockResolvedValue("# BSELA Weekly Audit\n");
-    const client = stubClient({ audit });
+    const auditData = vi.fn().mockResolvedValue({
+      generated_at: "2026-05-02T00:00:00+00:00",
+      window_days: 30,
+      window_start: "2026-04-02T00:00:00+00:00",
+      window_end: "2026-05-02T00:00:00+00:00",
+      sessions: { total: 0, quarantined: 0, quarantine_rate: 0 },
+      errors_total: 0,
+      cost: {
+        total_usd: 0,
+        prorated_monthly_usd: 0,
+        monthly_budget_usd: 50,
+        burn_ratio: 0,
+        over_budget: false,
+      },
+      drift: {
+        lessons_total: 0,
+        lessons_stale: 0,
+        threshold: 0.25,
+        drift_fraction: 0,
+        over_threshold: false,
+      },
+      replay_drift: {
+        sessions_replayed: 0,
+        sessions_with_drift: 0,
+        threshold: 0.25,
+        drift_rate: 0,
+        over_threshold: false,
+      },
+      adrs: { total: 0, missing_status: [], scanned: false },
+      alerts: [],
+    });
+    const client = stubClient({ auditData });
 
     await handleAudit(client, {});
 
-    expect(audit).toHaveBeenCalledWith({});
+    expect(auditData).toHaveBeenCalledWith({});
   });
 
   it("returns an error result when the client throws", async () => {
-    const audit = vi.fn().mockRejectedValue(new Error("disk full"));
-    const client = stubClient({ audit });
+    const auditData = vi.fn().mockRejectedValue(new Error("disk full"));
+    const client = stubClient({ auditData });
 
     const result = await handleAudit(client, {});
 

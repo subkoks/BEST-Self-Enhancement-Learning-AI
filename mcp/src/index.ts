@@ -7,6 +7,7 @@
  */
 
 export {
+  type AuditPayload,
   BselaClient,
   BselaClientError,
   type BselaClientOptions,

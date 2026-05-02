@@ -45,7 +45,37 @@ describe("createServer", () => {
     };
     const client = stubClient({
       route: vi.fn().mockResolvedValue(decision),
-      audit: vi.fn().mockResolvedValue("# BSELA Weekly Audit\n"),
+      auditData: vi.fn().mockResolvedValue({
+        generated_at: "2026-05-02T00:00:00+00:00",
+        window_days: 30,
+        window_start: "2026-04-02T00:00:00+00:00",
+        window_end: "2026-05-02T00:00:00+00:00",
+        sessions: { total: 0, quarantined: 0, quarantine_rate: 0 },
+        errors_total: 0,
+        cost: {
+          total_usd: 0,
+          prorated_monthly_usd: 0,
+          monthly_budget_usd: 50,
+          burn_ratio: 0,
+          over_budget: false,
+        },
+        drift: {
+          lessons_total: 0,
+          lessons_stale: 0,
+          threshold: 0.25,
+          drift_fraction: 0,
+          over_threshold: false,
+        },
+        replay_drift: {
+          sessions_replayed: 0,
+          sessions_with_drift: 0,
+          threshold: 0.25,
+          drift_rate: 0,
+          over_threshold: false,
+        },
+        adrs: { total: 0, missing_status: [], scanned: false },
+        alerts: [],
+      }),
       status: vi.fn().mockResolvedValue(statusPayload),
       lessons: vi.fn().mockResolvedValue([]),
     });
@@ -91,10 +121,40 @@ describe("createServer", () => {
   });
 
   it("dispatches bsela_audit with the requested window_days", async () => {
-    const audit = vi.fn().mockResolvedValue("# BSELA Weekly Audit\n## Alerts\nnone\n");
+    const auditData = vi.fn().mockResolvedValue({
+      generated_at: "2026-05-02T00:00:00+00:00",
+      window_days: 7,
+      window_start: "2026-04-25T00:00:00+00:00",
+      window_end: "2026-05-02T00:00:00+00:00",
+      sessions: { total: 1, quarantined: 0, quarantine_rate: 0 },
+      errors_total: 0,
+      cost: {
+        total_usd: 0,
+        prorated_monthly_usd: 0,
+        monthly_budget_usd: 50,
+        burn_ratio: 0,
+        over_budget: false,
+      },
+      drift: {
+        lessons_total: 0,
+        lessons_stale: 0,
+        threshold: 0.25,
+        drift_fraction: 0,
+        over_threshold: false,
+      },
+      replay_drift: {
+        sessions_replayed: 0,
+        sessions_with_drift: 0,
+        threshold: 0.25,
+        drift_rate: 0,
+        over_threshold: false,
+      },
+      adrs: { total: 0, missing_status: [], scanned: false },
+      alerts: [],
+    });
     const client = stubClient({
       route: vi.fn(),
-      audit,
+      auditData,
       status: vi.fn(),
     });
 
@@ -104,9 +164,9 @@ describe("createServer", () => {
         name: "bsela_audit",
         arguments: { window_days: 7 },
       });
-      expect(audit).toHaveBeenCalledWith({ windowDays: 7 });
+      expect(auditData).toHaveBeenCalledWith({ windowDays: 7 });
       const content = result.content as Array<{ type: string; text: string }>;
-      expect(content[0]!.text).toContain("BSELA Weekly Audit");
+      expect(JSON.parse(content[0]!.text)).toMatchObject({ window_days: 7 });
     } finally {
       await mcp.close();
     }

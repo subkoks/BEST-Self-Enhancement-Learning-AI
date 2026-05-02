@@ -53,6 +53,14 @@ describe("BselaClient.audit", () => {
     expect(markdown).toContain("# BSELA Weekly Audit");
     expect(markdown).toContain("## Alerts");
   });
+
+  it("returns typed JSON payload from --json mode", async () => {
+    const payload = await client.auditData({ windowDays: 30 });
+    expect(payload.window_days).toBe(30);
+    expect(typeof payload.sessions.total).toBe("number");
+    expect(typeof payload.cost.over_budget).toBe("boolean");
+    expect(Array.isArray(payload.alerts)).toBe(true);
+  });
 });
 
 describe("BselaClient.status", () => {
@@ -65,6 +73,7 @@ describe("BselaClient.status", () => {
     expect(typeof payload.errors).toBe("number");
     expect(typeof payload.lessons).toBe("number");
     expect(typeof payload.lessons_pending).toBe("number");
+    expect(typeof payload.lessons_proposed).toBe("number");
     expect(typeof payload.replay_records).toBe("number");
     expect(typeof payload.bsela_home).toBe("string");
     expect(payload.bsela_home.length).toBeGreaterThan(0);

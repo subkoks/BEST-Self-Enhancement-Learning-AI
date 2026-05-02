@@ -47,6 +47,46 @@ export interface StatusPayload {
   bsela_home: string;
 }
 
+export interface AuditPayload {
+  generated_at: string;
+  window_days: number;
+  window_start: string;
+  window_end: string;
+  sessions: {
+    total: number;
+    quarantined: number;
+    quarantine_rate: number;
+  };
+  errors_total: number;
+  cost: {
+    total_usd: number;
+    prorated_monthly_usd: number;
+    monthly_budget_usd: number;
+    burn_ratio: number;
+    over_budget: boolean;
+  };
+  drift: {
+    lessons_total: number;
+    lessons_stale: number;
+    threshold: number;
+    drift_fraction: number;
+    over_threshold: boolean;
+  };
+  replay_drift: {
+    sessions_replayed: number;
+    sessions_with_drift: number;
+    threshold: number;
+    drift_rate: number;
+    over_threshold: boolean;
+  };
+  adrs: {
+    total: number;
+    missing_status: Array<string>;
+    scanned: boolean;
+  };
+  alerts: Array<string>;
+}
+
 export interface LessonItem {
   id: string;
   status: string;
@@ -186,6 +226,59 @@ function isStatusPayload(value: unknown): value is StatusPayload {
   );
 }
 
+function isAuditPayload(value: unknown): value is AuditPayload {
+  if (typeof value !== "object" || value === null) return false;
+  const v = value as Record<string, unknown>;
+  const sessions = v.sessions;
+  const cost = v.cost;
+  const drift = v.drift;
+  const replayDrift = v.replay_drift;
+  const adrs = v.adrs;
+  return (
+    typeof v.generated_at === "string" &&
+    typeof v.window_days === "number" &&
+    typeof v.window_start === "string" &&
+    typeof v.window_end === "string" &&
+    typeof v.errors_total === "number" &&
+    Array.isArray(v.alerts) &&
+    v.alerts.every((item) => typeof item === "string") &&
+    typeof sessions === "object" &&
+    sessions !== null &&
+    typeof (sessions as Record<string, unknown>).total === "number" &&
+    typeof (sessions as Record<string, unknown>).quarantined === "number" &&
+    typeof (sessions as Record<string, unknown>).quarantine_rate === "number" &&
+    typeof cost === "object" &&
+    cost !== null &&
+    typeof (cost as Record<string, unknown>).total_usd === "number" &&
+    typeof (cost as Record<string, unknown>).prorated_monthly_usd === "number" &&
+    typeof (cost as Record<string, unknown>).monthly_budget_usd === "number" &&
+    typeof (cost as Record<string, unknown>).burn_ratio === "number" &&
+    typeof (cost as Record<string, unknown>).over_budget === "boolean" &&
+    typeof drift === "object" &&
+    drift !== null &&
+    typeof (drift as Record<string, unknown>).lessons_total === "number" &&
+    typeof (drift as Record<string, unknown>).lessons_stale === "number" &&
+    typeof (drift as Record<string, unknown>).threshold === "number" &&
+    typeof (drift as Record<string, unknown>).drift_fraction === "number" &&
+    typeof (drift as Record<string, unknown>).over_threshold === "boolean" &&
+    typeof replayDrift === "object" &&
+    replayDrift !== null &&
+    typeof (replayDrift as Record<string, unknown>).sessions_replayed === "number" &&
+    typeof (replayDrift as Record<string, unknown>).sessions_with_drift === "number" &&
+    typeof (replayDrift as Record<string, unknown>).threshold === "number" &&
+    typeof (replayDrift as Record<string, unknown>).drift_rate === "number" &&
+    typeof (replayDrift as Record<string, unknown>).over_threshold === "boolean" &&
+    typeof adrs === "object" &&
+    adrs !== null &&
+    typeof (adrs as Record<string, unknown>).total === "number" &&
+    Array.isArray((adrs as Record<string, unknown>).missing_status) &&
+    ((adrs as Record<string, unknown>).missing_status as Array<unknown>).every(
+      (item) => typeof item === "string",
+    ) &&
+    typeof (adrs as Record<string, unknown>).scanned === "boolean"
+  );
+}
+
 function isLessonItem(value: unknown): value is LessonItem {
   if (typeof value !== "object" || value === null) return false;
   const v = value as Record<string, unknown>;
@@ -233,6 +326,26 @@ export class BselaClient {
     // signal, not a failure. Accept both exit codes.
     assertSuccess(args, result, [0, 1]);
     return result.stdout;
+  }
+
+  async auditData(options: { windowDays?: number } = {}): Promise<AuditPayload> {
+    const args = ["audit", "--json"];
+    if (options.windowDays !== undefined) {
+      args.push("--window-days", String(options.windowDays));
+    }
+    const result = await runBsela(args, this.options);
+    // `bsela audit` exits 1 when any alert is active — that is a
+    // signal, not a failure. Accept both exit codes.
+    assertSuccess(args, result, [0, 1]);
+    const parsed = parseJson(result.stdout.trim());
+    if (!isAuditPayload(parsed)) {
+      throw new BselaClientError(
+        "bsela audit returned an unexpected payload shape",
+        result.exitCode,
+        JSON.stringify(parsed).slice(0, 200),
+      );
+    }
+    return parsed;
   }
 
   async status(): Promise<StatusPayload> {

@@ -5,7 +5,7 @@
  * Per ADR 0006 the first MCP surface is read-only and maps 1:1 to
  * existing `bsela` CLI commands:
  *   * bsela_route   -> bsela route <task> --json
- *   * bsela_audit   -> bsela audit --stdout [--window-days N]
+ *   * bsela_audit   -> bsela audit --json [--window-days N]
  *   * bsela_status  -> bsela status
  */
 
@@ -14,6 +14,7 @@ import { z } from "zod";
 
 import {
   BselaClientError,
+  type AuditPayload,
   type BselaClient,
   type LessonItem,
   type StatusPayload,
@@ -71,11 +72,12 @@ export async function handleAudit(
   args: { window_days?: number | undefined },
 ): Promise<ToolTextResult> {
   try {
-    const markdown = await client.audit(
+    const payload: AuditPayload = await client.auditData(
       args.window_days === undefined ? {} : { windowDays: args.window_days },
     );
     return {
-      content: [{ type: "text", text: markdown }],
+      content: [{ type: "text", text: JSON.stringify(payload, null, 2) }],
+      structuredContent: payload as unknown as Record<string, unknown>,
     };
   } catch (err) {
     return errorResult(err, "bsela audit failed");
@@ -123,13 +125,13 @@ export const toolDefinitions = {
   bsela_audit: {
     title: "BSELA audit",
     description:
-      "Run the BSELA weekly auditor and return the markdown digest. Reports cost burn, drift, and ADR hygiene over the last 30 days by default.",
+      "Run the BSELA weekly auditor and return a structured JSON digest. Reports cost burn, drift, replay drift, and ADR hygiene over the last 30 days by default.",
     inputSchema: auditInputSchema,
   },
   bsela_status: {
     title: "BSELA status",
     description:
-      "Return BSELA store counts (sessions, errors, lessons, pending lessons, replay records) and the bsela home path.",
+      "Return BSELA store counts (sessions, errors, lessons, pending/proposed lessons, replay records) and the bsela home path.",
     inputSchema: statusInputSchema,
   },
   bsela_lessons: {

@@ -65,6 +65,19 @@ def test_audit_stdout_prints_markdown_without_writing(tmp_bsela_home: Path) -> N
     assert not (tmp_bsela_home / "reports" / "audit.md").exists()
 
 
+def test_audit_json_returns_machine_payload(tmp_bsela_home: Path) -> None:
+    result = CliRunner().invoke(app, ["audit", "--json"])
+    assert result.exit_code == 0
+    payload = json.loads(result.stdout)
+    assert payload["window_days"] == 30
+    assert payload["sessions"]["total"] == 0
+    assert payload["errors_total"] == 0
+    assert payload["cost"]["over_budget"] is False
+    assert isinstance(payload["alerts"], list)
+    # JSON mode should not write markdown output.
+    assert not (tmp_bsela_home / "reports" / "audit.md").exists()
+
+
 def test_audit_exits_nonzero_when_alerts_present(tmp_bsela_home: Path) -> None:
     save_metric(
         Metric(
@@ -77,3 +90,18 @@ def test_audit_exits_nonzero_when_alerts_present(tmp_bsela_home: Path) -> None:
     # Cost over budget → exit 1 so launchd logs the alert.
     assert result.exit_code == 1
     assert "alerts=" in result.stdout
+
+
+def test_audit_json_preserves_nonzero_exit_when_alerts_present(tmp_bsela_home: Path) -> None:
+    save_metric(
+        Metric(
+            stage="distill",
+            cost_usd=500.0,
+            created_at=datetime.now(UTC) - timedelta(hours=1),
+        )
+    )
+    result = CliRunner().invoke(app, ["audit", "--json"])
+    assert result.exit_code == 1
+    payload = json.loads(result.stdout)
+    assert payload["cost"]["over_budget"] is True
+    assert len(payload["alerts"]) >= 1
