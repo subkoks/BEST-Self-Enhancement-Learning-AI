@@ -147,10 +147,10 @@ def _assert_lesson_item_row(row: object) -> None:
 
 @pytest.mark.parametrize(
     "argv",
-    [
-        (["lessons", "--json"],),
-        (["review", "list", "--json"],),
-    ],
+    (
+        pytest.param(["lessons", "--json"], id="lessons"),
+        pytest.param(["review", "list", "--json"], id="review_list"),
+    ),
 )
 def test_lessons_json_row_matches_mcp_lesson_item(
     tmp_bsela_home: Path, runner: CliRunner, argv: list[str]
