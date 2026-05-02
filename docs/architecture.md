@@ -42,43 +42,53 @@ BSELA is a **control plane**, not a runtime. It reads what other agents already 
 ```
 
 ### Capture
+
 Hook scripts (Claude Code `Stop`/`PostResponse`, Codex session-end) append raw transcripts + metadata to `~/.bsela/sessions/<uuid>.jsonl`. Pure I/O, zero LLM cost. Secret scrubber runs inline; quarantined sessions never reach the store.
 
 ### Detector
+
 Deterministic regex + heuristic scan of new sessions. Flags user corrections (`stop`, `no`, `don't`, undo markers), repeated identical tool calls, stack traces, aborted commits, >N tool retries. Emits candidate `error` records. No LLM yet — fast, cheap, high recall.
 
 ### Distiller
+
 Two-tier LLM pipeline:
+
 1. **Haiku 4.5** scores each candidate with a typed rubric `{goal_achieved, efficiency, looped, wasted_tokens, confidence}`.
 2. Low-confidence or high-impact cases escalate to **Opus 4.7** for full distillation into a `lesson` record (`{rule, why, how_to_apply, scope, confidence}`).
-Dedupe against existing lessons via string match + embedding similarity before write.
+   Dedupe against existing lessons via string match + embedding similarity before write.
 
 ### Updater
+
 Writes rule-change proposals as git branches + commits on `~/Projects/Current/Active/agents-md`. Never edits synced artifacts directly — always upstreams to canonical. Gates:
+
 - **Auto-merge** when `scope == project-local` AND `confidence ≥ 0.9` AND no high-priority overlap.
 - **Human review** otherwise; user runs `bsela review` to inspect and approve.
 
 ### Router
+
 Given a task prompt, classifies it into one of `{plan, build, review, research, debug, audit}` using `config/models.toml` (keyword-based v1) and prints the decision to stdout or `--json` (`bsela route`). The same logic is exposed as the MCP tool `bsela_route`.
 
 ### Auditor
+
 `launchd`-driven cron. Weekly: codebase scans, duplicate-rule detection, lesson compaction, drift detection (did a lesson's hit-rate collapse?), storage hygiene. Emits a digest to `~/.bsela/reports/YYYY-WW.md`.
 
 ### Researcher
+
 On-demand. Given a topic, fetches external docs/repos (via existing MCP servers: firecrawl, github, WebFetch) and compresses to a reference card filed under `docs/research/`.
 
 ### Reviewer
+
 Opt-in pre-commit hook. Runs staged diffs against distilled rules + `agents-md` conventions. Haiku 4.5 only. Blocks commit on hard-rule violations.
 
 ## Memory Taxonomy
 
-| Type | Storage | Scope | TTL |
-|---|---|---|---|
-| short-term task | editor-native | single task | session |
-| project | `<repo>/AGENTS.md` + `<repo>/.bsela/project.db` | single repo | project life |
-| long-term learning | `~/.bsela/lessons.db` | global | permanent (versioned) |
-| error | `~/.bsela/errors.db` | global | 90d rolling |
-| decision | `~/.bsela/decisions.db` | global | permanent |
+| Type               | Storage                                         | Scope       | TTL                   |
+| ------------------ | ----------------------------------------------- | ----------- | --------------------- |
+| short-term task    | editor-native                                   | single task | session               |
+| project            | `<repo>/AGENTS.md` + `<repo>/.bsela/project.db` | single repo | project life          |
+| long-term learning | `~/.bsela/lessons.db`                           | global      | permanent (versioned) |
+| error              | `~/.bsela/errors.db`                            | global      | 90d rolling           |
+| decision           | `~/.bsela/decisions.db`                         | global      | permanent             |
 
 One SQLite DB per scope. Typed tables via `sqlmodel`. JSON exports for human review. Never a monolithic markdown.
 
