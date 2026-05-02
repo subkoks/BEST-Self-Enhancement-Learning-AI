@@ -43,6 +43,7 @@ class SessionOutcome:
     session_id: str
     status: str
     lessons_created: int = 0
+    turn_count: int = 0  # populated in dry-run mode for the preview table
 
 
 @dataclass(frozen=True)
@@ -68,13 +69,19 @@ def _is_within_window(session: SessionRecord, cutoff: datetime | None) -> bool:
     return ingested >= cutoff
 
 
+def _is_billing_error(exc: Exception) -> bool:
+    msg = str(exc).lower()
+    return "credit" in msg or "billing" in msg or "authentication" in msg
+
+
 def process_sessions(
     *,
-    client: LLMClient,
+    client: LLMClient | None = None,
     limit: int = DEFAULT_LIMIT,
     since_days: int | None = DEFAULT_SINCE_DAYS,
     skip_already_distilled: bool = True,
     persist: bool = True,
+    dry_run: bool = False,
     now: datetime | None = None,
 ) -> ProcessResult:
     """Distill up to ``limit`` captured sessions ingested within the window.
@@ -82,6 +89,11 @@ def process_sessions(
     ``since_days=None`` disables the time filter. Quarantined sessions
     are never considered because ``list_sessions(status='captured')``
     filters them out at the SQL layer.
+
+    When ``dry_run=True`` no LLM calls are made and the store is not
+    mutated. ``client`` is unused and may be ``None``. Outcomes use
+    ``would_distill`` / ``would_skip_already_distilled`` statuses and
+    ``lessons_created`` holds the error count as an estimate.
     """
     reference = now or datetime.now(UTC)
     cutoff = reference - timedelta(days=since_days) if since_days is not None else None
@@ -90,13 +102,8 @@ def process_sessions(
     # and allows the limit to represent actual work, not wasted no-error skips.
     candidates = list_sessions_with_errors(status="captured", limit=max(limit * 3, limit))
     outcomes: list[SessionOutcome] = []
-    processed = 0
-    distilled = 0
-    lessons_created = 0
-    skipped_no_errors = 0
-    skipped_already = 0
-    skipped_healthy = 0
-    errors_count = 0
+    processed = distilled = lessons_created = 0
+    skipped_no_errors = skipped_already = skipped_healthy = errors_count = 0
 
     for session in candidates:
         if processed >= limit:
@@ -113,20 +120,34 @@ def process_sessions(
 
         if skip_already_distilled and session_has_lessons(session.id):
             skipped_already += 1
-            outcomes.append(SessionOutcome(session.id, "already_distilled"))
+            status = "would_skip_already_distilled" if dry_run else "already_distilled"
+            outcomes.append(SessionOutcome(session.id, status, turn_count=session.turn_count))
+            processed += 1
+            continue
+
+        if dry_run:
+            distilled += 1
+            estimated = len(errs)
+            lessons_created += estimated
+            outcomes.append(
+                SessionOutcome(
+                    session.id,
+                    "would_distill",
+                    lessons_created=estimated,
+                    turn_count=session.turn_count,
+                )
+            )
             processed += 1
             continue
 
         try:
-            result: DistillationResult = distill_session(session.id, client=client, persist=persist)
+            result: DistillationResult = distill_session(session.id, client=client, persist=persist)  # type: ignore[arg-type]
         except Exception as exc:
             _log.warning("distill failed for %s: %s", session.id[:8], exc)
             errors_count += 1
             outcomes.append(SessionOutcome(session.id, "error"))
             processed += 1
-            # Propagate billing / auth errors immediately — no point processing more
-            err_str = str(exc).lower()
-            if "credit" in err_str or "billing" in err_str or "authentication" in err_str:
+            if _is_billing_error(exc):
                 break
             continue
 

@@ -64,6 +64,9 @@ steady-state operator work (dogfood, tuning, and cross-editor depth).
    Needs `ANTHROPIC_API_KEY`; skips quarantined, error-free, and
    already-distilled sessions automatically. `make dogfood-process`
    prints the exact command as a reminder (it does not run the job).
+   Run `bsela process --dry-run` first to preview which sessions would
+   be selected and how many error-based lesson candidates are estimated,
+   without making any LLM calls or mutating the store.
 4. `bsela review` → `bsela review propose <id>` for AUTO-tagged
    lessons; `bsela review reject <id> -n "…"` for false positives.
 5. `bsela report --stdout` (or let the weekly launchd plist write to

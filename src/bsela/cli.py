@@ -1069,8 +1069,43 @@ def process(
         bool,
         typer.Option("--persist/--no-persist", help="Write pending Lesson rows."),
     ] = True,
+    dry_run: Annotated[
+        bool,
+        typer.Option(
+            "--dry-run",
+            help="Preview selected sessions and estimated lesson candidates without making "
+            "LLM calls or mutating store state.",
+        ),
+    ] = False,
 ) -> None:
     """Batch-distill recent captured sessions (requires ANTHROPIC_API_KEY)."""
+    if dry_run:
+        result = process_sessions(
+            client=None,
+            limit=limit,
+            since_days=since_days if since_days > 0 else None,
+            skip_already_distilled=not rerun,
+            persist=False,
+            dry_run=True,
+        )
+        window_label = f"{since_days}d" if since_days > 0 else "all"
+        typer.echo(
+            f"process (dry-run): {result.considered} session(s) in window "
+            f"(limit={limit}, window={window_label})"
+        )
+        for outcome in result.outcomes:
+            sid = outcome.session_id[:8]
+            turns = outcome.turn_count
+            est = outcome.lessons_created
+            typer.echo(f"  {sid}  turns={turns}  ~{est} candidate(s)  → {outcome.status}")
+        would_distill = result.distilled
+        typer.echo(
+            f"estimated: {would_distill} session(s) to distill, "
+            f"~{result.lessons_created} error(s) as lesson candidates"
+        )
+        typer.echo("(no LLM calls made, no store writes)")
+        raise typer.Exit(code=0)
+
     client = make_llm_client()
     result = process_sessions(
         client=client,

@@ -17,6 +17,7 @@ from bsela.llm.types import DistillResponse, JudgeVerdict, LessonCandidate
 from bsela.memory.models import SessionRecord
 from bsela.memory.store import (
     count_lessons,
+    list_errors,
     list_sessions,
     session_scope,
 )
@@ -259,3 +260,73 @@ def test_process_skips_session_with_no_errors_in_list(
         result = process_sessions(client=_client(), limit=5)
 
     assert result.skipped_no_errors >= 1
+
+
+# ---- dry-run mode -----------------------------------------------------------
+
+
+def test_process_dry_run_no_llm_calls_no_store_writes(tmp_bsela_home: Path) -> None:
+    """--dry-run makes no LLM calls and leaves the store unchanged."""
+    ingest_file(FIXTURES / "looped-read.jsonl")
+    fake = _client()
+
+    result = process_sessions(client=None, dry_run=True)
+
+    assert fake.judge_calls == 0
+    assert fake.distill_calls == 0
+    assert count_lessons() == 0
+    assert result.distilled >= 1
+    assert result.lessons_created >= 1  # estimated from error count
+    assert any(o.status == "would_distill" for o in result.outcomes)
+
+
+def test_process_dry_run_estimates_from_error_count(tmp_bsela_home: Path) -> None:
+    """Estimated lesson candidates equal the number of error records for that session."""
+    ingest_file(FIXTURES / "looped-read.jsonl")
+    sid = list_sessions(status="captured", limit=1)[0].id
+    expected_errors = len(list_errors(session_id=sid))
+
+    result = process_sessions(client=None, dry_run=True, limit=1)
+
+    assert len(result.outcomes) == 1
+    outcome = result.outcomes[0]
+    assert outcome.status == "would_distill"
+    assert outcome.lessons_created == expected_errors
+    assert result.lessons_created == expected_errors
+
+
+def test_process_dry_run_skips_already_distilled(tmp_bsela_home: Path) -> None:
+    """--dry-run marks already-distilled sessions as would_skip_already_distilled."""
+    ingest_file(FIXTURES / "looped-read.jsonl")
+    # First run distills the session for real.
+    process_sessions(client=_client())
+    assert count_lessons() == 1
+
+    # Dry-run now sees it as already distilled.
+    result = process_sessions(client=None, dry_run=True)
+    assert count_lessons() == 1  # still no new writes
+    assert any(o.status == "would_skip_already_distilled" for o in result.outcomes)
+
+
+def test_process_dry_run_cli_exits_zero_no_api_key(tmp_bsela_home: Path) -> None:
+    """process --dry-run exits 0 without requiring ANTHROPIC_API_KEY."""
+    ingest_file(FIXTURES / "looped-read.jsonl")
+
+    runner = CliRunner()
+    result = runner.invoke(app, ["process", "--dry-run"])
+
+    assert result.exit_code == 0, result.stdout
+    assert "dry-run" in result.stdout
+    assert "no LLM calls" in result.stdout
+    assert "no store writes" in result.stdout
+    assert "would_distill" in result.stdout
+
+
+def test_process_dry_run_cli_empty_store(tmp_bsela_home: Path) -> None:
+    """process --dry-run on an empty store exits 0 with a clean summary."""
+    runner = CliRunner()
+    result = runner.invoke(app, ["process", "--dry-run"])
+
+    assert result.exit_code == 0, result.stdout
+    assert "dry-run" in result.stdout
+    assert "no LLM calls" in result.stdout
