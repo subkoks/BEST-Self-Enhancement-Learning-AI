@@ -206,6 +206,34 @@ exit 1
       await rm(dir, { recursive: true, force: true });
     }
   });
+
+  it("passes status, limit, and track-hits flags to lessons command", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "bsela-client-lessons-args-"));
+    const binary = join(dir, "bsela-stub");
+    const script = `#!/bin/sh
+if [ "$1" = "lessons" ] && [ "$2" = "--json" ] && [ "$3" = "--status" ] && [ "$4" = "approved" ] && [ "$5" = "--limit" ] && [ "$6" = "7" ] && [ "$7" = "--track-hits" ]; then
+  cat <<'JSON'
+[]
+JSON
+  exit 0
+fi
+echo "unexpected args: $*" 1>&2
+exit 1
+`;
+    await writeFile(binary, script, { encoding: "utf-8" });
+    await chmod(binary, 0o755);
+    try {
+      const stubClient = new BselaClient({ binary });
+      const payload = await stubClient.lessons({
+        status: "approved",
+        limit: 7,
+        trackHits: true,
+      });
+      expect(payload).toEqual([]);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
 });
 
 describe("BselaClient error paths", () => {
