@@ -22,6 +22,6 @@ Index: `[adapters/README.md](adapters/README.md)`. Codex-specific steps:
 
 P0–P7 are shipped; prioritize operator work from [`docs/roadmap.md`](docs/roadmap.md) **Next Action** (hook, ingest/process, review/propose, report, thresholds with ADR when gates move, cross-editor MCP depth).
 
-1. **Cross-editor dogfood** — run real Codex and Claude Code sessions against the same `~/.bsela` store; record parity or gaps in the roadmap or [ADR 0006](docs/decisions/0006-p6-mcp-and-adapters.md) notes.
+1. **Cross-editor dogfood** — run real Codex, Cursor, Windsurf, and Claude Code sessions against the same `~/.bsela` store; record parity or gaps in the roadmap or [ADR 0006](docs/decisions/0006-p6-mcp-and-adapters.md) notes.
 2. **MCP parity** — confirm `bsela_route` / `bsela_audit` / `bsela_status` / `bsela_lessons` match `bsela route|audit|status|lessons`; run `make mcp-parity` when CLI or MCP payloads change.
 3. Keep CLI↔MCP contract tests in `mcp/` current whenever tool fields change.

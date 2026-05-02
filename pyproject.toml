@@ -8,7 +8,7 @@ license = { file = "LICENSE" }
 authors = [
     { name = "Ingus Liepins", email = "subkoks@gmail.com" },
 ]
-keywords = ["ai-agents", "claude-code", "codex", "windsurf", "continual-learning", "self-improvement"]
+keywords = ["ai-agents", "claude-code", "codex", "cursor", "windsurf", "continual-learning", "self-improvement"]
 classifiers = [
     "Development Status :: 2 - Pre-Alpha",
     "Environment :: Console",

@@ -7,7 +7,7 @@ is explicitly keyword-based so it can run offline and is trivially
 testable.
 
 The router is the single seam where "what kind of work is this?" gets
-answered. Adapters (Claude Code, Codex, Windsurf, future MCP) call it
+answered. Adapters (Claude Code, Codex, Cursor, Windsurf, MCP) call it
 to pick a model before dispatching. The v2 upgrade path (Haiku-scored
 classifier prompt) is documented in ADR 0005; no ADR is required to
 tune keyword buckets in this module.
