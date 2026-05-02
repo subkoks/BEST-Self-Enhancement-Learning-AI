@@ -76,9 +76,9 @@ The code-side of P5 ships in parallel with P4 dogfood:
 * `bsela route "<task>"` classifies a free-form task into one of the
   model roles in `config/models.toml` (keyword-based v1). `--json` for
   machine consumers.
-* `bsela audit [--weekly|--window-days N|--stdout]` produces the
-  30-day audit digest at `~/.bsela/reports/audit.md`. Exits non-zero
-  on any active alert (cost burn, drift, ADR hygiene).
+* `bsela audit [--weekly|--window-days N|--stdout|--json]` produces the
+  30-day audit digest (markdown or JSON). Exits non-zero on any active
+  alert (cost burn, drift, ADR hygiene).
 * `config/launchd/com.blackterminal.bsela.audit.plist` is now
   loadable; the command it references exists.
 
