@@ -47,7 +47,8 @@ Deferred past MVP: Router, Auditor, Reviewer, Researcher, MCP server, Codex/Wind
 
 ## Next Action
 
-P4 tooling is self-serve. Runtime work left for the operator:
+Phases **P0–P7** are code-complete in the table above; the list below is
+steady-state operator work (dogfood, tuning, and cross-editor depth).
 
 1. `bsela hook install --apply` — wire the Claude Code `Stop` hook.
 2. Use Claude Code normally for a few days so sessions accumulate.
@@ -65,9 +66,9 @@ P4 tooling is self-serve. Runtime work left for the operator:
    correction_markers, scrubber patterns) based on the false-positive
    rate observed. Any change that overrides a gate / budget / retention
    window is a Hard Stop — it requires a matching ADR in `docs/decisions/`.
-7. When comfortable, declare P4 shipped and close out P5 (Router +
-   Auditor already scaffolded per ADR 0005; the dogfood data is the
-   last piece needed to tune and declare it shipped).
+7. Optional depth: exercise MCP tools from Codex/Windsurf against the
+   same `~/.bsela` store as Claude Code; record outcomes in the dogfood
+   report or in [ADR 0006](decisions/0006-p6-mcp-and-adapters.md) notes.
 
 ## P5 — already landed
 
@@ -82,11 +83,10 @@ The code-side of P5 ships in parallel with P4 dogfood:
 * `config/launchd/com.blackterminal.bsela.audit.plist` is now
   loadable; the command it references exists.
 
-What still gates "P5 shipped":
-* Real dogfood data — need at least one non-empty audit run and one
-  non-default routing decision in a real session before we can tune
-  the keyword buckets or thresholds.
-* Review misroute rate. ADR 0005 sets the re-open condition at ≥ 10%.
+**Post-milestone tuning (P5 remains ✅ in the phase table):**
+* Keep enriching dogfood data so audit runs and routing decisions stay
+  representative when tuning keyword buckets or thresholds.
+* Watch misroute rate. ADR 0005 sets the re-open condition at ≥ 10%.
 
 ## P6 — workspace bootstrapped
 
@@ -105,12 +105,11 @@ Per ADR 0006, the TS side landed as:
   PRs that touch `mcp/**` or any Python surface the JSON contract
   depends on. Python gates still explicitly exclude `mcp/`.
 
-What still gates "P6 shipped":
-* ~~Codex + Windsurf adapters under `adapters/<editor>/`~~ — landed
-  as TOML/JSON snippets + per-editor READMEs at
-  [`adapters/codex/`](../adapters/codex/) and
-  [`adapters/windsurf/`](../adapters/windsurf/), with a shared
-  prerequisites doc at [`adapters/README.md`](../adapters/README.md).
-* At least one real editor session that uses an MCP tool against
-  live BSELA state, captured in the dogfood report. Until that
-  happens, the binary is "wired but unproven".
+**Post-milestone validation (P6 remains ✅ in the phase table):**
+* Codex + Windsurf adapters live as TOML/JSON snippets + per-editor
+  READMEs at [`adapters/codex/`](../adapters/codex/) and
+  [`adapters/windsurf/`](../adapters/windsurf/), with prerequisites at
+  [`adapters/README.md`](../adapters/README.md).
+* Additional real editor sessions using MCP tools against live BSELA
+  state (beyond the Claude Code gate already met) strengthen the
+  dogfood story for Codex/Windsurf operators.
