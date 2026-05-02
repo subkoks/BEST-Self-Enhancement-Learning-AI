@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from pathlib import Path
 
 import pytest
 from typer.testing import CliRunner
@@ -81,3 +82,28 @@ def test_nested_command_help_pages_load(runner: CliRunner) -> None:
         result = runner.invoke(app, argv)
         assert result.exit_code == 0, (argv, result.stdout)
         assert "Usage:" in result.stdout, argv
+
+
+def test_status_json_contract_stable_keys(tmp_bsela_home: Path, runner: CliRunner) -> None:
+    """Keep CLI JSON aligned with MCP ``bsela_status`` / ``StatusPayload``."""
+    result = runner.invoke(app, ["status", "--json"])
+    assert result.exit_code == 0, result.stdout
+    data = json.loads(result.stdout)
+    assert set(data.keys()) == {
+        "sessions",
+        "sessions_quarantined",
+        "errors",
+        "lessons",
+        "lessons_pending",
+        "lessons_proposed",
+        "replay_records",
+        "bsela_home",
+    }
+    assert data["bsela_home"] == str(tmp_bsela_home)
+    assert data["sessions"] == 0
+
+
+def test_lessons_json_empty_store(tmp_bsela_home: Path, runner: CliRunner) -> None:
+    result = runner.invoke(app, ["lessons", "--json"])
+    assert result.exit_code == 0, result.stdout
+    assert json.loads(result.stdout) == []
