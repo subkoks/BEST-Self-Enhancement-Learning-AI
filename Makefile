@@ -2,11 +2,12 @@
 # ruff / mypy / pytest matrix. All targets run via uv so tool versions
 # follow the pyproject lockfile.
 
-.PHONY: help check lint format format-check type test cov fix clean mcp-check mcp-parity
+.PHONY: help check doctor lint format format-check type test cov fix clean mcp-check mcp-parity
 
 help:
 	@echo "BSELA make targets:"
 	@echo "  check         run lint + format-check + type + test (the full gate)"
+	@echo "  doctor        uv run bsela doctor (PATH, store, hook, agents-md)"
 	@echo "  lint          ruff check ."
 	@echo "  format        ruff format . (writes)"
 	@echo "  format-check  ruff format --check ."
@@ -19,6 +20,9 @@ help:
 	@echo "  mcp-parity    run CLI↔MCP parity harness in mcp/"
 
 check: lint format-check type test
+
+doctor:
+	uv run bsela doctor
 
 lint:
 	uv run ruff check .
