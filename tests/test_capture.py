@@ -136,3 +136,29 @@ def test_stringify_falls_back_to_str_on_non_serializable() -> None:
 
     result = _stringify(Unserializable())
     assert "unserializable" in result
+
+
+def test_ingest_assistant_event_with_string_content(tmp_bsela_home: Path, tmp_path: Path) -> None:
+    """Cover line 139→143: nested content is a string, not a list → skip tool_use counting."""
+    jsonl = tmp_path / "str-content.jsonl"
+    jsonl.write_text(
+        '{"type":"assistant","message":{"content":"just a string response"}}\n',
+        encoding="utf-8",
+    )
+    result = ingest_file(jsonl)
+    assert result.status in ("captured", "quarantined")
+    assert result.tool_call_count == 0
+
+
+def test_ingest_multiple_timestamps_tracks_min_max(tmp_bsela_home: Path, tmp_path: Path) -> None:
+    """Cover line 148→129: second ts <= ended_at stays on the same path, loop continues."""
+    jsonl = tmp_path / "multi-ts.jsonl"
+    jsonl.write_text(
+        '{"type":"user","content":"a","ts":"2026-01-15T10:00:00Z"}\n'
+        '{"type":"assistant","content":"b","ts":"2026-01-15T11:00:00Z"}\n'
+        '{"type":"user","content":"c","ts":"2026-01-15T10:30:00Z"}\n',
+        encoding="utf-8",
+    )
+    result = ingest_file(jsonl)
+    assert result.status == "captured"
+    assert result.turn_count == 3

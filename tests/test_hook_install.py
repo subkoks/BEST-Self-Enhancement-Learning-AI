@@ -14,6 +14,7 @@ from bsela.core.hook_install import (
     _find_matching_command,
     _load_settings,
     apply_install,
+    default_claude_settings_path,
     plan_install,
 )
 
@@ -201,3 +202,23 @@ def test_load_settings_returns_empty_on_empty_file(tmp_path: Path) -> None:
     settings.write_text("", encoding="utf-8")
     result = _load_settings(settings)
     assert result == {}
+
+
+def test_default_claude_settings_path_returns_home_relative() -> None:
+    """Cover line 43: default_claude_settings_path() returns ~/.claude/settings.json."""
+    path = default_claude_settings_path()
+    assert path.name == "settings.json"
+    assert path.parent.name == ".claude"
+
+
+def test_find_matching_command_non_dict_entry_is_skipped() -> None:
+    """Cover line 76: entry not a dict → continue (non-dict between dicts)."""
+    groups = [
+        {
+            "hooks": [
+                42,  # non-dict entry → skipped (line 76)
+                {"type": "command", "command": "target-cmd"},
+            ]
+        }
+    ]
+    assert _find_matching_command(groups, "target-cmd") is True

@@ -10,6 +10,7 @@ from bsela.core.capture import ingest_file
 from bsela.core.detector import (
     _extract_block_text,
     _fingerprint,
+    _iter_tool_uses,
     _text_of,
     _user_text_only,
     detect_errors,
@@ -189,3 +190,65 @@ def test_user_text_only_returns_nested_text_blocks() -> None:
     result = _user_text_only(event)
     assert "user typed this" in result
     assert "ignored" not in result
+
+
+def test_extract_block_text_tool_result_non_list_non_str_content() -> None:
+    """Cover line 69→75: content is neither str nor list → return ''."""
+    result = _extract_block_text({"type": "tool_result", "content": 42})
+    assert result == ""
+
+
+def test_user_text_only_empty_text_block_skipped() -> None:
+    """Cover line 140→137: text block with empty text → skip append."""
+    event = {
+        "type": "user",
+        "message": {
+            "content": [
+                {"type": "text", "text": ""},  # empty → skipped
+                {"type": "text", "text": "real content"},
+            ]
+        },
+    }
+    result = _user_text_only(event)
+    assert result == "real content"
+
+
+def test_iter_jsonl_skips_blank_lines(tmp_bsela_home: Path, tmp_path: Path) -> None:
+    """Cover line 48: blank lines in JSONL are skipped."""
+    jsonl = tmp_path / "sparse.jsonl"
+    jsonl.write_text(
+        '{"type":"user","content":"hello"}\n\n\n{"type":"assistant","content":"hi"}\n',
+        encoding="utf-8",
+    )
+    # Create a session record pointing at this file and run detect_errors
+    sess = save_session(
+        SessionRecord(
+            source="test",
+            transcript_path=str(jsonl),
+            content_hash="sparse",
+            status="captured",
+        )
+    )
+    result = detect_errors(sess.id, persist=False)
+    assert result.errors == ()  # no errors in simple content
+
+
+def test_iter_tool_uses_skips_non_tool_blocks_in_assistant() -> None:
+    """Cover line 187→186: nested block type is not tool_use → skip it."""
+    events = [
+        (
+            1,
+            {
+                "type": "assistant",
+                "message": {
+                    "content": [
+                        {"type": "text", "text": "some prose"},  # not tool_use → skip
+                        {"type": "tool_use", "name": "Read", "id": "x", "input": {}},
+                    ]
+                },
+            },
+        )
+    ]
+    results = list(_iter_tool_uses(events))
+    assert len(results) == 1
+    assert results[0][1].get("type") == "tool_use"
