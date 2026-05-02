@@ -235,6 +235,7 @@ describe("handleLessons", () => {
     const parsed = JSON.parse((result.content[0] as { text: string }).text) as unknown[];
     expect(parsed).toHaveLength(1);
     expect((parsed[0] as LessonItem).id).toBe("abc123");
+    expect(result.structuredContent).toEqual({ lessons: [sampleLesson] });
   });
 
   it("passes status filter through to the client", async () => {

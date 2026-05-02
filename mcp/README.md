@@ -71,7 +71,7 @@ doctor` validates this.
 | `bsela_route` | `task: string` | JSON `RouteDecision` (text + structuredContent) |
 | `bsela_audit` | `window_days?: number (1..365)` | JSON audit payload (text + structuredContent) |
 | `bsela_status` | — | JSON status payload (text + structuredContent) |
-| `bsela_lessons` | `status?: enum, limit?: number` | JSON lesson array (text) |
+| `bsela_lessons` | `status?: enum, limit?: number` | JSON lesson array (text + `structuredContent.lessons`) |
 
 ## Other scripts
 

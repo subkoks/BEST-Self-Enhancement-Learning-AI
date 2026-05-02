@@ -109,6 +109,7 @@ export async function handleLessons(
     const items: Array<LessonItem> = await client.lessons(opts);
     return {
       content: [{ type: "text", text: JSON.stringify(items, null, 2) }],
+      structuredContent: { lessons: items } as unknown as Record<string, unknown>,
     };
   } catch (err) {
     return errorResult(err, "bsela review list failed");
@@ -137,7 +138,7 @@ export const toolDefinitions = {
   bsela_lessons: {
     title: "BSELA lessons",
     description:
-      "Return stored BSELA lessons as a JSON array. Optionally filter by status (pending|proposed|rejected|approved|applied|rolled_back) and cap results with limit. Each item includes id, status, scope, confidence, rule, why, how_to_apply, hit_count, and created_at.",
+      "Return stored BSELA lessons as a JSON array plus structuredContent.lessons. Optionally filter by status (pending|proposed|rejected|approved|applied|rolled_back) and cap results with limit. Each item includes id, status, scope, confidence, rule, why, how_to_apply, hit_count, and created_at.",
     inputSchema: lessonsInputSchema,
   },
 } as const;
