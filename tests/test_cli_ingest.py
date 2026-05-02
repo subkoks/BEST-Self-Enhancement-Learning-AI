@@ -53,3 +53,13 @@ def test_status_json_after_ingest(tmp_bsela_home: Path, sample_clean_session: Pa
     assert isinstance(payload["lessons_pending"], int)
     assert isinstance(payload["lessons_proposed"], int)
     assert "bsela_home" in payload
+    assert sorted(payload.keys()) == [
+        "bsela_home",
+        "errors",
+        "lessons",
+        "lessons_pending",
+        "lessons_proposed",
+        "replay_records",
+        "sessions",
+        "sessions_quarantined",
+    ]
