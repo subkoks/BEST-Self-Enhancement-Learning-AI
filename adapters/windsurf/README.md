@@ -1,8 +1,8 @@
 # Windsurf adapter
 
 Wires the [`bsela-mcp`](../../mcp/) stdio server into Windsurf's MCP
-config. Read-only tools (`bsela_route`, `bsela_audit`, `bsela_status`)
-become callable inside any Windsurf / Cascade session.
+config. Read-only tools (`bsela_route`, `bsela_audit`, `bsela_status`,
+`bsela_lessons`) become callable inside any Windsurf / Cascade session.
 
 ## Prerequisites
 

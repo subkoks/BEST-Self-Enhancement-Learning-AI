@@ -34,8 +34,9 @@ under P6. Others are documented inline.
 | Tool | Inputs | Returns |
 |---|---|---|
 | `bsela_route` | `task: string` | `RouteDecision` JSON |
-| `bsela_audit` | `window_days?: number (1..365)` | audit markdown |
-| `bsela_status` | — | store counts + bsela home |
+| `bsela_audit` | `window_days?: number (1..365)` | audit JSON payload |
+| `bsela_status` | — | status JSON payload |
+| `bsela_lessons` | `status?: enum, limit?: number` | lessons JSON array |
 
 Write surfaces (`bsela ingest`, `review propose`, `decision add`,
 `hook install`) stay CLI-only until the read surfaces have telemetry.
@@ -44,13 +45,15 @@ That cap is set by ADR 0006 — re-open under "Re-open Condition".
 ## Verifying an adapter is live
 
 After wiring an editor, the fastest end-to-end check is to ask the
-editor to call `bsela_status`. A healthy response looks like:
+editor to call `bsela_status`. A healthy response includes:
 
 ```
-bsela home: /Users/<you>/.bsela
-sessions: <n>
-errors:   <n>
-lessons:  <n>
+{
+  "sessions": <n>,
+  "errors": <n>,
+  "lessons": <n>,
+  "bsela_home": "/Users/<you>/.bsela"
+}
 ```
 
 If the tool errors with "bsela not found on PATH", revisit step 1 of

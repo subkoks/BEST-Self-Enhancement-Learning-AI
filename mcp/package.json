@@ -2,7 +2,7 @@
   "name": "@bsela/mcp",
   "version": "0.1.0",
   "private": true,
-  "description": "Model Context Protocol server for BSELA — exposes route, audit, and status to MCP-compatible editors.",
+  "description": "Model Context Protocol server for BSELA — exposes route, audit, status, and lessons to MCP-compatible editors.",
   "type": "module",
   "license": "MIT",
   "engines": {

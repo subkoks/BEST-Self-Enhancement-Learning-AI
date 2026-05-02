@@ -1,8 +1,8 @@
 # Codex CLI adapter
 
 Wires the [`bsela-mcp`](../../mcp/) stdio server into Codex CLI's MCP
-config. Read-only tools (`bsela_route`, `bsela_audit`, `bsela_status`)
-become callable inside any Codex session.
+config. Read-only tools (`bsela_route`, `bsela_audit`, `bsela_status`,
+`bsela_lessons`) become callable inside any Codex session.
 
 ## Prerequisites
 
