@@ -2,7 +2,7 @@
 # ruff / mypy / pytest matrix. All targets run via uv so tool versions
 # follow the pyproject lockfile.
 
-.PHONY: help check doctor lint format format-check type test cov fix clean mcp-check mcp-parity orchestrator-help
+.PHONY: help check doctor lint format format-check type test cov fix clean mcp-check mcp-parity orchestrator-help dogfood-report dogfood-audit
 
 help:
 	@echo "BSELA make targets:"
@@ -19,6 +19,8 @@ help:
 	@echo "  mcp-check     run pnpm check in mcp/ (format, lint, typecheck, tests)"
 	@echo "  mcp-parity    run CLI↔MCP parity harness in mcp/"
 	@echo "  orchestrator-help  print docs/orchestrator quick reference"
+	@echo "  dogfood-report   uv run bsela report --stdout (P4 dogfood; uses BSELA_HOME)"
+	@echo "  dogfood-audit    uv run bsela audit --weekly --stdout (P5 digest; exit 1 if alerts)"
 
 check: lint format-check type test
 
@@ -55,6 +57,12 @@ mcp-check:
 
 mcp-parity:
 	cd mcp && pnpm parity
+
+dogfood-report:
+	uv run bsela report --stdout
+
+dogfood-audit:
+	uv run bsela audit --weekly --stdout
 
 orchestrator-help:
 	@echo "BSELA repo-local orchestrator (markdown roles):"

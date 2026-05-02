@@ -48,3 +48,11 @@ jobs:
 
       - name: Pytest with coverage
         run: uv run pytest -q --cov=bsela --cov-report=term-missing --cov-fail-under=99
+
+      - name: Dogfood report and audit CLI smoke (empty store)
+        run: |
+          home="$(mktemp -d)"
+          mkdir -p "$home/sessions" "$home/logs" "$home/reports"
+          export BSELA_HOME="$home"
+          uv run bsela report --stdout | grep -q "BSELA Dogfood Report"
+          uv run bsela audit --weekly --stdout | grep -q "BSELA Weekly Audit"
