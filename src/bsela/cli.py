@@ -165,6 +165,7 @@ def status(
                         "errors": 0,
                         "lessons": 0,
                         "lessons_pending": 0,
+                        "lessons_proposed": 0,
                         "replay_records": 0,
                         "bsela_home": str(home),
                     }
@@ -178,6 +179,7 @@ def status(
     sessions_quarantined = count_sessions(status="quarantined")
     errors_total = len(list_errors(limit=None))
     lessons_pending = count_lessons(status="pending")
+    lessons_proposed = count_lessons(status="proposed")
     lessons_total = count_lessons()
     replay_total = len(list_replay_records(limit=None))
 
@@ -190,6 +192,7 @@ def status(
                     "errors": errors_total,
                     "lessons": lessons_total,
                     "lessons_pending": lessons_pending,
+                    "lessons_proposed": lessons_proposed,
                     "replay_records": replay_total,
                     "bsela_home": str(home),
                 }
@@ -199,7 +202,9 @@ def status(
         typer.echo(f"BSELA home: {home}")
         typer.echo(f"sessions: {sessions_total} (quarantined: {sessions_quarantined})")
         typer.echo(f"errors:   {errors_total}")
-        typer.echo(f"lessons:  {lessons_total} (pending: {lessons_pending})")
+        typer.echo(
+            f"lessons:  {lessons_total} (pending: {lessons_pending}, proposed: {lessons_proposed})"
+        )
         typer.echo(f"replays:  {replay_total}")
     raise typer.Exit(code=0)
 

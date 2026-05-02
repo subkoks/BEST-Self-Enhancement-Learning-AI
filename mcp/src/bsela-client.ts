@@ -42,6 +42,7 @@ export interface StatusPayload {
   errors: number;
   lessons: number;
   lessons_pending: number;
+  lessons_proposed: number;
   replay_records: number;
   bsela_home: string;
 }
@@ -179,6 +180,7 @@ function isStatusPayload(value: unknown): value is StatusPayload {
     typeof v.errors === "number" &&
     typeof v.lessons === "number" &&
     typeof v.lessons_pending === "number" &&
+    typeof v.lessons_proposed === "number" &&
     typeof v.replay_records === "number" &&
     typeof v.bsela_home === "string"
   );

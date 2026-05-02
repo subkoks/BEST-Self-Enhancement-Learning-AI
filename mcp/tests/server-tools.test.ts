@@ -124,6 +124,7 @@ describe("handleStatus", () => {
       errors: 5,
       lessons: 2,
       lessons_pending: 1,
+      lessons_proposed: 0,
       replay_records: 4,
       bsela_home: "/tmp/.bsela",
     };

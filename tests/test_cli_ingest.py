@@ -51,4 +51,5 @@ def test_status_json_after_ingest(tmp_bsela_home: Path, sample_clean_session: Pa
     assert isinstance(payload["errors"], int)
     assert isinstance(payload["lessons"], int)
     assert isinstance(payload["lessons_pending"], int)
+    assert isinstance(payload["lessons_proposed"], int)
     assert "bsela_home" in payload
