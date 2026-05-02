@@ -1,7 +1,7 @@
 # Claude Code — BSELA wiring
 
 Use this checklist once per machine. Canonical project rules stay in
-[`AGENTS.md`](../../AGENTS.md); rule *text* changes belong in the
+[`AGENTS.md`](../../AGENTS.md); rule _text_ changes belong in the
 `agents-md` repo, not in editor copies under `~/.claude/`.
 
 ## 1. Prerequisites

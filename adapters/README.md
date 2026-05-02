@@ -19,25 +19,25 @@ live in [`mcp/`](../mcp/) — adapters never re-implement BSELA logic.
 
 ## Editors
 
-| Editor | Snippet | Target config file |
-|---|---|---|
-| Codex CLI | [`codex/config.toml`](codex/config.toml) | `~/.codex/config.toml` |
-| Windsurf | [`windsurf/mcp_config.json`](windsurf/mcp_config.json) | `~/.codeium/windsurf/mcp_config.json` |
-| Claude Code                    | [`claude/README.md`](claude/README.md) (hook + MCP + local permissions) | `~/.claude/settings.json` + optional repo `.claude/settings.local.json` |
-| Claude Desktop                 | [`mcp/README.md`](../mcp/README.md#running-the-mcp-server)               | Desktop MCP config (same `mcpServers` shape as in `claude/settings.example.json`) |
-| Cursor | (not yet wired — Cursor speaks MCP via the same JSON shape as Claude Desktop; reuse the snippet in `mcp/README.md`) | `~/.cursor/mcp.json` |
+| Editor         | Snippet                                                                                                             | Target config file                                                                |
+| -------------- | ------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------- |
+| Codex CLI      | [`codex/config.toml`](codex/config.toml)                                                                            | `~/.codex/config.toml`                                                            |
+| Windsurf       | [`windsurf/mcp_config.json`](windsurf/mcp_config.json)                                                              | `~/.codeium/windsurf/mcp_config.json`                                             |
+| Claude Code    | [`claude/README.md`](claude/README.md) (hook + MCP + local permissions)                                             | `~/.claude/settings.json` + optional repo `.claude/settings.local.json`           |
+| Claude Desktop | [`mcp/README.md`](../mcp/README.md#running-the-mcp-server)                                                          | Desktop MCP config (same `mcpServers` shape as in `claude/settings.example.json`) |
+| Cursor         | (not yet wired — Cursor speaks MCP via the same JSON shape as Claude Desktop; reuse the snippet in `mcp/README.md`) | `~/.cursor/mcp.json`                                                              |
 
 The Codex + Windsurf snippets are the two adapters formally tracked
 under P6. Others are documented inline.
 
 ## Tools exposed (read-only, P6)
 
-| Tool | Inputs | Returns |
-|---|---|---|
-| `bsela_route` | `task: string` | `RouteDecision` JSON |
-| `bsela_audit` | `window_days?: number (1..365)` | audit JSON payload |
-| `bsela_status` | — | status JSON payload |
-| `bsela_lessons` | `status?: enum, limit?: number` | lessons JSON array |
+| Tool            | Inputs                          | Returns              |
+| --------------- | ------------------------------- | -------------------- |
+| `bsela_route`   | `task: string`                  | `RouteDecision` JSON |
+| `bsela_audit`   | `window_days?: number (1..365)` | audit JSON payload   |
+| `bsela_status`  | —                               | status JSON payload  |
+| `bsela_lessons` | `status?: enum, limit?: number` | lessons JSON array   |
 
 Write surfaces (`bsela ingest`, `review propose`, `decision add`,
 `hook install`) stay CLI-only until the read surfaces have telemetry.
