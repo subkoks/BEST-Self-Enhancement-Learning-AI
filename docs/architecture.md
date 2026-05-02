@@ -86,12 +86,12 @@ Opt-in pre-commit hook. Runs staged diffs against distilled rules + `agents-md` 
 | ------------------ | ----------------------------------------------- | ----------- | ---------------------------------------- |
 | short-term task    | editor-native                                   | single task | session                                  |
 | project            | `<repo>/AGENTS.md` + `<repo>/.bsela/project.db` | single repo | project life                             |
-| long-term learning | `~/.bsela/lessons.db`                           | global      | permanent (versioned)                    |
-| error              | `~/.bsela/errors.db`                            | global      | 90d rolling                              |
-| decision           | `~/.bsela/decisions.db`                         | global      | permanent                                |
-| replay (drift log) | `~/.bsela/bsela.db` (`replay_records`)          | per session | cascade on session prune (`bsela prune`) |
+| long-term learning | `~/.bsela/bsela.db` (`lessons`)                | global      | permanent (versioned)                    |
+| error              | `~/.bsela/bsela.db` (`errors`)                  | global      | 90d rolling                              |
+| decision           | `~/.bsela/bsela.db` (`decisions`)             | global      | permanent                                |
+| replay (drift log) | `~/.bsela/bsela.db` (`replay_records`)        | per session | cascade on session prune (`bsela prune`) |
 
-`replay_records` holds one row per `bsela replay` so `bsela audit` can measure drift without re-running the distiller. One SQLite DB per scope. Typed tables via `sqlmodel`. JSON exports for human review. Never a monolithic markdown.
+`replay_records` holds one row per `bsela replay` so `bsela audit` can measure drift without re-running the distiller. Global rows share one SQLite file (`bsela.db`, WAL) with typed tables via `sqlmodel`; project scope may use `<repo>/.bsela/project.db`. JSON exports for human review. Never a monolithic markdown.
 
 ## Data Flow
 
