@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -224,3 +225,43 @@ def test_detect_session_id_prefix(tmp_bsela_home: Path) -> None:
     result = CliRunner().invoke(app, ["detect", "--session-id", prefix])
     assert result.exit_code == 0, result.stdout
     assert "candidate errors" in result.stdout
+
+
+def test_sessions_list_json_output(tmp_bsela_home: Path) -> None:
+    """sessions list --json emits a JSON array with the expected keys."""
+    ingest_file(FIXTURES / "clean.jsonl")
+    ingest_file(FIXTURES / "leaked-aws-key.jsonl")
+
+    result = CliRunner().invoke(app, ["sessions", "list", "--json"])
+    assert result.exit_code == 0, result.stdout
+    rows = json.loads(result.stdout)
+    assert isinstance(rows, list)
+    assert len(rows) == 2
+    assert sorted(rows[0].keys()) == [
+        "id",
+        "ingested_at",
+        "source",
+        "status",
+        "tool_call_count",
+        "turn_count",
+    ]
+
+
+def test_sessions_list_json_empty(tmp_bsela_home: Path) -> None:
+    """sessions list --json returns an empty array when no sessions exist."""
+    result = CliRunner().invoke(app, ["sessions", "list", "--json"])
+    assert result.exit_code == 0, result.stdout
+    rows = json.loads(result.stdout)
+    assert rows == []
+
+
+def test_sessions_list_json_status_filter(tmp_bsela_home: Path) -> None:
+    """sessions list --json --status quarantined returns only quarantined rows."""
+    ingest_file(FIXTURES / "clean.jsonl")
+    ingest_file(FIXTURES / "leaked-aws-key.jsonl")
+
+    result = CliRunner().invoke(app, ["sessions", "list", "--json", "--status", "quarantined"])
+    assert result.exit_code == 0, result.stdout
+    rows = json.loads(result.stdout)
+    assert all(r["status"] == "quarantined" for r in rows)
+    assert len(rows) == 1

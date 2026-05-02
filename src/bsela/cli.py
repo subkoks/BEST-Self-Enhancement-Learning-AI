@@ -639,9 +639,27 @@ def sessions_list(
             help="Filter by status (captured / quarantined).",
         ),
     ] = None,
+    as_json: Annotated[
+        bool,
+        typer.Option("--json", help="Emit a JSON array instead of human-readable text."),
+    ] = False,
 ) -> None:
     """List captured sessions (newest first)."""
     rows = list_sessions(status=status, limit=limit)
+    if as_json:
+        payload = [
+            {
+                "id": row.id,
+                "status": row.status,
+                "source": row.source,
+                "turn_count": row.turn_count,
+                "tool_call_count": row.tool_call_count,
+                "ingested_at": row.ingested_at.isoformat() if row.ingested_at else None,
+            }
+            for row in rows
+        ]
+        typer.echo(json.dumps(payload))
+        raise typer.Exit(code=0)
     if not rows:
         typer.echo("sessions: no entries.")
         raise typer.Exit(code=0)

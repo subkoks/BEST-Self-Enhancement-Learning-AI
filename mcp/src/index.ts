@@ -12,8 +12,10 @@ export {
   BselaClientError,
   type BselaClientOptions,
   isLessonItem,
+  isSessionItem,
   type LessonItem,
   type RouteDecision,
+  type SessionItem,
   type StatusPayload,
   type TaskClass,
 } from "./bsela-client.js";
@@ -24,6 +26,7 @@ export {
   handleAudit,
   handleLessons,
   handleRoute,
+  handleSessions,
   handleStatus,
   toolDefinitions,
   type ToolName,

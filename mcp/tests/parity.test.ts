@@ -8,7 +8,13 @@ import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import { describe, expect, it } from "vitest";
 
-import { BselaClient, createServer, type AuditPayload, type LessonItem } from "../src/index.js";
+import {
+  BselaClient,
+  createServer,
+  type AuditPayload,
+  type LessonItem,
+  type SessionItem,
+} from "../src/index.js";
 
 /** Sorted keys for each CLI/MCP ``LessonItem`` row (keep aligned with Python contract tests). */
 const EXPECTED_LESSON_ROW_KEYS: Array<string> = [
@@ -21,6 +27,16 @@ const EXPECTED_LESSON_ROW_KEYS: Array<string> = [
   "scope",
   "status",
   "why",
+];
+
+/** Sorted keys for each CLI/MCP ``SessionItem`` row. */
+const EXPECTED_SESSION_ROW_KEYS: Array<string> = [
+  "id",
+  "ingested_at",
+  "source",
+  "status",
+  "tool_call_count",
+  "turn_count",
 ];
 
 const REPO_ROOT = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
@@ -181,6 +197,49 @@ describe("CLI↔MCP parity", () => {
     } finally {
       await mcp.close();
       await rm(home, { recursive: true, force: true });
+    }
+  });
+
+  it("keeps empty-sessions parity for direct and MCP paths", async () => {
+    const { client, home } = await makeIsolatedClient();
+    const mcp = await connectClient(client);
+    try {
+      const directSessions = await client.sessions({ limit: 3 });
+      expect(directSessions).toEqual([]);
+
+      const sessionsResult = await mcp.callTool({
+        name: "bsela_sessions",
+        arguments: { limit: 3 },
+      });
+      const mcpSessions = parseTextJson<Array<SessionItem>>(sessionsResult);
+      expect(mcpSessions).toEqual([]);
+      expect(sessionsResult.structuredContent).toEqual({ sessions: [] });
+    } finally {
+      await mcp.close();
+      await rm(home, { recursive: true, force: true });
+    }
+  });
+
+  it("keeps sessions row-key parity for direct and MCP paths when sessions exist", async () => {
+    const client = makeClient();
+    const mcp = await connectClient(client);
+    try {
+      const directSessions = await client.sessions({ limit: 1 });
+
+      const sessionsResult = await mcp.callTool({
+        name: "bsela_sessions",
+        arguments: { limit: 1 },
+      });
+      const mcpSessions = parseTextJson<Array<SessionItem>>(sessionsResult);
+      expect(mcpSessions).toEqual(directSessions);
+      expect(sessionsResult.structuredContent).toEqual({ sessions: directSessions });
+      if (directSessions[0] !== undefined) {
+        expect(sortedKeys(directSessions[0] as unknown as Record<string, unknown>)).toEqual(
+          EXPECTED_SESSION_ROW_KEYS,
+        );
+      }
+    } finally {
+      await mcp.close();
     }
   });
 });

@@ -17,6 +17,7 @@ import {
   type AuditPayload,
   type BselaClient,
   type LessonItem,
+  type SessionItem,
   type StatusPayload,
 } from "./bsela-client.js";
 
@@ -36,6 +37,11 @@ export const lessonsInputSchema = {
   status: z
     .enum(["pending", "proposed", "rejected", "approved", "applied", "rolled_back"])
     .optional(),
+  limit: z.number().int().positive().max(200).optional(),
+} as const;
+
+export const sessionsInputSchema = {
+  status: z.enum(["captured", "quarantined"]).optional(),
   limit: z.number().int().positive().max(200).optional(),
 } as const;
 
@@ -116,6 +122,24 @@ export async function handleLessons(
   }
 }
 
+export async function handleSessions(
+  client: BselaClient,
+  args: { status?: string | undefined; limit?: number | undefined },
+): Promise<ToolTextResult> {
+  try {
+    const opts: { status?: string; limit?: number } = {};
+    if (args.status !== undefined) opts.status = args.status;
+    if (args.limit !== undefined) opts.limit = args.limit;
+    const items: Array<SessionItem> = await client.sessions(opts);
+    return {
+      content: [{ type: "text", text: JSON.stringify(items, null, 2) }],
+      structuredContent: { sessions: items } as unknown as Record<string, unknown>,
+    };
+  } catch (err) {
+    return errorResult(err, "bsela sessions list failed");
+  }
+}
+
 export const toolDefinitions = {
   bsela_route: {
     title: "BSELA route",
@@ -140,6 +164,12 @@ export const toolDefinitions = {
     description:
       "Return stored BSELA lessons as a JSON array plus structuredContent.lessons. Optionally filter by status (pending|proposed|rejected|approved|applied|rolled_back) and cap results with limit. Each item includes id, status, scope, confidence, rule, why, how_to_apply, hit_count, and created_at.",
     inputSchema: lessonsInputSchema,
+  },
+  bsela_sessions: {
+    title: "BSELA sessions",
+    description:
+      "Return captured BSELA sessions as a JSON array plus structuredContent.sessions. Optionally filter by status (captured|quarantined) and cap results with limit. Each item includes id, status, source, turn_count, tool_call_count, and ingested_at.",
+    inputSchema: sessionsInputSchema,
   },
 } as const;
 

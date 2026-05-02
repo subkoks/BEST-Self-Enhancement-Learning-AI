@@ -13,10 +13,12 @@ import {
   handleAudit,
   handleLessons,
   handleRoute,
+  handleSessions,
   handleStatus,
   toolDefinitions,
   type LessonItem,
   type RouteDecision,
+  type SessionItem,
   type StatusPayload,
 } from "../src/index.js";
 
@@ -29,11 +31,12 @@ function sortedKeys(value: Record<string, unknown>): Array<string> {
 }
 
 describe("toolDefinitions", () => {
-  it("declares the four tools including bsela_lessons", () => {
+  it("declares the five tools including bsela_sessions", () => {
     expect(Object.keys(toolDefinitions).sort()).toEqual([
       "bsela_audit",
       "bsela_lessons",
       "bsela_route",
+      "bsela_sessions",
       "bsela_status",
     ]);
   });
@@ -301,6 +304,79 @@ describe("handleLessons", () => {
     const client = stubClient({ lessons });
 
     const result = await handleLessons(client, {});
+
+    expect(result.isError).toBe(true);
+    expect((result.content[0] as { text: string }).text).toContain("cli failed");
+  });
+});
+
+describe("handleSessions", () => {
+  const sampleSession: SessionItem = {
+    id: "abc12345-0000-0000-0000-000000000000",
+    status: "captured",
+    source: "claude_code",
+    turn_count: 10,
+    tool_call_count: 5,
+    ingested_at: "2026-05-01T12:00:00+00:00",
+  };
+
+  it("returns sessions as JSON text and structuredContent", async () => {
+    const sessions = vi.fn().mockResolvedValue([sampleSession]);
+    const client = stubClient({ sessions });
+
+    const result = await handleSessions(client, {});
+
+    expect(sessions).toHaveBeenCalledWith({});
+    expect(result.isError).toBeUndefined();
+    const parsed = JSON.parse((result.content[0] as { text: string }).text) as unknown[];
+    expect(parsed).toHaveLength(1);
+    expect((parsed[0] as SessionItem).id).toBe(sampleSession.id);
+    expect(sortedKeys(parsed[0] as Record<string, unknown>)).toEqual([
+      "id",
+      "ingested_at",
+      "source",
+      "status",
+      "tool_call_count",
+      "turn_count",
+    ]);
+    expect(result.structuredContent).toEqual({ sessions: [sampleSession] });
+  });
+
+  it("returns empty sessions in both text and structured content", async () => {
+    const sessions = vi.fn().mockResolvedValue([]);
+    const client = stubClient({ sessions });
+
+    const result = await handleSessions(client, {});
+
+    expect(sessions).toHaveBeenCalledWith({});
+    const parsed = JSON.parse((result.content[0] as { text: string }).text) as unknown[];
+    expect(parsed).toEqual([]);
+    expect(result.structuredContent).toEqual({ sessions: [] });
+  });
+
+  it("passes status filter through to the client", async () => {
+    const sessions = vi.fn().mockResolvedValue([]);
+    const client = stubClient({ sessions });
+
+    await handleSessions(client, { status: "quarantined" });
+
+    expect(sessions).toHaveBeenCalledWith({ status: "quarantined" });
+  });
+
+  it("passes limit through to the client", async () => {
+    const sessions = vi.fn().mockResolvedValue([sampleSession]);
+    const client = stubClient({ sessions });
+
+    await handleSessions(client, { limit: 5 });
+
+    expect(sessions).toHaveBeenCalledWith({ limit: 5 });
+  });
+
+  it("returns error result on client failure", async () => {
+    const sessions = vi.fn().mockRejectedValue(new BselaClientError("cli failed", 1, "oops"));
+    const client = stubClient({ sessions });
+
+    const result = await handleSessions(client, {});
 
     expect(result.isError).toBe(true);
     expect((result.content[0] as { text: string }).text).toContain("cli failed");

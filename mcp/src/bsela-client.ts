@@ -99,6 +99,15 @@ export interface LessonItem {
   created_at: string | null;
 }
 
+export interface SessionItem {
+  id: string;
+  status: string;
+  source: string;
+  turn_count: number;
+  tool_call_count: number;
+  ingested_at: string | null;
+}
+
 export interface BselaClientOptions {
   binary?: string;
   cwd?: string;
@@ -297,6 +306,21 @@ export function isLessonItem(value: unknown): value is LessonItem {
   );
 }
 
+export function isSessionItem(value: unknown): value is SessionItem {
+  if (typeof value !== "object" || value === null) return false;
+  const v = value as Record<string, unknown>;
+  const ingestedOk =
+    v.ingested_at === undefined || v.ingested_at === null || typeof v.ingested_at === "string";
+  return (
+    typeof v.id === "string" &&
+    typeof v.status === "string" &&
+    typeof v.source === "string" &&
+    typeof v.turn_count === "number" &&
+    typeof v.tool_call_count === "number" &&
+    ingestedOk
+  );
+}
+
 export class BselaClient {
   private readonly options: BselaClientOptions;
 
@@ -389,6 +413,25 @@ export class BselaClient {
     if (!Array.isArray(parsed) || !parsed.every(isLessonItem)) {
       throw new BselaClientError(
         "bsela lessons returned an unexpected payload shape",
+        result.exitCode,
+        JSON.stringify(parsed).slice(0, 200),
+      );
+    }
+    return parsed;
+  }
+
+  async sessions(options: { status?: string; limit?: number } = {}): Promise<Array<SessionItem>> {
+    const args = ["sessions", "list", "--json"];
+    if (options.status !== undefined) args.push("--status", options.status);
+    if (options.limit !== undefined) args.push("--limit", String(options.limit));
+
+    const result = await runBsela(args, this.options);
+    assertSuccess(args, result);
+
+    const parsed = parseJson(result.stdout.trim());
+    if (!Array.isArray(parsed) || !parsed.every(isSessionItem)) {
+      throw new BselaClientError(
+        "bsela sessions list returned an unexpected payload shape",
         result.exitCode,
         JSON.stringify(parsed).slice(0, 200),
       );

@@ -22,6 +22,7 @@ import {
   handleAudit,
   handleLessons,
   handleRoute,
+  handleSessions,
   handleStatus,
   toolDefinitions,
 } from "./server-tools.js";
@@ -80,6 +81,16 @@ export function createServer(options: CreateServerOptions = {}): McpServer {
       inputSchema: toolDefinitions.bsela_lessons.inputSchema,
     },
     async (args) => handleLessons(client, args),
+  );
+
+  server.registerTool(
+    "bsela_sessions",
+    {
+      title: toolDefinitions.bsela_sessions.title,
+      description: toolDefinitions.bsela_sessions.description,
+      inputSchema: toolDefinitions.bsela_sessions.inputSchema,
+    },
+    async (args) => handleSessions(client, args),
   );
 
   return server;
