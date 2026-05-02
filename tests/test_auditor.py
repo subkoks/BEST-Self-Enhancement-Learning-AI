@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 
@@ -11,6 +12,9 @@ from bsela.core.auditor import (
     AUDIT_FILENAME,
     REPORTS_SUBDIR,
     STALE_LESSON_AGE_DAYS,
+    CostSnapshot,
+    _adr_dir,
+    _scan_adrs,
     build_audit,
     default_report_path,
     render_markdown,
@@ -334,3 +338,55 @@ def test_render_markdown_shows_replay_counts(tmp_bsela_home: Path) -> None:
     md = render_markdown(report)
     assert "Sessions replayed" in md
     assert "2" in md
+
+
+# ---- internal unit tests for uncovered branches ----
+
+
+def test_burn_ratio_returns_zero_when_budget_is_zero() -> None:
+    """Cover line 52: monthly_budget_usd <= 0 → return 0.0."""
+    snap = CostSnapshot(total_usd=10.0, prorated_monthly_usd=5.0, monthly_budget_usd=0.0)
+    assert snap.burn_ratio == 0.0
+
+
+def test_burn_ratio_returns_zero_when_budget_is_negative() -> None:
+    snap = CostSnapshot(total_usd=10.0, prorated_monthly_usd=5.0, monthly_budget_usd=-1.0)
+    assert snap.burn_ratio == 0.0
+
+
+def test_adr_dir_returns_none_on_file_not_found(tmp_bsela_home: Path) -> None:
+    """Cover lines 140-141: find_config_dir raises FileNotFoundError → return None."""
+    with patch("bsela.core.auditor.find_config_dir", side_effect=FileNotFoundError):
+        result = _adr_dir()
+    assert result is None
+
+
+def test_scan_adrs_returns_empty_when_no_adr_dir(tmp_bsela_home: Path) -> None:
+    """Cover line 149: _adr_dir() returns None → AdrSnapshot(total=0, missing_status=())."""
+    with patch("bsela.core.auditor._adr_dir", return_value=None):
+        snap = _scan_adrs()
+    assert snap.total == 0
+    assert snap.missing_status == ()
+
+
+def test_render_markdown_adr_not_found(tmp_bsela_home: Path) -> None:
+    """Cover line 363: adrs.scanned is False → 'not found' message."""
+    with patch("bsela.core.auditor._adr_dir", return_value=None):
+        report = build_audit(window_days=30, now=NOW)
+    md = render_markdown(report)
+    assert "ADR directory not found" in md
+
+
+def test_render_markdown_adr_missing_status_headers(tmp_bsela_home: Path, tmp_path: Path) -> None:
+    """Cover lines 367-369: adrs.missing_status has entries → list them."""
+    adr_dir = tmp_path / "decisions"
+    adr_dir.mkdir()
+    (adr_dir / "0001-use-sqlite.md").write_text("# ADR\nno status header here", encoding="utf-8")
+    (adr_dir / "0002-use-pydantic.md").write_text("# ADR\n**Status:** accepted", encoding="utf-8")
+
+    with patch("bsela.core.auditor._adr_dir", return_value=adr_dir):
+        report = build_audit(window_days=30, now=NOW)
+
+    md = render_markdown(report)
+    assert "Missing" in md
+    assert "0001-use-sqlite.md" in md
