@@ -24,6 +24,10 @@ function stubClient(overrides: Partial<BselaClient> = {}): BselaClient {
   return Object.assign(Object.create(BselaClient.prototype), overrides) as BselaClient;
 }
 
+function sortedKeys(value: Record<string, unknown>): Array<string> {
+  return Object.keys(value).sort();
+}
+
 describe("toolDefinitions", () => {
   it("declares the four tools including bsela_lessons", () => {
     expect(Object.keys(toolDefinitions).sort()).toEqual([
@@ -235,6 +239,17 @@ describe("handleLessons", () => {
     const parsed = JSON.parse((result.content[0] as { text: string }).text) as unknown[];
     expect(parsed).toHaveLength(1);
     expect((parsed[0] as LessonItem).id).toBe("abc123");
+    expect(sortedKeys(parsed[0] as Record<string, unknown>)).toEqual([
+      "confidence",
+      "created_at",
+      "hit_count",
+      "how_to_apply",
+      "id",
+      "rule",
+      "scope",
+      "status",
+      "why",
+    ]);
     expect(result.structuredContent).toEqual({ lessons: [sampleLesson] });
   });
 
@@ -266,6 +281,19 @@ describe("handleLessons", () => {
     await handleLessons(client, { limit: 5 });
 
     expect(lessons).toHaveBeenCalledWith({ limit: 5 });
+  });
+
+  it("passes status and limit together through to the client", async () => {
+    const lessons = vi.fn().mockResolvedValue([]);
+    const client = stubClient({ lessons });
+
+    await handleLessons(client, { status: "approved", limit: 10 });
+
+    expect(lessons).toHaveBeenCalledWith({
+      status: "approved",
+      limit: 10,
+      trackHits: true,
+    });
   });
 
   it("returns error result on client failure", async () => {

@@ -191,6 +191,17 @@ exit 1
       expect(payload).toHaveLength(1);
       expect(payload[0]?.id).toBe("lesson-1");
       expect(payload[0]?.rule).toBe("Use fallback path");
+      expect(sortedKeys(payload[0] as unknown as Record<string, unknown>)).toEqual([
+        "confidence",
+        "created_at",
+        "hit_count",
+        "how_to_apply",
+        "id",
+        "rule",
+        "scope",
+        "status",
+        "why",
+      ]);
     } finally {
       await rm(dir, { recursive: true, force: true });
     }
