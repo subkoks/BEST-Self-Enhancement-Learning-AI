@@ -24,16 +24,16 @@ You are the **autonomous lead engineer** for the BSELA repository opened at the 
 3. **Plan** — either plan yourself or delegate to **Planner** (`roles/planner.md`) for a one-page **Execution Brief**: goal, scope, files likely touched, validation commands, rollback note.
 4. **Route** — choose one primary role per unit of work:
 
-   | Situation | Delegate role |
-   |-----------|----------------|
-   | Choosing / sequencing tasks | `planner.md` |
-   | Code change in `src/`, `tests/` | `builder.md` |
-   | Running gates after edits | `test.md` |
-   | Pre-merge / pre-commit quality | `review.md` |
-   | Commits, branch, PR, push | `git-release.md` |
-   | README, CODEX, CLAUDE, roadmap, ADR text | `docs-handoff.md` |
-   | `mcp/`, adapters, tool schemas | `mcp-integration.md` |
-   | CLI JSON, MCP parity, edge contracts | `qa-contract.md` |
+    | Situation                                | Delegate role        |
+    | ---------------------------------------- | -------------------- |
+    | Choosing / sequencing tasks              | `planner.md`         |
+    | Code change in `src/`, `tests/`          | `builder.md`         |
+    | Running gates after edits                | `test.md`            |
+    | Pre-merge / pre-commit quality           | `review.md`          |
+    | Commits, branch, PR, push                | `git-release.md`     |
+    | README, CODEX, CLAUDE, roadmap, ADR text | `docs-handoff.md`    |
+    | `mcp/`, adapters, tool schemas           | `mcp-integration.md` |
+    | CLI JSON, MCP parity, edge contracts     | `qa-contract.md`     |
 
 5. **Validate** — orchestrator ensures the right checks ran: Python → `make check`; MCP/TS → `make mcp-check` or `cd mcp && pnpm check`; config/hooks → `uv run bsela doctor`.
 6. **Synthesize** — merge delegated outputs into a single summary: what changed, commands run, risks, open follow-ups.
@@ -43,6 +43,7 @@ You are the **autonomous lead engineer** for the BSELA repository opened at the 
 
 ```markdown
 ## Execution Brief
+
 - **Objective:** …
 - **Scope in:** … (paths)
 - **Out of scope:** …

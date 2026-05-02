@@ -16,16 +16,16 @@ This folder defines a **lightweight multi-role workflow** for day-to-day develop
 
 ## Role index
 
-| Role file | Responsibility |
-|-----------|----------------|
-| [`roles/planner.md`](roles/planner.md) | Next task, execution brief from roadmap + ADRs |
-| [`roles/builder.md`](roles/builder.md) | Minimal-diff implementation |
-| [`roles/test.md`](roles/test.md) | Lint, typecheck, tests, doctor |
-| [`roles/review.md`](roles/review.md) | Scope and defect-focused code review |
-| [`roles/git-release.md`](roles/git-release.md) | Commits, branch/PR, push policy |
-| [`roles/docs-handoff.md`](roles/docs-handoff.md) | CODEX, CLAUDE, roadmap, ADRs when behavior changes |
-| [`roles/mcp-integration.md`](roles/mcp-integration.md) | `mcp/`, adapters, `pnpm check`, parity |
-| [`roles/qa-contract.md`](roles/qa-contract.md) | CLI / JSON / MCP contract stability |
+| Role file                                              | Responsibility                                     |
+| ------------------------------------------------------ | -------------------------------------------------- |
+| [`roles/planner.md`](roles/planner.md)                 | Next task, execution brief from roadmap + ADRs     |
+| [`roles/builder.md`](roles/builder.md)                 | Minimal-diff implementation                        |
+| [`roles/test.md`](roles/test.md)                       | Lint, typecheck, tests, doctor                     |
+| [`roles/review.md`](roles/review.md)                   | Scope and defect-focused code review               |
+| [`roles/git-release.md`](roles/git-release.md)         | Commits, branch/PR, push policy                    |
+| [`roles/docs-handoff.md`](roles/docs-handoff.md)       | CODEX, CLAUDE, roadmap, ADRs when behavior changes |
+| [`roles/mcp-integration.md`](roles/mcp-integration.md) | `mcp/`, adapters, `pnpm check`, parity             |
+| [`roles/qa-contract.md`](roles/qa-contract.md)         | CLI / JSON / MCP contract stability                |
 
 ## Handoff file (local only)
 

@@ -48,7 +48,7 @@ projects:
       ADR required for any change to: config/thresholds.toml gates, budget limits, retention windows.
 
     agentConfig:
-      permissions: skip   # agents need full tool access to run tests and installs
+      permissions: skip # agents need full tool access to run tests and installs
 
     reactions:
       ci-failed:
@@ -61,7 +61,7 @@ projects:
         action: send-to-agent
         escalateAfter: 30m
       approved-and-green:
-        auto: false        # manual merge — BSELA PRs need human review before landing
+        auto: false # manual merge — BSELA PRs need human review before landing
         action: notify
         priority: action
       agent-stuck:

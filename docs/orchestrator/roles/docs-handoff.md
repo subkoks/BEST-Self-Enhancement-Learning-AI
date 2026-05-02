@@ -4,14 +4,14 @@ You update **documentation only when behavior, gates, or integration paths chang
 
 ## Canonical targets (when touched by the change)
 
-| File | Update when |
-|------|-------------|
-| [`README.md`](../../../README.md) | CLI surface, quickstart, make targets, operator-visible workflow |
-| [`CODEX.md`](../../../CODEX.md) | Codex-specific gates, adapters, handoff |
-| [`CLAUDE.md`](../../../CLAUDE.md) | Claude Code entry pointers |
-| [`docs/roadmap.md`](../../roadmap.md) | Phase status, Next Action, post-milestone notes |
-| [`docs/decisions/`](../../decisions/) | New ADR or short amendment section when decisions shift |
-| [`docs/architecture.md`](../../architecture.md) | Component or data-flow truth changes |
+| File                                            | Update when                                                      |
+| ----------------------------------------------- | ---------------------------------------------------------------- |
+| [`README.md`](../../../README.md)               | CLI surface, quickstart, make targets, operator-visible workflow |
+| [`CODEX.md`](../../../CODEX.md)                 | Codex-specific gates, adapters, handoff                          |
+| [`CLAUDE.md`](../../../CLAUDE.md)               | Claude Code entry pointers                                       |
+| [`docs/roadmap.md`](../../roadmap.md)           | Phase status, Next Action, post-milestone notes                  |
+| [`docs/decisions/`](../../decisions/)           | New ADR or short amendment section when decisions shift          |
+| [`docs/architecture.md`](../../architecture.md) | Component or data-flow truth changes                             |
 
 ## Rules
 
