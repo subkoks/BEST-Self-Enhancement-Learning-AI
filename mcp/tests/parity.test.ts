@@ -1,0 +1,78 @@
+import { homedir, tmpdir } from "node:os";
+import { join } from "node:path";
+
+import { Client } from "@modelcontextprotocol/sdk/client/index.js";
+import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
+import { describe, expect, it } from "vitest";
+
+import { BselaClient, createServer, type AuditPayload } from "../src/index.js";
+
+function makeClient(): BselaClient {
+  const localBin = join(homedir(), ".local", "bin");
+  const path = `${localBin}:${process.env["PATH"] ?? ""}`;
+  return new BselaClient({ env: { ...process.env, PATH: path }, cwd: tmpdir() });
+}
+
+async function connectClient(client: BselaClient): Promise<Client> {
+  const server = createServer({ client });
+  const [serverTransport, clientTransport] = InMemoryTransport.createLinkedPair();
+  await server.connect(serverTransport);
+
+  const mcpClient = new Client({ name: "bsela-mcp-parity-test", version: "0.0.0" });
+  await mcpClient.connect(clientTransport);
+  return mcpClient;
+}
+
+function parseTextJson<T>(result: unknown): T {
+  const payload = result as { content: Array<{ type: string; text: string }> };
+  return JSON.parse(payload.content[0]!.text) as T;
+}
+
+function normalizeAudit(
+  payload: AuditPayload,
+): Omit<AuditPayload, "generated_at" | "window_start" | "window_end"> {
+  // Timestamps are generated at call time and can differ across direct vs MCP paths.
+  const {
+    generated_at: _generatedAt,
+    window_start: _windowStart,
+    window_end: _windowEnd,
+    ...rest
+  } = payload;
+  return rest;
+}
+
+describe("CLI↔MCP parity", () => {
+  it("keeps route/audit/status/lessons parity for direct and MCP paths", async () => {
+    const client = makeClient();
+    const mcp = await connectClient(client);
+    try {
+      const task = "plan the migration to P6";
+
+      const directRoute = await client.route(task);
+      const mcpRoute = parseTextJson<typeof directRoute>(
+        await mcp.callTool({ name: "bsela_route", arguments: { task } }),
+      );
+      expect(mcpRoute).toEqual(directRoute);
+
+      const directAudit = await client.auditData({ windowDays: 30 });
+      const mcpAudit = parseTextJson<AuditPayload>(
+        await mcp.callTool({ name: "bsela_audit", arguments: { window_days: 30 } }),
+      );
+      expect(normalizeAudit(mcpAudit)).toEqual(normalizeAudit(directAudit));
+
+      const directStatus = await client.status();
+      const mcpStatus = parseTextJson<typeof directStatus>(
+        await mcp.callTool({ name: "bsela_status", arguments: {} }),
+      );
+      expect(mcpStatus).toEqual(directStatus);
+
+      const directLessons = await client.lessons({ limit: 3 });
+      const mcpLessons = parseTextJson<typeof directLessons>(
+        await mcp.callTool({ name: "bsela_lessons", arguments: { limit: 3 } }),
+      );
+      expect(mcpLessons).toEqual(directLessons);
+    } finally {
+      await mcp.close();
+    }
+  });
+});

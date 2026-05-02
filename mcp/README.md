@@ -81,6 +81,7 @@ pnpm build          # emit dist/
 pnpm lint           # eslint
 pnpm format         # prettier --write
 pnpm format:check   # prettier --check
+pnpm parity         # CLI↔MCP parity test for route/audit/status/lessons
 pnpm check          # format:check + lint + typecheck + test
 ```
 

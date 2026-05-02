@@ -24,6 +24,7 @@
     "build": "tsc -p tsconfig.build.json && chmod +x dist/server.js",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run",
+    "parity": "vitest run tests/parity.test.ts",
     "test:watch": "vitest",
     "lint": "eslint --max-warnings=0 \"src/**/*.ts\" \"tests/**/*.ts\"",
     "format": "prettier --write \"src/**/*.ts\" \"tests/**/*.ts\"",
