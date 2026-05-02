@@ -145,18 +145,8 @@ def _assert_lesson_item_row(row: object) -> None:
     assert ca is None or isinstance(ca, str)
 
 
-@pytest.mark.parametrize(
-    "argv",
-    (
-        pytest.param(["lessons", "--json"], id="lessons"),
-        pytest.param(["review", "list", "--json"], id="review_list"),
-    ),
-)
-def test_lessons_json_row_matches_mcp_lesson_item(
-    tmp_bsela_home: Path, runner: CliRunner, argv: list[str]
-) -> None:
-    """Non-empty rows must match the MCP ``LessonItem`` contract."""
-    saved = save_lesson(
+def _seed_lesson_for_json_contract() -> Lesson:
+    return save_lesson(
         Lesson(
             scope="project",
             rule="Contract test rule",
@@ -165,13 +155,33 @@ def test_lessons_json_row_matches_mcp_lesson_item(
             confidence=0.88,
         )
     )
-    result = runner.invoke(app, argv)
+
+
+def test_lessons_top_level_json_row_matches_mcp_lesson_item(
+    tmp_bsela_home: Path, runner: CliRunner
+) -> None:
+    """Non-empty ``bsela lessons --json`` rows match MCP ``LessonItem``."""
+    saved = _seed_lesson_for_json_contract()
+    result = runner.invoke(app, ["lessons", "--json"])
     assert result.exit_code == 0, result.stdout
     rows = json.loads(result.stdout)
     assert len(rows) == 1
     _assert_lesson_item_row(rows[0])
     assert rows[0]["id"] == saved.id
     assert rows[0]["rule"] == "Contract test rule"
+
+
+def test_review_list_json_row_matches_mcp_lesson_item(
+    tmp_bsela_home: Path, runner: CliRunner
+) -> None:
+    """Non-empty ``bsela review list --json`` rows match MCP ``LessonItem``."""
+    saved = _seed_lesson_for_json_contract()
+    result = runner.invoke(app, ["review", "list", "--json"])
+    assert result.exit_code == 0, result.stdout
+    rows = json.loads(result.stdout)
+    assert len(rows) == 1
+    _assert_lesson_item_row(rows[0])
+    assert rows[0]["id"] == saved.id
 
 
 _AUDIT_JSON_TOP_LEVEL = frozenset(
