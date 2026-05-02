@@ -67,7 +67,9 @@ steady-state operator work (dogfood, tuning, and cross-editor depth).
    lessons; `bsela review reject <id> -n "…"` for false positives.
 5. `bsela report --stdout` (or let the weekly launchd plist write to
    `~/.bsela/reports/dogfood.md`) — review useful-lesson ratio,
-   quarantine rate, gate-tag distribution, cost.
+   quarantine rate, gate-tag distribution, cost. From the repo root,
+   `make dogfood-report` runs the same command; `make dogfood-audit`
+   prints the weekly audit digest (`bsela audit --weekly --stdout`).
 6. Tune `config/thresholds.toml` (loop_threshold, judge_threshold,
    correction_markers, scrubber patterns) based on the false-positive
    rate observed. Any change that overrides a gate / budget / retention
