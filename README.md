@@ -48,6 +48,8 @@ bsela decision add "<title>" -c ... -d ... -x ...  # log a load-bearing autonomo
 bsela decision list [-n 20]               # show recent decisions, newest first
 bsela route "<task>" [--json]             # P5 router: classify task → model role
 bsela audit [--weekly|--window-days N] [--stdout|--json]  # P5 weekly audit digest (markdown or JSON)
+bsela replay <session-id> [--no-save]   # P7: re-distill vs stored lessons; exit 1 on drift (needs API key)
+bsela rollback <lesson-id> [-n "..."]     # P7: soft-mark lesson rolled_back (local store only)
 ```
 
 The detector now runs inline during `bsela ingest` (and therefore during
