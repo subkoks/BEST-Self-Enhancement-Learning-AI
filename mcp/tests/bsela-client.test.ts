@@ -22,6 +22,10 @@ function makeClient(): BselaClient {
   return new BselaClient({ env: { ...process.env, PATH: path } });
 }
 
+function sortedKeys(value: Record<string, unknown>): Array<string> {
+  return Object.keys(value).sort();
+}
+
 describe("BselaClient.route", () => {
   const client = makeClient();
 
@@ -45,6 +49,17 @@ describe("BselaClient.route", () => {
     expect(decision.confidence).toBe(0.5);
     expect(decision.matched_keywords).toEqual([]);
   });
+
+  it("keeps a stable RouteDecision key set", async () => {
+    const decision = await client.route("plan the migration to P6");
+    expect(sortedKeys(decision as unknown as Record<string, unknown>)).toEqual([
+      "confidence",
+      "matched_keywords",
+      "model",
+      "reason",
+      "task_class",
+    ]);
+  });
 });
 
 describe("BselaClient.audit", () => {
@@ -63,6 +78,23 @@ describe("BselaClient.audit", () => {
     expect(typeof payload.cost.over_budget).toBe("boolean");
     expect(Array.isArray(payload.alerts)).toBe(true);
   });
+
+  it("keeps stable top-level audit JSON keys", async () => {
+    const payload = await client.auditData({ windowDays: 30 });
+    expect(sortedKeys(payload as unknown as Record<string, unknown>)).toEqual([
+      "adrs",
+      "alerts",
+      "cost",
+      "drift",
+      "errors_total",
+      "generated_at",
+      "replay_drift",
+      "sessions",
+      "window_days",
+      "window_end",
+      "window_start",
+    ]);
+  });
 });
 
 describe("BselaClient.status", () => {
@@ -80,6 +112,20 @@ describe("BselaClient.status", () => {
     expect(typeof payload.bsela_home).toBe("string");
     expect(payload.bsela_home.length).toBeGreaterThan(0);
   });
+
+  it("keeps a stable StatusPayload key set", async () => {
+    const payload = await client.status();
+    expect(sortedKeys(payload as unknown as Record<string, unknown>)).toEqual([
+      "bsela_home",
+      "errors",
+      "lessons",
+      "lessons_pending",
+      "lessons_proposed",
+      "replay_records",
+      "sessions",
+      "sessions_quarantined",
+    ]);
+  });
 });
 
 describe("BselaClient.lessons", () => {
@@ -89,6 +135,19 @@ describe("BselaClient.lessons", () => {
     const payload = await client.lessons({ limit: 1 });
     expect(Array.isArray(payload)).toBe(true);
     expect(payload.length).toBeLessThanOrEqual(1);
+    if (payload[0] !== undefined) {
+      expect(sortedKeys(payload[0] as unknown as Record<string, unknown>)).toEqual([
+        "confidence",
+        "created_at",
+        "hit_count",
+        "how_to_apply",
+        "id",
+        "rule",
+        "scope",
+        "status",
+        "why",
+      ]);
+    }
   });
 
   it("falls back to `review list` when `lessons` command is unavailable", async () => {
