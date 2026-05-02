@@ -1,0 +1,6 @@
+{"role": "user", "message": {"content": [{"type": "text", "text": "find the config file"}]}}
+{"role": "assistant", "message": {"content": [{"type": "tool_use", "id": "t1", "name": "Read", "input": {"path": "/tmp/missing.toml"}}]}}
+{"role": "user", "message": {"content": [{"type": "tool_result", "tool_use_id": "t1", "content": "file not found"}]}}
+{"role": "assistant", "message": {"content": [{"type": "tool_use", "id": "t2", "name": "Read", "input": {"path": "/tmp/missing.toml"}}]}}
+{"role": "user", "message": {"content": [{"type": "tool_result", "tool_use_id": "t2", "content": "file not found"}]}}
+{"role": "assistant", "message": {"content": [{"type": "tool_use", "id": "t3", "name": "Read", "input": {"path": "/tmp/missing.toml"}}]}}

@@ -252,3 +252,32 @@ def test_iter_tool_uses_skips_non_tool_blocks_in_assistant() -> None:
     results = list(_iter_tool_uses(events))
     assert len(results) == 1
     assert results[0][1].get("type") == "tool_use"
+
+
+# ---- Cursor role-keyed format (role instead of type at event top level) ----
+
+
+def test_detects_correction_in_cursor_format(tmp_bsela_home: Path) -> None:
+    """Correction detector must fire on ``role: "user"`` events (Cursor transcript format)."""
+    sid = _ingest(FIXTURES / "cursor-correction.jsonl")
+    result = detect_errors(sid)
+    categories = [e.category for e in result.errors]
+    assert "correction" in categories
+
+
+def test_detects_loop_in_cursor_format(tmp_bsela_home: Path) -> None:
+    """Loop detector must find repeated tool_use in ``role: "assistant".message.content[]``."""
+    sid = _ingest(FIXTURES / "cursor-looped-read.jsonl")
+    result = detect_errors(sid)
+    loops = [e for e in result.errors if e.category == "loop"]
+    assert len(loops) == 1
+    assert "Read" in loops[0].snippet
+
+
+def test_detects_stack_trace_in_cursor_format(tmp_bsela_home: Path) -> None:
+    """Stack-trace detector must find tracebacks in ``role: "user"`` tool_result blocks."""
+    sid = _ingest(FIXTURES / "cursor-stack-trace.jsonl")
+    result = detect_errors(sid)
+    traces = [e for e in result.errors if e.category == "stack_trace"]
+    assert len(traces) >= 1
+    assert "Traceback" in traces[0].snippet or "ValueError" in traces[0].snippet

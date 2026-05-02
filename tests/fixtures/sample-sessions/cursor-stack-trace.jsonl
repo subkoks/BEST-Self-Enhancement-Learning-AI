@@ -1,0 +1,3 @@
+{"role": "user", "message": {"content": [{"type": "text", "text": "run the tests"}]}}
+{"role": "assistant", "message": {"content": [{"type": "tool_use", "id": "t1", "name": "Shell", "input": {"command": "pytest"}}]}}
+{"role": "user", "message": {"content": [{"type": "tool_result", "tool_use_id": "t1", "content": "FAILED tests/test_config.py::test_load\nTraceback (most recent call last):\n  File \"tests/test_config.py\", line 12, in test_load\n    load_config()\nValueError: missing required key 'db_path'"}]}}

@@ -165,6 +165,25 @@ def test_ingest_multiple_timestamps_tracks_min_max(tmp_bsela_home: Path, tmp_pat
     assert result.turn_count == 3
 
 
+# ---- Cursor role-keyed format ----
+
+
+def test_ingest_cursor_format_counts_turns_and_tools(
+    tmp_bsela_home: Path,
+) -> None:
+    """Cursor transcripts use ``role`` instead of ``type``; turns and tools must still count."""
+    result = ingest_file(
+        FIXTURES / "cursor-looped-read.jsonl",
+        source="cursor",
+        auto_detect=False,
+    )
+    assert result.status == "captured"
+    # 4 user + assistant role events (user, assistant x 3 pairs)
+    assert result.turn_count >= 4
+    # 3 tool_use blocks inside assistant.message.content
+    assert result.tool_call_count >= 3
+
+
 # ---- long-session / hashing ----
 
 

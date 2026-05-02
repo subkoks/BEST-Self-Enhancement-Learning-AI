@@ -1,0 +1,5 @@
+{"role": "user", "message": {"content": [{"type": "text", "text": "refactor the config loader"}]}}
+{"role": "assistant", "message": {"content": [{"type": "text", "text": "Starting the refactor."}, {"type": "tool_use", "id": "t1", "name": "Read", "input": {"path": "config.py"}}]}}
+{"role": "user", "message": {"content": [{"type": "tool_result", "tool_use_id": "t1", "content": "# config contents"}]}}
+{"role": "user", "message": {"content": [{"type": "text", "text": "no wait. Revert that change, AGENTS.md says keep it as TOML."}]}}
+{"role": "assistant", "message": {"content": [{"type": "text", "text": "Understood, reverting."}]}}

@@ -142,13 +142,14 @@ def ingest_file(
     scrub_hits: set[str] = set()
 
     for event in _iter_jsonl(transcript):
-        etype = event.get("type")
+        # Accept both `type` (native Claude Code) and `role` (Cursor-hosted Claude Code).
+        etype = event.get("type") or event.get("role")
         if etype in _TURN_TYPES:
             turn_count += 1
         if etype in _TOOL_TYPES or event.get("tool_calls"):
             tool_call_count += 1
-        elif etype == "assistant":
-            # Claude Code nested format: tool_use blocks inside message.content[]
+        elif etype in ("assistant", "message"):
+            # Nested format: tool_use blocks inside message.content[]
             msg = event.get("message") or {}
             nested = msg.get("content", []) if isinstance(msg, dict) else []
             if isinstance(nested, list):

@@ -116,6 +116,11 @@ def _fingerprint(event: dict[str, Any]) -> str:
     return hashlib.sha1(f"{name}|{blob}".encode(), usedforsecurity=False).hexdigest()
 
 
+def _event_type(event: dict[str, Any]) -> str | None:
+    """Return normalized event type — ``type`` first, then ``role`` (Cursor format)."""
+    return event.get("type") or event.get("role")
+
+
 def _correction_markers(markers: Iterable[str]) -> tuple[re.Pattern[str], ...]:
     return tuple(re.compile(rf"\b{re.escape(m)}\b", re.IGNORECASE) for m in markers)
 
@@ -149,7 +154,7 @@ def _scan_correction(
 ) -> list[ErrorRecord]:
     out: list[ErrorRecord] = []
     for line_no, event in events:
-        if event.get("type") != "user":
+        if _event_type(event) != "user":
             continue
         # Only inspect the human-typed text — not tool_result file content
         text = _user_text_only(event)
@@ -179,10 +184,10 @@ def _iter_tool_uses(
     Claude Code nested format (assistant.message.content[].type=tool_use).
     """
     for ln, event in events:
-        etype = event.get("type")
+        etype = _event_type(event)
         if etype in {"tool_use", "tool_call"}:
             yield ln, event
-        elif etype == "assistant":
+        elif etype in ("assistant", "message"):
             for block in _nested_content_blocks(event):
                 if block.get("type") in {"tool_use", "tool_call"}:
                     yield ln, block
@@ -229,7 +234,7 @@ def _scan_stack_trace(
     for line_no, event in events:
         # Flat format: assistant / tool_result / message events
         # Nested format: user events whose message.content[] contains tool_result blocks
-        if event.get("type") not in {"assistant", "tool_result", "message", "user"}:
+        if _event_type(event) not in {"assistant", "tool_result", "message", "user"}:
             continue
         text = _text_of(event)
         if not text:
