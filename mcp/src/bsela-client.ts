@@ -282,6 +282,8 @@ function isAuditPayload(value: unknown): value is AuditPayload {
 function isLessonItem(value: unknown): value is LessonItem {
   if (typeof value !== "object" || value === null) return false;
   const v = value as Record<string, unknown>;
+  const createdOk =
+    v.created_at === undefined || v.created_at === null || typeof v.created_at === "string";
   return (
     typeof v.id === "string" &&
     typeof v.status === "string" &&
@@ -290,7 +292,8 @@ function isLessonItem(value: unknown): value is LessonItem {
     typeof v.rule === "string" &&
     typeof v.why === "string" &&
     typeof v.how_to_apply === "string" &&
-    typeof v.hit_count === "number"
+    typeof v.hit_count === "number" &&
+    createdOk
   );
 }
 
