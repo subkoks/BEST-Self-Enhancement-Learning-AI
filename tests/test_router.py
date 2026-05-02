@@ -108,6 +108,18 @@ def test_case_insensitive(models: ModelsConfig) -> None:
     assert decision.task_class == "auditor"
 
 
+def test_judge_bucket_routes_to_judge(models: ModelsConfig) -> None:
+    decision = classify("score this session for failure density", models)
+    assert decision.task_class == "judge"
+    assert decision.model == models.judge.model
+
+
+def test_memory_updater_bucket_routes_correctly(models: ModelsConfig) -> None:
+    decision = classify("dedupe duplicate lesson rows in the store", models)
+    assert decision.task_class == "memory_updater"
+    assert decision.model == models.memory_updater.model
+
+
 def test_default_models_are_loaded_when_cfg_omitted() -> None:
     # Calling without passing an explicit ModelsConfig should still work.
     decision = classify("plan the migration")
