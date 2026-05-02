@@ -9,7 +9,8 @@
 ## Quality gate before you ship
 
 - Python: `make check` (ruff, mypy, pytest).
-- TypeScript MCP: `cd mcp && pnpm check`; server entry is `mcp/dist/server.js` after `pnpm build`.
+- Health: `make doctor` (`uv run bsela doctor` — PATH, store, hook, agents-md).
+- TypeScript MCP: `make mcp-check` or `cd mcp && pnpm check`; server entry is `mcp/dist/server.js` after `pnpm build`.
 
 ## Wire BSELA into Codex
 
