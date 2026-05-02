@@ -11,6 +11,7 @@ export {
   BselaClient,
   BselaClientError,
   type BselaClientOptions,
+  isLessonItem,
   type LessonItem,
   type RouteDecision,
   type StatusPayload,

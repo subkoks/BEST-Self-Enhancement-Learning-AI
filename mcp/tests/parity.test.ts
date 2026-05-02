@@ -138,7 +138,6 @@ describe("CLI↔MCP parity", () => {
     const localBin = join(homedir(), ".local", "bin");
     const path = `${localBin}:${process.env["PATH"] ?? ""}`;
     const home = await mkdtemp(join(tmpdir(), "bsela-parity-seeded-"));
-    await rm(join(home, "bsela.db"), { force: true }).catch(() => undefined);
     seedOneLesson(home, path);
 
     const client = new BselaClient({

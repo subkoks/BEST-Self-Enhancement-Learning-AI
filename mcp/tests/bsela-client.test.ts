@@ -5,8 +5,7 @@ import { tmpdir } from "node:os";
 
 import { describe, expect, it } from "vitest";
 
-import { isLessonItem } from "../src/bsela-client.js";
-import { BselaClient, BselaClientError, type LessonItem } from "../src/index.js";
+import { BselaClient, BselaClientError, isLessonItem, type LessonItem } from "../src/index.js";
 
 /**
  * These are integration tests: they shell out to the `bsela`
