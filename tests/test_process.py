@@ -4,17 +4,22 @@ from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 from typer.testing import CliRunner
 
 from bsela.cli import app
 from bsela.core.capture import ingest_file
-from bsela.core.process import process_sessions
+from bsela.core.process import _is_within_window, process_sessions
 from bsela.llm.client import FakeLLMClient
 from bsela.llm.types import DistillResponse, JudgeVerdict, LessonCandidate
 from bsela.memory.models import SessionRecord
-from bsela.memory.store import count_lessons, list_sessions, session_scope
+from bsela.memory.store import (
+    count_lessons,
+    list_sessions,
+    session_scope,
+)
 
 FIXTURES = Path(__file__).parent / "fixtures" / "sample-sessions"
 
@@ -214,3 +219,43 @@ def test_process_cli_invokes_real_client_path(
     assert result.exit_code == 0, result.stdout
     assert "distilled=1" in result.stdout
     assert "lessons=1" in result.stdout
+
+
+def test_is_within_window_handles_naive_datetime(
+    tmp_bsela_home: Path,
+) -> None:
+    """Cover line 66→68 both branches: naive and aware ingested_at."""
+    cutoff = datetime(2026, 4, 1, 0, 0, 0, tzinfo=UTC)
+
+    # True branch (66→67): naive datetime gets UTC stamp
+    naive_session = SessionRecord(
+        source="claude_code",
+        transcript_path="/tmp/fake.jsonl",
+        content_hash="naivehash",
+        status="captured",
+        ingested_at=datetime(2026, 4, 24, 10, 0, 0),  # no tzinfo
+    )
+    assert _is_within_window(naive_session, cutoff) is True
+
+    # False branch (66→68): aware datetime skips the replace
+    aware_session = SessionRecord(
+        source="claude_code",
+        transcript_path="/tmp/fake.jsonl",
+        content_hash="awarehash",
+        status="captured",
+        ingested_at=datetime(2026, 4, 24, 10, 0, 0, tzinfo=UTC),
+    )
+    assert _is_within_window(aware_session, cutoff) is True
+
+
+def test_process_skips_session_with_no_errors_in_list(
+    tmp_bsela_home: Path,
+) -> None:
+    """Cover lines 110-112: list_errors returns [] even though session was in candidates."""
+    ingest_file(FIXTURES / "looped-read.jsonl")
+
+    # Patch list_errors to return empty for any session → skipped_no_errors path
+    with patch("bsela.core.process.list_errors", return_value=[]):
+        result = process_sessions(client=_client(), limit=5)
+
+    assert result.skipped_no_errors >= 1
