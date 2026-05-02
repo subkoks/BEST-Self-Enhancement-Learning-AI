@@ -53,7 +53,7 @@ Pause and surface even in Auto Mode when a change would:
 - Fine-tune, distill into, or otherwise modify foundation-model weights (violates harness+context invariant).
 - Bypass the secret scrubber, weaken its patterns, or attempt to distill a quarantined session.
 - Auto-merge a lesson scoped `global`, or touch safety / crypto / wallet / trading rules — these always require human review.
-- Override `config/thresholds.toml` gates, budgets, or retention windows without a matching ADR in `docs/adr/`.
+- Override `config/thresholds.toml` gates, budgets, or retention windows without a matching ADR in `docs/decisions/`.
 - Exceed `cost.monthly_budget_usd` or sustain overshoot of `cost.per_session_budget_usd` — trip the breaker, do not widen the budget.
 
 ### Execution norms in Auto Mode
