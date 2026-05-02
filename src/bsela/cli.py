@@ -70,6 +70,7 @@ from bsela.memory.store import (
     db_path,
     get_lesson,
     get_session,
+    increment_hit_count,
     list_decisions,
     list_errors,
     list_lessons,
@@ -284,9 +285,18 @@ def review_list(
     ] = None,
     limit: Annotated[int, typer.Option("--limit", "-n", help="Max lessons to show.")] = 50,
     json_out: Annotated[bool, typer.Option("--json", help="Emit JSON array.")] = False,
+    track_hits: Annotated[
+        bool,
+        typer.Option(
+            "--track-hits",
+            help="Increment hit_count on every returned lesson (use when surfacing to an editor).",
+        ),
+    ] = False,
 ) -> None:
     """List lessons with optional status filter. Default shows all."""
     lessons = list_lessons(status=status, limit=limit)
+    if track_hits and lessons:
+        increment_hit_count([le.id for le in lessons])
     if json_out:
         typer.echo(
             json.dumps(

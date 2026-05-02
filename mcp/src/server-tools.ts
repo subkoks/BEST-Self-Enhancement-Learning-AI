@@ -99,9 +99,11 @@ export async function handleLessons(
   args: { status?: string | undefined; limit?: number | undefined },
 ): Promise<ToolTextResult> {
   try {
-    const opts: { status?: string; limit?: number } = {};
+    const opts: { status?: string; limit?: number; trackHits?: boolean } = {};
     if (args.status !== undefined) opts.status = args.status;
     if (args.limit !== undefined) opts.limit = args.limit;
+    // Track hits when surfacing approved lessons to an editor so usage analytics work.
+    if (args.status === "approved" || args.status === "applied") opts.trackHits = true;
     const items: Array<LessonItem> = await client.lessons(opts);
     return {
       content: [{ type: "text", text: JSON.stringify(items, null, 2) }],

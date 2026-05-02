@@ -248,13 +248,18 @@ export class BselaClient {
     return parsed;
   }
 
-  async lessons(options: { status?: string; limit?: number } = {}): Promise<Array<LessonItem>> {
+  async lessons(
+    options: { status?: string; limit?: number; trackHits?: boolean } = {},
+  ): Promise<Array<LessonItem>> {
     const args = ["review", "list", "--json"];
     if (options.status !== undefined) {
       args.push("--status", options.status);
     }
     if (options.limit !== undefined) {
       args.push("--limit", String(options.limit));
+    }
+    if (options.trackHits === true) {
+      args.push("--track-hits");
     }
     const result = await runBsela(args, this.options);
     assertSuccess(args, result);

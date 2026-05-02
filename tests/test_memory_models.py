@@ -10,6 +10,7 @@ from bsela.memory.models import Decision, ErrorRecord, Lesson, Metric, ReplayRec
 from bsela.memory.store import (
     get_lesson,
     get_session,
+    increment_hit_count,
     list_decisions,
     list_errors,
     list_lessons,
@@ -165,3 +166,30 @@ def test_list_replay_records_with_window_days(tmp_bsela_home: Path) -> None:
     save_replay_record(ReplayRecord(session_id=sess.id, had_drift=False))
     rows = list_replay_records(window_days=7)
     assert len(rows) >= 1
+
+
+def test_increment_hit_count_updates_lessons(tmp_bsela_home: Path) -> None:
+    """increment_hit_count bumps hit_count on each given lesson id."""
+    lesson = save_lesson(
+        Lesson(scope="project", rule="test rule", why="w", how_to_apply="h", confidence=0.9)
+    )
+    assert lesson.hit_count == 0
+    increment_hit_count([lesson.id])
+    updated = get_lesson(lesson.id)
+    assert updated is not None
+    assert updated.hit_count == 1
+    # calling twice cumulates
+    increment_hit_count([lesson.id])
+    updated2 = get_lesson(lesson.id)
+    assert updated2 is not None
+    assert updated2.hit_count == 2
+
+
+def test_increment_hit_count_empty_list_is_noop(tmp_bsela_home: Path) -> None:
+    """increment_hit_count with empty list does nothing and does not raise."""
+    increment_hit_count([])  # should not raise
+
+
+def test_increment_hit_count_skips_missing_ids(tmp_bsela_home: Path) -> None:
+    """Nonexistent lesson IDs are silently skipped."""
+    increment_hit_count(["nonexistent-id"])  # should not raise

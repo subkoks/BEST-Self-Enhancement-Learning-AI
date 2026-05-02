@@ -196,6 +196,24 @@ def update_lesson_status(
         return lesson
 
 
+def increment_hit_count(lesson_ids: list[str]) -> None:
+    """Atomically bump hit_count on each lesson in lesson_ids.
+
+    Silently skips IDs that no longer exist. Intended to be called whenever
+    lessons are surfaced to an editor (MCP bsela_lessons, route context).
+    """
+    if not lesson_ids:
+        return
+    with session_scope() as s:
+        for lid in lesson_ids:
+            lesson = s.get(Lesson, lid)
+            if lesson is not None:
+                lesson.hit_count += 1
+                lesson.updated_at = datetime.now(UTC)
+                s.add(lesson)
+        s.commit()
+
+
 def list_lessons(
     *,
     status: str | None = None,
