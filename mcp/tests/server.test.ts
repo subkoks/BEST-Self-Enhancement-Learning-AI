@@ -203,6 +203,9 @@ describe("createServer", () => {
       const content = result.content as Array<{ type: string; text: string }>;
       const payload = JSON.parse(content[0]!.text) as Array<{ id: string }>;
       expect(payload[0]!.id).toBe("lesson-1");
+      expect(result.structuredContent).toMatchObject({
+        lessons: [{ id: "lesson-1" }],
+      });
     } finally {
       await mcp.close();
     }
