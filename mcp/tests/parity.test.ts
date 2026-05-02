@@ -49,28 +49,33 @@ describe("CLI↔MCP parity", () => {
       const task = "plan the migration to P6";
 
       const directRoute = await client.route(task);
-      const mcpRoute = parseTextJson<typeof directRoute>(
-        await mcp.callTool({ name: "bsela_route", arguments: { task } }),
-      );
+      const routeResult = await mcp.callTool({ name: "bsela_route", arguments: { task } });
+      const mcpRoute = parseTextJson<typeof directRoute>(routeResult);
       expect(mcpRoute).toEqual(directRoute);
+      expect(routeResult.structuredContent).toEqual(directRoute);
 
       const directAudit = await client.auditData({ windowDays: 30 });
-      const mcpAudit = parseTextJson<AuditPayload>(
-        await mcp.callTool({ name: "bsela_audit", arguments: { window_days: 30 } }),
-      );
+      const auditResult = await mcp.callTool({
+        name: "bsela_audit",
+        arguments: { window_days: 30 },
+      });
+      const mcpAudit = parseTextJson<AuditPayload>(auditResult);
       expect(normalizeAudit(mcpAudit)).toEqual(normalizeAudit(directAudit));
+      expect(normalizeAudit(auditResult.structuredContent as AuditPayload)).toEqual(
+        normalizeAudit(directAudit),
+      );
 
       const directStatus = await client.status();
-      const mcpStatus = parseTextJson<typeof directStatus>(
-        await mcp.callTool({ name: "bsela_status", arguments: {} }),
-      );
+      const statusResult = await mcp.callTool({ name: "bsela_status", arguments: {} });
+      const mcpStatus = parseTextJson<typeof directStatus>(statusResult);
       expect(mcpStatus).toEqual(directStatus);
+      expect(statusResult.structuredContent).toEqual(directStatus);
 
       const directLessons = await client.lessons({ limit: 3 });
-      const mcpLessons = parseTextJson<typeof directLessons>(
-        await mcp.callTool({ name: "bsela_lessons", arguments: { limit: 3 } }),
-      );
+      const lessonsResult = await mcp.callTool({ name: "bsela_lessons", arguments: { limit: 3 } });
+      const mcpLessons = parseTextJson<typeof directLessons>(lessonsResult);
       expect(mcpLessons).toEqual(directLessons);
+      expect(lessonsResult.structuredContent).toEqual({ lessons: directLessons });
     } finally {
       await mcp.close();
     }
