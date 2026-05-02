@@ -34,6 +34,7 @@ bsela distill --session-id <id>           # judge + distill one session (needs A
 bsela process [-n 10] [-d 7]              # batch-distill recent captures (needs ANTHROPIC_API_KEY)
 bsela review                              # list pending lessons with AUTO/REVIEW/SAFETY tags
 bsela lessons [--json]                   # top-level alias for `bsela review list`
+bsela review show <lesson-id>           # display lesson details (rule, why, how_to_apply)
 bsela review propose <lesson-id>          # write a proposal branch on agents-md
 bsela review reject  <lesson-id> -n ...   # reject a pending lesson with a note
 bsela report [--window-days 7] [--stdout] # P4 dogfood report → ~/.bsela/reports/dogfood.md
