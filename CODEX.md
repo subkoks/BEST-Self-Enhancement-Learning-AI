@@ -19,5 +19,5 @@ Index: `[adapters/README.md](adapters/README.md)`. Codex-specific steps:
 ## Suggested next build (P6)
 
 1. **Cross-editor dogfood** — run one real Codex session and one real Claude Code session against the same `~/.bsela` store, then record parity/notes in `docs/roadmap.md`.
-2. **MCP parity checks** — verify `bsela_route` / `bsela_audit` / `bsela_status` / `bsela_lessons` results match shell `bsela route|audit|status|review list` output in both editors.
+2. **MCP parity checks** — verify `bsela_route` / `bsela_audit` / `bsela_status` / `bsela_lessons` results match shell `bsela route|audit|status|lessons` output in both editors.
 3. Optional: keep CLI↔MCP contract parity tests current (`route`, `audit`, `status`, `lessons`) whenever payload fields change.
