@@ -12,4 +12,6 @@ Rule changes belong in `~/Projects/Current/Active/agents-md`, not in editor-sync
 and [`docs/orchestrator/README.md`](docs/orchestrator/README.md) (ADR
 [0008](docs/decisions/0008-developer-orchestrator-workflow.md)).
 
+For **Cursor** (MCP wiring), see [`adapters/cursor/README.md`](adapters/cursor/README.md) and the editor index in [`adapters/README.md`](adapters/README.md).
+
 For Codex CLI continuation from this repo, see [`CODEX.md`](CODEX.md).

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import json
+
 import pytest
 from typer.testing import CliRunner
 
@@ -51,3 +53,31 @@ def test_hook_subgroup_help(runner: CliRunner) -> None:
     result = runner.invoke(app, ["hook", "--help"])
     assert result.exit_code == 0, result.stdout
     assert "install" in result.stdout
+
+
+def test_route_json_contract_stable_keys(runner: CliRunner) -> None:
+    """Keep CLI JSON aligned with MCP ``bsela_route`` consumers."""
+    result = runner.invoke(app, ["route", "plan the P5 rollout", "--json"])
+    assert result.exit_code == 0, result.stdout
+    data = json.loads(result.stdout)
+    assert set(data.keys()) == {
+        "task_class",
+        "model",
+        "confidence",
+        "reason",
+        "matched_keywords",
+    }
+    assert data["task_class"] == "planner"
+    assert isinstance(data["matched_keywords"], list)
+
+
+def test_nested_command_help_pages_load(runner: CliRunner) -> None:
+    for argv in (
+        ["review", "list", "--help"],
+        ["sessions", "list", "--help"],
+        ["errors", "list", "--help"],
+        ["decision", "add", "--help"],
+    ):
+        result = runner.invoke(app, argv)
+        assert result.exit_code == 0, (argv, result.stdout)
+        assert "Usage:" in result.stdout, argv
