@@ -260,16 +260,24 @@ def _render_pending(lesson: Lesson) -> str:
 
 @review_app.callback(invoke_without_command=True)
 def review_root(ctx: typer.Context) -> None:
-    """List pending rule-change proposals awaiting approval."""
+    """List lessons awaiting operator action (proposed + pending)."""
     if ctx.invoked_subcommand is not None:
         return
+    proposed = list_lessons(status="proposed", limit=100)
     pending = list_lessons(status="pending", limit=100)
-    if not pending:
-        typer.echo("review: no pending lessons.")
+    actionable = proposed + pending
+    if not actionable:
+        typer.echo("review: no lessons awaiting action.")
         raise typer.Exit(code=0)
-    typer.echo(f"review: {len(pending)} pending lesson(s)")
-    for lesson in pending:
-        typer.echo(_render_pending(lesson))
+    if proposed:
+        n = len(proposed)
+        typer.echo(f"review: {n} proposed lesson(s) — run 'bsela review propose/reject <id>'")
+        for lesson in proposed:
+            typer.echo(_render_pending(lesson))
+    if pending:
+        typer.echo(f"review: {len(pending)} pending lesson(s) — awaiting gate evaluation")
+        for lesson in pending:
+            typer.echo(_render_pending(lesson))
     raise typer.Exit(code=0)
 
 

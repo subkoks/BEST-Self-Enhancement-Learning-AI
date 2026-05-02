@@ -64,7 +64,7 @@ def test_review_with_empty_store_exits_zero(
     monkeypatch.setenv("BSELA_HOME", str(tmp_path))
     result = CliRunner().invoke(app, ["review"])
     assert result.exit_code == 0
-    assert "no pending lessons" in result.stdout
+    assert "no lessons awaiting action" in result.stdout
 
 
 def test_rollback_not_found_exits_1(tmp_bsela_home: Path) -> None:
