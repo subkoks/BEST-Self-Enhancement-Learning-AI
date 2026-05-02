@@ -13,7 +13,7 @@ from typer.testing import CliRunner
 from bsela.cli import app
 from bsela.core.updater import UpdaterError
 from bsela.memory.models import Lesson
-from bsela.memory.store import get_lesson, save_lesson, update_lesson_status
+from bsela.memory.store import get_lesson, increment_hit_count, save_lesson, update_lesson_status
 
 
 def _git(repo: Path, *args: str) -> str:
@@ -209,3 +209,34 @@ def test_review_reject_non_pending_exits_nonzero(tmp_bsela_home: Path) -> None:
     result = CliRunner().invoke(app, ["review", "reject", lesson.id])
     assert result.exit_code == 1
     assert "cannot reject" in result.stdout
+
+
+def test_review_root_shows_proposed_lessons(tmp_bsela_home: Path) -> None:
+    """Cover lines 272-276: review root shows proposed + pending lessons."""
+    # Create a proposed lesson
+    lesson = _project_lesson()
+    update_lesson_status(lesson.id, status="proposed", note=None)
+    result = CliRunner().invoke(app, ["review"])
+    assert result.exit_code == 0
+    assert "proposed" in result.stdout
+    assert lesson.id[:8] in result.stdout
+
+
+def test_review_root_shows_pending_lessons(tmp_bsela_home: Path) -> None:
+    """Cover lines 277-280: review root shows pending lessons."""
+    _project_lesson()  # default status is pending
+    result = CliRunner().invoke(app, ["review"])
+    assert result.exit_code == 0
+    assert "pending" in result.stdout
+
+
+def test_review_list_track_hits(tmp_bsela_home: Path) -> None:
+    """Cover line 307: --track-hits increments hit_count on returned lessons."""
+    increment_hit_count([])  # warm import; real assertion below
+    lesson = _project_lesson()
+    assert lesson.hit_count == 0
+    result = CliRunner().invoke(app, ["review", "list", "--track-hits"])
+    assert result.exit_code == 0
+    updated = get_lesson(lesson.id)
+    assert updated is not None
+    assert updated.hit_count == 1
