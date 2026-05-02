@@ -27,8 +27,8 @@ live in [`mcp/`](../mcp/) — adapters never re-implement BSELA logic.
 | Claude Desktop | [`mcp/README.md`](../mcp/README.md#running-the-mcp-server)              | Desktop MCP config (same `mcpServers` shape as in `claude/settings.example.json`) |
 | Cursor         | [`cursor/mcp.json`](cursor/mcp.json)                                    | `~/.cursor/mcp.json`                                                              |
 
-The Codex + Windsurf snippets are the two adapters formally tracked
-under P6. Others are documented inline.
+The Codex, Windsurf, and Cursor adapters are formally tracked under
+P6. Claude Desktop and Claude Code are documented inline.
 
 ## Tools exposed (read-only, P6)
 
