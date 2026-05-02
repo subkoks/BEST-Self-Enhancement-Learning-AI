@@ -171,4 +171,40 @@ describe("createServer", () => {
       await mcp.close();
     }
   });
+
+  it("dispatches bsela_lessons with status + limit filters", async () => {
+    const lessons = vi.fn().mockResolvedValue([
+      {
+        id: "lesson-1",
+        status: "approved",
+        scope: "project",
+        confidence: 0.95,
+        rule: "Use typed audit payload",
+        why: "Avoid shape drift",
+        how_to_apply: "consume structuredContent",
+        hit_count: 2,
+        created_at: "2026-05-02T00:00:00+00:00",
+      },
+    ]);
+    const client = stubClient({
+      route: vi.fn(),
+      auditData: vi.fn(),
+      status: vi.fn(),
+      lessons,
+    });
+
+    const mcp = await connectClient(client);
+    try {
+      const result = await mcp.callTool({
+        name: "bsela_lessons",
+        arguments: { status: "approved", limit: 1 },
+      });
+      expect(lessons).toHaveBeenCalledWith({ status: "approved", limit: 1, trackHits: true });
+      const content = result.content as Array<{ type: string; text: string }>;
+      const payload = JSON.parse(content[0]!.text) as Array<{ id: string }>;
+      expect(payload[0]!.id).toBe("lesson-1");
+    } finally {
+      await mcp.close();
+    }
+  });
 });
