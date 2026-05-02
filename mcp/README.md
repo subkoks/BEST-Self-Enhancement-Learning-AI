@@ -9,8 +9,8 @@ CLI client it is built on. Part of P6 per
 - `BselaClient` — shells out to the `bsela` Python CLI and parses
   JSON / text. First tools covered: `route`, `audit`, `status`.
 - MCP server binary `bsela-mcp` — implemented. Stdio transport,
-  three read-only tools (`bsela_route`, `bsela_audit`,
-  `bsela_status`). Built artefact at `dist/server.js`.
+  four read-only tools (`bsela_route`, `bsela_audit`,
+  `bsela_status`, `bsela_lessons`). Built artefact at `dist/server.js`.
 - Codex / Windsurf adapters — config snippets + per-editor READMEs
   shipped under [`../adapters/`](../adapters/). Real-session
   validation against live BSELA state still pending.
@@ -71,6 +71,7 @@ doctor` validates this.
 | `bsela_route` | `task: string` | JSON `RouteDecision` (text + structuredContent) |
 | `bsela_audit` | `window_days?: number (1..365)` | JSON audit payload (text + structuredContent) |
 | `bsela_status` | — | JSON status payload (text + structuredContent) |
+| `bsela_lessons` | `status?: enum, limit?: number` | JSON lesson array (text) |
 
 ## Other scripts
 
