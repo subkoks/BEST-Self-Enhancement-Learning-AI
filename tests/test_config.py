@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+import shutil
 from pathlib import Path
 
 import pytest
 
+import bsela.utils.config as _cfg
 from bsela.utils import config as config_module
 
 
@@ -35,8 +37,6 @@ def test_env_override_missing_file(tmp_path: Path, monkeypatch: pytest.MonkeyPat
 def test_env_override_valid_dir(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Cover line 99: BSELA_CONFIG_DIR points to a dir containing thresholds.toml."""
     real_config = config_module.find_config_dir()
-    import shutil
-
     shutil.copy(real_config / "thresholds.toml", tmp_path / "thresholds.toml")
     shutil.copy(real_config / "models.toml", tmp_path / "models.toml")
     monkeypatch.setenv("BSELA_CONFIG_DIR", str(tmp_path))
@@ -53,11 +53,9 @@ def test_find_config_dir_raises_when_not_found(
     """Cover line 106: walk up all parents, never find thresholds.toml."""
     monkeypatch.delenv("BSELA_CONFIG_DIR", raising=False)
     # Patch __file__ to point inside tmp_path (no config/ there)
-    import bsela.utils.config as _cfg
-
     monkeypatch.setattr(_cfg, "__file__", str(tmp_path / "fake.py"))
     config_module.clear_cache()
-    with pytest.raises(FileNotFoundError, match="thresholds.toml"):
+    with pytest.raises(FileNotFoundError, match=r"thresholds\.toml"):
         config_module.find_config_dir()
     config_module.clear_cache()
 

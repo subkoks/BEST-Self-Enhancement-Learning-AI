@@ -6,8 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from bsela.memory.models import Decision, ErrorRecord, Lesson, Metric, SessionRecord
-from bsela.memory.models import ReplayRecord
+from bsela.memory.models import Decision, ErrorRecord, Lesson, Metric, ReplayRecord, SessionRecord
 from bsela.memory.store import (
     get_lesson,
     get_session,
