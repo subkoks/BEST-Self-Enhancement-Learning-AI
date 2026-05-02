@@ -11,7 +11,7 @@ CLI client it is built on. Part of P6 per
 - MCP server binary `bsela-mcp` — implemented. Stdio transport,
   four read-only tools (`bsela_route`, `bsela_audit`,
   `bsela_status`, `bsela_lessons`). Built artefact at `dist/server.js`.
-- Codex / Windsurf adapters — config snippets + per-editor READMEs
+- Codex / Windsurf / Cursor adapters — config snippets + per-editor READMEs
   shipped under [`../adapters/`](../adapters/). Real-session
   validation against live BSELA state still pending.
 
@@ -66,11 +66,11 @@ doctor` validates this.
 
 ### Tools exposed
 
-| Tool | Inputs | Returns |
-|---|---|---|
-| `bsela_route` | `task: string` | JSON `RouteDecision` (text + structuredContent) |
-| `bsela_audit` | `window_days?: number (1..365)` | JSON audit payload (text + structuredContent) |
-| `bsela_status` | — | JSON status payload (text + structuredContent) |
+| Tool            | Inputs                          | Returns                                                |
+| --------------- | ------------------------------- | ------------------------------------------------------ |
+| `bsela_route`   | `task: string`                  | JSON `RouteDecision` (text + structuredContent)        |
+| `bsela_audit`   | `window_days?: number (1..365)` | JSON audit payload (text + structuredContent)          |
+| `bsela_status`  | —                               | JSON status payload (text + structuredContent)         |
 | `bsela_lessons` | `status?: enum, limit?: number` | JSON lesson array (text + `structuredContent.lessons`) |
 
 ## Other scripts
@@ -109,7 +109,7 @@ mcp/
 
 ## Design notes
 
-- The client is the *seam*. The Python core owns all logic; this
+- The client is the _seam_. The Python core owns all logic; this
   package is strictly a transport / adaptation layer.
 - `route`, `audit`, and `status` are typed paths. `bsela audit --json`
   and `bsela status --json` are treated as contract surfaces by the
