@@ -23,11 +23,11 @@ Ensure the environment Codex uses includes `bsela` on `PATH` (you may need `--en
 
 1. Build the MCP server if you have not already:
 
-   ```bash
-   cd <BSELA_REPO>/mcp
-   pnpm install --frozen-lockfile
-   pnpm build
-   ```
+    ```bash
+    cd <BSELA_REPO>/mcp
+    pnpm install --frozen-lockfile
+    pnpm build
+    ```
 
 2. Open `~/.codex/config.toml`. Codex stores MCP servers under
    `[mcp_servers.<name>]` tables. Append the block from

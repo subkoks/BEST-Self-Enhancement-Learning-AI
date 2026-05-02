@@ -13,11 +13,11 @@ See [`adapters/README.md`](../README.md#prerequisites-shared-across-all-editors)
 
 1. Build the MCP server if you have not already:
 
-   ```bash
-   cd <BSELA_REPO>/mcp
-   pnpm install --frozen-lockfile
-   pnpm build
-   ```
+    ```bash
+    cd <BSELA_REPO>/mcp
+    pnpm install --frozen-lockfile
+    pnpm build
+    ```
 
 2. Open `~/.codeium/windsurf/mcp_config.json`. Merge the `bsela`
    entry from [`mcp_config.json`](mcp_config.json) into the existing
