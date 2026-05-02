@@ -59,7 +59,7 @@ Writes rule-change proposals as git branches + commits on `~/Projects/Current/Ac
 - **Human review** otherwise; user runs `bsela review` to inspect and approve.
 
 ### Router
-Given a task prompt, classifies it into one of `{plan, build, review, research, debug, audit}` and writes a routing manifest (`~/.bsela/next-task.json`) with model + skills recommendations. Exposed via MCP in V2.
+Given a task prompt, classifies it into one of `{plan, build, review, research, debug, audit}` using `config/models.toml` (keyword-based v1) and prints the decision to stdout or `--json` (`bsela route`). The same logic is exposed as the MCP tool `bsela_route`.
 
 ### Auditor
 `launchd`-driven cron. Weekly: codebase scans, duplicate-rule detection, lesson compaction, drift detection (did a lesson's hit-rate collapse?), storage hygiene. Emits a digest to `~/.bsela/reports/YYYY-WW.md`.
@@ -101,8 +101,12 @@ One SQLite DB per scope. Typed tables via `sqlmodel`. JSON exports for human rev
 
 BSELA is single-process, single-user. Ingest runs inline via hook. Distiller + auditor run as on-demand commands or via `launchd`. SQLite WAL mode handles the rare overlap. No queues, no workers, no message bus.
 
+## Retention
+
+`bsela prune` runs `bsela.core.retention.sweep()` using `retention.session_days` and `retention.error_days` in `config/thresholds.toml`. Stale sessions are deleted together with dependent `errors`, `metrics`, and `replay_records` rows so the store (and drift history) does not grow without bound.
+
 ## Extension Points (V2+)
 
-- **MCP server** (TypeScript) exposing `get_lessons`, `search_errors`, `route_task` as MCP tools — plug-and-play for any MCP-capable editor.
+- **MCP** — additional tools beyond the shipped read-only quartet (`bsela_route`, `bsela_audit`, `bsela_status`, `bsela_lessons`); see ADR 0006.
 - **Sub-agents** for parallel multi-repo audits once V1 metrics prove sequential auditing is a bottleneck.
-- **Replay harness** (P7) that simulates last N failed sessions against candidate lesson updates to validate before merging.
+- **Batch replay gates** — optional automation on top of `bsela replay` to block merges when drift exceeds a policy (not implemented; P7 ships interactive replay + audit alarm only).
