@@ -5,6 +5,7 @@ from __future__ import annotations
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
+import pytest
 from typer.testing import CliRunner
 
 from bsela.cli import app
@@ -197,3 +198,15 @@ def test_report_cli_custom_output_path(tmp_bsela_home: Path, tmp_path: Path) -> 
     assert result.exit_code == 0, result.stdout
     assert out.is_file()
     assert "# BSELA Dogfood Report" in out.read_text(encoding="utf-8")
+
+
+def test_build_report_raises_on_zero_window_days(tmp_bsela_home: Path) -> None:
+    """Cover line 95: window_days <= 0 → ValueError."""
+    with pytest.raises(ValueError, match="window_days must be positive"):
+        build_report(window_days=0)
+
+
+def test_build_report_raises_on_negative_recent_limit(tmp_bsela_home: Path) -> None:
+    """Cover line 97: recent_limit < 0 → ValueError."""
+    with pytest.raises(ValueError, match="recent_limit must be non-negative"):
+        build_report(recent_limit=-1)

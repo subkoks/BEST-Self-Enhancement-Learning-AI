@@ -7,6 +7,7 @@ from pathlib import Path
 import pytest
 
 from bsela.memory.models import Decision, ErrorRecord, Lesson, Metric, SessionRecord
+from bsela.memory.models import ReplayRecord
 from bsela.memory.store import (
     get_lesson,
     get_session,
@@ -14,11 +15,14 @@ from bsela.memory.store import (
     list_errors,
     list_lessons,
     list_metrics,
+    list_replay_records,
     list_sessions,
+    list_sessions_with_errors,
     save_decision,
     save_error,
     save_lesson,
     save_metric,
+    save_replay_record,
     save_session,
     update_lesson_status,
 )
@@ -110,3 +114,55 @@ def test_update_lesson_status_transitions_and_notes(tmp_bsela_home: Path) -> Non
 def test_update_lesson_status_raises_for_missing(tmp_bsela_home: Path) -> None:
     with pytest.raises(LookupError):
         update_lesson_status("missing", status="rejected")
+
+
+# ---- store branch-coverage helpers ----
+
+
+def test_list_sessions_with_errors_no_status_no_limit(tmp_bsela_home: Path) -> None:
+    """Cover lines 121→123 False + 123→125 False: status=None, limit=None."""
+    sess = save_session(
+        SessionRecord(
+            source="claude_code",
+            transcript_path="/tmp/fake.jsonl",
+            content_hash="h1",
+        )
+    )
+    save_error(ErrorRecord(session_id=sess.id, category="loop", snippet="x"))
+    rows = list_sessions_with_errors(status=None, limit=None)
+    assert any(r.id == sess.id for r in rows)
+
+
+def test_list_decisions_no_limit(tmp_bsela_home: Path) -> None:
+    """Cover line 254→256 False: limit=None skips stmt.limit()."""
+    save_decision(
+        Decision(
+            title="Use SQLite",
+            context="Local-first",
+            decision="Adopt SQLite",
+            consequences="Single-process",
+        )
+    )
+    rows = list_decisions(limit=None)
+    assert len(rows) >= 1
+
+
+def test_list_metrics_no_limit(tmp_bsela_home: Path) -> None:
+    """Cover line 282→284 False: limit=None skips stmt.limit()."""
+    save_metric(Metric(stage="test", cost_usd=0.01))
+    rows = list_metrics(limit=None)
+    assert len(rows) >= 1
+
+
+def test_list_replay_records_with_window_days(tmp_bsela_home: Path) -> None:
+    """Cover lines 306-307: window_days is not None → cutoff filter applied."""
+    sess = save_session(
+        SessionRecord(
+            source="claude_code",
+            transcript_path="/tmp/fake.jsonl",
+            content_hash="h2",
+        )
+    )
+    save_replay_record(ReplayRecord(session_id=sess.id, had_drift=False))
+    rows = list_replay_records(window_days=7)
+    assert len(rows) >= 1

@@ -30,3 +30,43 @@ def test_env_override_missing_file(tmp_path: Path, monkeypatch: pytest.MonkeyPat
         config_module.load_thresholds()
     monkeypatch.delenv("BSELA_CONFIG_DIR")
     config_module.clear_cache()
+
+
+def test_env_override_valid_dir(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Cover line 99: BSELA_CONFIG_DIR points to a dir containing thresholds.toml."""
+    real_config = config_module.find_config_dir()
+    import shutil
+
+    shutil.copy(real_config / "thresholds.toml", tmp_path / "thresholds.toml")
+    shutil.copy(real_config / "models.toml", tmp_path / "models.toml")
+    monkeypatch.setenv("BSELA_CONFIG_DIR", str(tmp_path))
+    config_module.clear_cache()
+    result = config_module.find_config_dir()
+    assert result == tmp_path
+    monkeypatch.delenv("BSELA_CONFIG_DIR")
+    config_module.clear_cache()
+
+
+def test_find_config_dir_raises_when_not_found(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Cover line 106: walk up all parents, never find thresholds.toml."""
+    monkeypatch.delenv("BSELA_CONFIG_DIR", raising=False)
+    # Patch __file__ to point inside tmp_path (no config/ there)
+    import bsela.utils.config as _cfg
+
+    monkeypatch.setattr(_cfg, "__file__", str(tmp_path / "fake.py"))
+    config_module.clear_cache()
+    with pytest.raises(FileNotFoundError, match="thresholds.toml"):
+        config_module.find_config_dir()
+    config_module.clear_cache()
+
+
+def test_cached_thresholds_and_models() -> None:
+    """Cover lines 124 + 130: cached thresholds() and models() accessors."""
+    config_module.clear_cache()
+    t = config_module.thresholds()
+    assert t.gates.auto_merge_confidence > 0
+    m = config_module.models()
+    assert m.judge.model
+    config_module.clear_cache()
