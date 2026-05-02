@@ -4,13 +4,21 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 
+import bsela.llm.distiller as _distiller_mod
 from bsela.core.capture import ingest_file
 from bsela.core.detector import detect_errors
 from bsela.llm.client import FakeLLMClient, _extract_json_object
-from bsela.llm.distiller import _is_duplicate, _jaccard, _tokens, distill_session
+from bsela.llm.distiller import (
+    _find_distiller_prompt,
+    _is_duplicate,
+    _jaccard,
+    _tokens,
+    distill_session,
+)
 from bsela.llm.types import DistillResponse, JudgeVerdict, LessonCandidate
 from bsela.memory.models import Lesson
 from bsela.memory.store import count_lessons, list_lessons, save_lesson
@@ -238,3 +246,12 @@ def test_distill_dedup_within_batch(tmp_bsela_home: Path) -> None:
     assert result.distilled is True
     assert len(result.persisted) == 1  # second copy deduped within batch
     assert count_lessons(status="pending") == 1
+
+
+def test_find_distiller_prompt_raises_when_not_found() -> None:
+    """Cover line 141: prompt file not found anywhere → FileNotFoundError."""
+    with (
+        patch.object(_distiller_mod, "__file__", "/nonexistent/path/fake.py"),
+        pytest.raises(FileNotFoundError, match=r"failure-distiller\.md"),
+    ):
+        _find_distiller_prompt()
