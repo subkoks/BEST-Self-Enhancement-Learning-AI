@@ -173,7 +173,7 @@ def test_process_distill_exception_increments_errors(tmp_bsela_home: Path) -> No
     ingest_file(FIXTURES / "looped-read.jsonl")
 
     class BoomClient(FakeLLMClient):
-        def judge(self, *, system: str, user: str) -> JudgeVerdict:  # type: ignore[override]
+        def judge(self, *, system: str, user: str) -> JudgeVerdict:
             raise RuntimeError("transient failure")
 
     result = process_sessions(
@@ -192,7 +192,7 @@ def test_process_billing_error_aborts_early(tmp_bsela_home: Path) -> None:
     call_count = 0
 
     class BillingClient(FakeLLMClient):
-        def judge(self, *, system: str, user: str) -> JudgeVerdict:  # type: ignore[override]
+        def judge(self, *, system: str, user: str) -> JudgeVerdict:
             nonlocal call_count
             call_count += 1
             raise RuntimeError("billing error: insufficient credits")

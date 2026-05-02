@@ -10,6 +10,7 @@ from __future__ import annotations
 import json
 import urllib.error
 from io import BytesIO
+from typing import Any
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -34,7 +35,7 @@ def _or_client(api_key: str = "sk-or-test") -> OpenRouterClient:
     )
 
 
-def _mock_response(body: dict) -> MagicMock:
+def _mock_response(body: dict[str, Any]) -> MagicMock:
     """Return a context-manager mock for urllib.request.urlopen."""
     raw = json.dumps(body).encode()
     resp = MagicMock()
@@ -44,7 +45,7 @@ def _mock_response(body: dict) -> MagicMock:
     return resp
 
 
-def _choice_response(content: str) -> dict:
+def _choice_response(content: str) -> dict[str, Any]:
     return {"choices": [{"message": {"content": content}}]}
 
 
@@ -95,7 +96,7 @@ def test_open_router_complete_retries_429_then_succeeds() -> None:
     )
     call_count = 0
 
-    def side_effect(*_args, **_kwargs):  # type: ignore[no-untyped-def]
+    def side_effect(*_args: object, **_kwargs: object) -> object:
         nonlocal call_count
         call_count += 1
         if call_count == 1:
