@@ -32,6 +32,10 @@ from bsela.utils.config import load_thresholds
 
 _log = logging.getLogger(__name__)
 
+# Stream transcript bytes for hashing so multi-hour JSONL sessions do not
+# spike RSS (read_bytes() loads the entire file at once).
+_HASH_CHUNK_BYTES = 1024 * 1024
+
 _TURN_TYPES = frozenset({"user", "assistant", "message"})
 _TOOL_TYPES = frozenset({"tool_use", "tool_call"})
 
@@ -64,6 +68,17 @@ class CaptureResult:
     tool_call_count: int
     transcript_path: Path
     errors_detected: int = 0
+
+
+def _sha256_file(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as fh:
+        while True:
+            chunk = fh.read(_HASH_CHUNK_BYTES)
+            if not chunk:
+                break
+            digest.update(chunk)
+    return digest.hexdigest()
 
 
 def _iter_jsonl(path: Path) -> Iterator[dict[str, Any]]:
@@ -118,7 +133,7 @@ def ingest_file(
         raise FileNotFoundError(transcript)
 
     scan = scrubber or Scrubber.from_config()
-    content_hash = hashlib.sha256(transcript.read_bytes()).hexdigest()
+    content_hash = _sha256_file(transcript)
 
     turn_count = 0
     tool_call_count = 0
