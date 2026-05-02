@@ -240,3 +240,22 @@ def test_review_list_track_hits(tmp_bsela_home: Path) -> None:
     updated = get_lesson(lesson.id)
     assert updated is not None
     assert updated.hit_count == 1
+
+
+def test_lessons_alias_json_output(tmp_bsela_home: Path) -> None:
+    lesson = _project_lesson()
+    result = CliRunner().invoke(app, ["lessons", "--json"])
+    assert result.exit_code == 0
+    data = json.loads(result.stdout)
+    assert isinstance(data, list)
+    assert any(item["id"] == lesson.id for item in data)
+
+
+def test_lessons_alias_track_hits(tmp_bsela_home: Path) -> None:
+    lesson = _project_lesson()
+    assert lesson.hit_count == 0
+    result = CliRunner().invoke(app, ["lessons", "--track-hits"])
+    assert result.exit_code == 0
+    updated = get_lesson(lesson.id)
+    assert updated is not None
+    assert updated.hit_count == 1

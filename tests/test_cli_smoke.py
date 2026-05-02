@@ -31,7 +31,7 @@ def test_version_flag() -> None:
 def test_help_lists_commands() -> None:
     result = CliRunner().invoke(app, ["--help"])
     assert result.exit_code == 0
-    for cmd in ("status", "ingest", "review", "rollback"):
+    for cmd in ("status", "ingest", "review", "lessons", "rollback"):
         assert cmd in result.stdout
 
 

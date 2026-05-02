@@ -343,6 +343,30 @@ def review_list(
         )
 
 
+@app.command("lessons")
+def lessons_list(
+    status: Annotated[
+        str | None,
+        typer.Option(
+            "--status",
+            "-s",
+            help="Filter by status: pending|proposed|rejected|approved|applied|rolled_back.",
+        ),
+    ] = None,
+    limit: Annotated[int, typer.Option("--limit", "-n", help="Max lessons to show.")] = 50,
+    json_out: Annotated[bool, typer.Option("--json", help="Emit JSON array.")] = False,
+    track_hits: Annotated[
+        bool,
+        typer.Option(
+            "--track-hits",
+            help="Increment hit_count on every returned lesson (use when surfacing to an editor).",
+        ),
+    ] = False,
+) -> None:
+    """Top-level alias for ``bsela review list``."""
+    review_list(status=status, limit=limit, json_out=json_out, track_hits=track_hits)
+
+
 @review_app.command("propose")
 def review_propose(
     lesson_id: Annotated[str, typer.Argument(help="Pending lesson id to propose.")],
