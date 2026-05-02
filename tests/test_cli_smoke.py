@@ -35,6 +35,13 @@ def test_help_lists_commands() -> None:
         assert cmd in result.stdout
 
 
+def test_review_help_lists_subcommands() -> None:
+    result = CliRunner().invoke(app, ["review", "--help"])
+    assert result.exit_code == 0
+    for sub in ("list", "show", "propose", "reject"):
+        assert sub in result.stdout
+
+
 def test_status_exits_zero_when_store_missing(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
