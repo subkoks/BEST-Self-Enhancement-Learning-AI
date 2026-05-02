@@ -174,3 +174,53 @@ def test_sessions_show_no_ended_at(tmp_bsela_home: Path) -> None:
     assert result.exit_code == 0, result.stdout
     assert "ended_at:" not in result.stdout
     assert "ingested_at:" in result.stdout
+
+
+def test_sessions_show_prefix_id(tmp_bsela_home: Path) -> None:
+    """sessions show accepts an 8-char ID prefix."""
+    ingest_file(FIXTURES / "clean.jsonl")
+    captured = list_sessions(status="captured", limit=1)
+    assert captured
+    sid = captured[0].id
+    prefix = sid[:8]
+
+    result = CliRunner().invoke(app, ["sessions", "show", prefix])
+    assert result.exit_code == 0, result.stdout
+    assert sid in result.stdout
+
+
+def test_detect_skips_already_detected_by_default(tmp_bsela_home: Path) -> None:
+    """detect batch skips sessions that auto-detect already covered."""
+    ingest_file(FIXTURES / "user-correction.jsonl")  # auto-detect fires
+    captured = list_sessions(status="captured", limit=1)
+    assert captured
+    initial_errors = len(list_errors(session_id=captured[0].id))
+    assert initial_errors >= 1
+
+    result = CliRunner().invoke(app, ["detect"])
+    assert result.exit_code == 0, result.stdout
+    assert "already-detected skipped" in result.stdout
+    # Error count must not have grown.
+    assert len(list_errors(session_id=captured[0].id)) == initial_errors
+
+
+def test_detect_force_reruns_detection(tmp_bsela_home: Path) -> None:
+    """detect --force re-detects sessions that already have errors."""
+    ingest_file(FIXTURES / "user-correction.jsonl")
+    result = CliRunner().invoke(app, ["detect", "--force"])
+    assert result.exit_code == 0, result.stdout
+    assert "scanned" in result.stdout
+    # --force skips the "already-detected" note
+    assert "already-detected skipped" not in result.stdout
+
+
+def test_detect_session_id_prefix(tmp_bsela_home: Path) -> None:
+    """detect --session-id accepts an 8-char prefix."""
+    ingest_file(FIXTURES / "looped-read.jsonl", auto_detect=False)
+    captured = list_sessions(status="captured", limit=1)
+    assert captured
+    prefix = captured[0].id[:8]
+
+    result = CliRunner().invoke(app, ["detect", "--session-id", prefix])
+    assert result.exit_code == 0, result.stdout
+    assert "candidate errors" in result.stdout

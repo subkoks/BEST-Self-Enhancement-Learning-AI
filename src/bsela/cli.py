@@ -75,6 +75,7 @@ from bsela.memory.store import (
     list_lessons,
     list_replay_records,
     list_sessions,
+    list_sessions_with_errors,
     resolve_lesson,
     resolve_session,
     save_decision,
@@ -732,19 +733,43 @@ def detect(
             help="Detect against a single session id. Omit to scan all captured sessions.",
         ),
     ] = None,
+    force: Annotated[
+        bool,
+        typer.Option(
+            "--force",
+            "-f",
+            help="Re-detect even for sessions that already have error records.",
+        ),
+    ] = False,
 ) -> None:
-    """Run the deterministic detector over captured sessions."""
+    """Run the deterministic detector over captured sessions.
+
+    By default skips sessions that already have error records to avoid
+    creating duplicate rows. Use --force to re-scan all captured sessions.
+    """
     if session_id is not None:
-        result = detect_errors(session_id)
+        resolved = resolve_session(session_id)
+        if resolved is None:
+            typer.secho(f"detect: session not found: {session_id}", fg=typer.colors.RED)
+            raise typer.Exit(code=1)
+        result = detect_errors(resolved.id)
         typer.echo(f"session {result.session_id}: {len(result.errors)} candidate errors")
         raise typer.Exit(code=0)
 
-    targets = list_sessions(status="captured", limit=None)
+    all_captured = list_sessions(status="captured", limit=None)
+    if force:
+        targets = all_captured
+    else:
+        already_detected = {s.id for s in list_sessions_with_errors(status="captured", limit=None)}
+        targets = [s for s in all_captured if s.id not in already_detected]
+
     total = 0
     for sess in targets:
         result = detect_errors(sess.id)
         total += len(result.errors)
-    typer.echo(f"scanned {len(targets)} sessions, found {total} candidate errors")
+    skipped = len(all_captured) - len(targets)
+    skip_note = f" ({skipped} already-detected skipped)" if skipped else ""
+    typer.echo(f"scanned {len(targets)} sessions, found {total} candidate errors{skip_note}")
     raise typer.Exit(code=0)
 
 
