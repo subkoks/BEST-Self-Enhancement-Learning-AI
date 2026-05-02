@@ -127,20 +127,41 @@ describe("CLI↔MCP parity", () => {
       expect(mcpLessons).toEqual(directLessons);
       expect(lessonsResult.structuredContent).toEqual({ lessons: directLessons });
       if (directLessons[0] !== undefined) {
-        expect(sortedKeys(directLessons[0] as unknown as Record<string, unknown>)).toEqual([
-          "confidence",
-          "created_at",
-          "hit_count",
-          "how_to_apply",
-          "id",
-          "rule",
-          "scope",
-          "status",
-          "why",
-        ]);
+        assertLessonRowKeyset(directLessons[0] as unknown as Record<string, unknown>);
       }
     } finally {
       await mcp.close();
+    }
+  });
+
+  it("keeps first-lesson row keys and payload parity on a seeded store", async () => {
+    const localBin = join(homedir(), ".local", "bin");
+    const path = `${localBin}:${process.env["PATH"] ?? ""}`;
+    const home = await mkdtemp(join(tmpdir(), "bsela-parity-seeded-"));
+    await rm(join(home, "bsela.db"), { force: true }).catch(() => undefined);
+    seedOneLesson(home, path);
+
+    const client = new BselaClient({
+      env: { ...process.env, PATH: path, BSELA_HOME: home },
+      cwd: home,
+    });
+    const mcp = await connectClient(client);
+    try {
+      const directLessons = await client.lessons({ limit: 1 });
+      expect(directLessons).toHaveLength(1);
+
+      const lessonsResult = await mcp.callTool({
+        name: "bsela_lessons",
+        arguments: { limit: 1 },
+      });
+      const mcpLessons = parseTextJson<Array<LessonItem>>(lessonsResult);
+      expect(mcpLessons).toEqual(directLessons);
+      expect(lessonsResult.structuredContent).toEqual({ lessons: directLessons });
+
+      assertLessonRowKeyset(directLessons[0] as unknown as Record<string, unknown>);
+    } finally {
+      await mcp.close();
+      await rm(home, { recursive: true, force: true });
     }
   });
 
