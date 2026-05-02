@@ -18,7 +18,7 @@ from bsela.core.hook_install import InstallPlan, InstallResult
 from bsela.core.process import ProcessResult
 from bsela.llm.distiller import DistillationResult
 from bsela.llm.types import DistillResponse, JudgeVerdict
-from bsela.memory.models import ErrorRecord, Lesson
+from bsela.memory.models import ErrorRecord, Lesson, SessionRecord
 from bsela.memory.store import list_sessions, save_error, save_lesson, update_lesson_status
 
 
@@ -239,12 +239,19 @@ def _fake_distill_result(
     )
 
 
+def _fake_session(sid: str = "fake-session-id") -> SessionRecord:
+    s = SessionRecord(source="test", transcript_path="t.jsonl", content_hash="h")
+    s.id = sid
+    return s
+
+
 def test_distill_cli_healthy_session(tmp_bsela_home: Path) -> None:
     """distill CLI: judge says healthy → no lessons, exit 0."""
     fake_result = _fake_distill_result(_healthy_verdict(), distilled=False)
     fake_client = MagicMock()
     with (
         patch("bsela.cli.make_llm_client", return_value=fake_client),
+        patch("bsela.cli.resolve_session", return_value=_fake_session()),
         patch("bsela.cli.distill_session", return_value=fake_result),
     ):
         result = CliRunner().invoke(app, ["distill", "--session-id", "fake-session-id"])
@@ -261,6 +268,7 @@ def test_distill_cli_distills_session(tmp_bsela_home: Path) -> None:
     fake_client = MagicMock()
     with (
         patch("bsela.cli.make_llm_client", return_value=fake_client),
+        patch("bsela.cli.resolve_session", return_value=_fake_session()),
         patch("bsela.cli.distill_session", return_value=fake_result),
     ):
         result = CliRunner().invoke(app, ["distill", "--session-id", "fake-session-id"])
@@ -278,6 +286,7 @@ def test_distill_cli_no_persist(tmp_bsela_home: Path) -> None:
     fake_client = MagicMock()
     with (
         patch("bsela.cli.make_llm_client", return_value=fake_client),
+        patch("bsela.cli.resolve_session", return_value=_fake_session()),
         patch("bsela.cli.distill_session", return_value=fake_result),
     ):
         result = CliRunner().invoke(

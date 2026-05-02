@@ -977,16 +977,24 @@ def distill(
     ] = True,
 ) -> None:
     """Run judge → distill over one session (requires ANTHROPIC_API_KEY)."""
+    try:
+        resolved = resolve_session(session_id)
+    except LookupError as exc:
+        typer.secho(str(exc), fg=typer.colors.RED)
+        raise typer.Exit(code=1) from exc
+    if resolved is None:
+        typer.secho(f"distill: session not found: {session_id}", fg=typer.colors.RED)
+        raise typer.Exit(code=1)
     client = make_llm_client()
-    result = distill_session(session_id, client=client, persist=persist)
+    result = distill_session(resolved.id, client=client, persist=persist)
     if not result.distilled:
         typer.echo(
-            f"session {session_id}: judge says healthy "
+            f"session {resolved.id}: judge says healthy "
             f"(confidence={result.verdict.confidence:.2f}); no lessons distilled."
         )
         raise typer.Exit(code=0)
     typer.echo(
-        f"session {session_id}: {len(result.persisted)} lesson(s) "
+        f"session {resolved.id}: {len(result.persisted)} lesson(s) "
         f"{'persisted' if persist else 'drafted'}."
     )
     raise typer.Exit(code=0)
