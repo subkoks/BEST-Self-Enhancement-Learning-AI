@@ -366,22 +366,26 @@ export class BselaClient {
   async lessons(
     options: { status?: string; limit?: number; trackHits?: boolean } = {},
   ): Promise<Array<LessonItem>> {
-    const args = ["review", "list", "--json"];
-    if (options.status !== undefined) {
-      args.push("--status", options.status);
+    const suffixArgs: Array<string> = ["--json"];
+    if (options.status !== undefined) suffixArgs.push("--status", options.status);
+    if (options.limit !== undefined) suffixArgs.push("--limit", String(options.limit));
+    if (options.trackHits === true) suffixArgs.push("--track-hits");
+
+    const preferredArgs = ["lessons", ...suffixArgs];
+    const fallbackArgs = ["review", "list", ...suffixArgs];
+
+    let result = await runBsela(preferredArgs, this.options);
+    if (result.exitCode !== 0 && /No such command ['"]lessons['"]/i.test(result.stderr)) {
+      result = await runBsela(fallbackArgs, this.options);
+      assertSuccess(fallbackArgs, result);
+    } else {
+      assertSuccess(preferredArgs, result);
     }
-    if (options.limit !== undefined) {
-      args.push("--limit", String(options.limit));
-    }
-    if (options.trackHits === true) {
-      args.push("--track-hits");
-    }
-    const result = await runBsela(args, this.options);
-    assertSuccess(args, result);
+
     const parsed = parseJson(result.stdout.trim());
     if (!Array.isArray(parsed) || !parsed.every(isLessonItem)) {
       throw new BselaClientError(
-        "bsela review list returned an unexpected payload shape",
+        "bsela lessons returned an unexpected payload shape",
         result.exitCode,
         JSON.stringify(parsed).slice(0, 200),
       );

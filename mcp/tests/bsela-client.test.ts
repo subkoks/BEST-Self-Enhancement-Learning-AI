@@ -1,5 +1,7 @@
+import { chmod, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { join } from "node:path";
+import { tmpdir } from "node:os";
 
 import { describe, expect, it } from "vitest";
 
@@ -77,6 +79,46 @@ describe("BselaClient.status", () => {
     expect(typeof payload.replay_records).toBe("number");
     expect(typeof payload.bsela_home).toBe("string");
     expect(payload.bsela_home.length).toBeGreaterThan(0);
+  });
+});
+
+describe("BselaClient.lessons", () => {
+  const client = makeClient();
+
+  it("returns lesson items from the top-level lessons alias", async () => {
+    const payload = await client.lessons({ limit: 1 });
+    expect(Array.isArray(payload)).toBe(true);
+    expect(payload.length).toBeLessThanOrEqual(1);
+  });
+
+  it("falls back to `review list` when `lessons` command is unavailable", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "bsela-client-fallback-"));
+    const binary = join(dir, "bsela-stub");
+    const script = `#!/bin/sh
+if [ "$1" = "lessons" ]; then
+  echo "No such command 'lessons'" 1>&2
+  exit 2
+fi
+if [ "$1" = "review" ] && [ "$2" = "list" ]; then
+  cat <<'JSON'
+[{"id":"lesson-1","status":"approved","scope":"project","confidence":0.95,"rule":"Use fallback path","why":"legacy compatibility","how_to_apply":"call review list","hit_count":3,"created_at":"2026-05-02T00:00:00+00:00"}]
+JSON
+  exit 0
+fi
+echo "unexpected args: $*" 1>&2
+exit 1
+`;
+    await writeFile(binary, script, { encoding: "utf-8" });
+    await chmod(binary, 0o755);
+    try {
+      const stubClient = new BselaClient({ binary });
+      const payload = await stubClient.lessons();
+      expect(payload).toHaveLength(1);
+      expect(payload[0]?.id).toBe("lesson-1");
+      expect(payload[0]?.rule).toBe("Use fallback path");
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
   });
 });
 
