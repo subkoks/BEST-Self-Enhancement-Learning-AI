@@ -78,6 +78,8 @@ def test_nested_command_help_pages_load(runner: CliRunner) -> None:
         ["sessions", "list", "--help"],
         ["errors", "list", "--help"],
         ["decision", "add", "--help"],
+        ["detect", "--help"],
+        ["hook", "install", "--help"],
     ):
         result = runner.invoke(app, argv)
         assert result.exit_code == 0, (argv, result.stdout)
