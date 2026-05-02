@@ -66,8 +66,8 @@ def get_engine() -> Engine:
 
 def reset_engine_cache() -> None:
     """Dispose every cached engine. Intended for tests."""
-    for engine in list(_engine_for.__wrapped__.__dict__.values()):  # pragma: no cover
-        del engine
+    for engine in list(_engine_for.__wrapped__.__dict__.values()):
+        engine.dispose()
     _engine_for.cache_clear()
 
 
