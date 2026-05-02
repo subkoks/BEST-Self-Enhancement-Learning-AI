@@ -28,6 +28,9 @@ Project AGENTS.md already says `TypeScript only for the future MCP server (P6+)`
    - `bsela_audit(window_days?: number, stdout?: boolean)` → returns the audit markdown.
    - `bsela_status()` → returns session / error / lesson / pending counts.
    Write surfaces (`bsela ingest`, `review propose`, `decision add`, `hook install`) stay CLI-only until we have usage data from read surfaces. This caps the blast radius of the first TS code.
+   - **Post-ship update (2026-05-02):** read-only surface now includes
+     `bsela_lessons`; `bsela_audit` and `bsela_status` return typed JSON
+     payloads from `bsela audit --json` and `bsela status --json`.
 
 3. **The TS layer shells to the `bsela` binary.** `mcp/src/bsela-client.ts` spawns `bsela <args>` via `node:child_process` and parses JSON on stdout. Reasons:
    - Zero risk of logic drift — the Python code remains the one source of truth.
@@ -45,7 +48,11 @@ Project AGENTS.md already says `TypeScript only for the future MCP server (P6+)`
 
 - **Multi-language repo.** Contributors now need Python 3.13 + Node 22 LTS + pnpm. This is already the author's machine setup per `~/AGENTS.md`; external contributors get a line in the README.
 - **`bsela` must be on `PATH` for MCP.** Documented in `mcp/README.md` + enforced by the existing `bsela doctor` check.
-- **JSON contract is the seam.** `bsela route --json`, `bsela status` (to be adjusted if needed), and `bsela audit --stdout` are the stable interfaces the TS side commits to. Breaking any of their shapes requires a matching TS-side update in the same commit.
+- **JSON contract is the seam.** `bsela route --json`,
+  `bsela audit --json`, `bsela status --json`, and
+  `bsela lessons --json` (`review list --json` fallback for older CLIs)
+  are the stable interfaces the TS side commits to. Breaking any of
+  their shapes requires a matching TS-side update in the same commit.
 - **Write tools are deferred.** Keeps P6 bounded; re-opens when read-side telemetry exists.
 
 ## Rejected Alternatives
