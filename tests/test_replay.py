@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 from typing import Literal
+from unittest.mock import patch
 
 import pytest
 from typer.testing import CliRunner
@@ -375,7 +376,14 @@ def test_replay_persist_had_drift_true_when_drift(
 
 
 def test_cli_replay_not_found_exits_1(tmp_bsela_home: Path) -> None:
-    result = CliRunner().invoke(app, ["replay", "no-such-session"])
+    fake = FakeLLMClient(
+        judge_response=JudgeVerdict(
+            goal_achieved=False, efficiency=0.3, looped=True, wasted_tokens=True, confidence=0.6
+        ),
+        distill_response=DistillResponse(status="ok", confidence=0.9, lessons=[]),
+    )
+    with patch("bsela.cli.make_llm_client", return_value=fake):
+        result = CliRunner().invoke(app, ["replay", "no-such-session"])
     assert result.exit_code == 1
     assert "not found" in result.stdout
 
@@ -384,7 +392,14 @@ def test_cli_replay_no_save_skips_record(tmp_bsela_home: Path, sample_clean_sess
     ingest_file(sample_clean_session)
     session_id = list_sessions(status="captured")[0].id
 
-    result = CliRunner().invoke(app, ["replay", session_id, "--no-save"])
+    fake = FakeLLMClient(
+        judge_response=JudgeVerdict(
+            goal_achieved=True, efficiency=0.9, looped=False, wasted_tokens=False, confidence=0.9
+        ),
+        distill_response=DistillResponse(status="ok", confidence=0.9, lessons=[]),
+    )
+    with patch("bsela.cli.make_llm_client", return_value=fake):
+        result = CliRunner().invoke(app, ["replay", session_id, "--no-save"])
     # replay may exit 0 (no drift) or 1 (drift detected) — both valid
     assert result.exit_code in (0, 1)
     assert list_replay_records() == []
