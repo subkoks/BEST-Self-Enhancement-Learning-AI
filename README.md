@@ -79,6 +79,11 @@ MCP gate: `make mcp-check` runs `pnpm check` in `mcp/`.
 `make mcp-parity` runs the CLI↔MCP parity harness (`route`,
 `audit`, `status`, `lessons`).
 
+**Agent orchestrator (optional):** repo-local lead + role prompts live
+under [`docs/orchestrator/`](docs/orchestrator/README.md). Run
+`make orchestrator-help` for paths. See
+[ADR 0008](docs/decisions/0008-developer-orchestrator-workflow.md).
+
 **Terminal noise (pyenv):** If the integrated terminal shows
 `pyenv: shell integration not enabled`, add the hook from
 [pyenv shell setup](https://github.com/pyenv/pyenv#shell-setup)

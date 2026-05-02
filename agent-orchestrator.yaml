@@ -1,4 +1,7 @@
-# Agent Orchestrator — BSELA project config
+# Agent Orchestrator — BSELA project config (Composio Agent Orchestrator)
+# Optional external stack: worktrees, tmux, dashboard. Not required for
+# day-to-day work — see repo-local markdown workflow:
+#   docs/orchestrator/README.md  (make orchestrator-help)
 # Run: ao start
 # Dashboard: http://localhost:3000
 $schema: https://raw.githubusercontent.com/ComposioHQ/agent-orchestrator/main/schema/config.schema.json

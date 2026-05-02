@@ -73,6 +73,9 @@ secrets/
 *.pem
 *.key
 
+# Orchestrator local handoff (may contain session notes)
+docs/orchestrator/HANDOFF.local.md
+
 # Notes and scratch
 Main-idea.txt
 Aditional-research-for-project.txt

@@ -2,7 +2,7 @@
 # ruff / mypy / pytest matrix. All targets run via uv so tool versions
 # follow the pyproject lockfile.
 
-.PHONY: help check doctor lint format format-check type test cov fix clean mcp-check mcp-parity
+.PHONY: help check doctor lint format format-check type test cov fix clean mcp-check mcp-parity orchestrator-help
 
 help:
 	@echo "BSELA make targets:"
@@ -18,6 +18,7 @@ help:
 	@echo "  clean         remove caches (.pytest_cache, .mypy_cache, .ruff_cache)"
 	@echo "  mcp-check     run pnpm check in mcp/ (format, lint, typecheck, tests)"
 	@echo "  mcp-parity    run CLI↔MCP parity harness in mcp/"
+	@echo "  orchestrator-help  print docs/orchestrator quick reference"
 
 check: lint format-check type test
 
@@ -54,3 +55,12 @@ mcp-check:
 
 mcp-parity:
 	cd mcp && pnpm parity
+
+orchestrator-help:
+	@echo "BSELA repo-local orchestrator (markdown roles):"
+	@echo "  Lead prompt:   docs/orchestrator/ORCHESTRATOR.md"
+	@echo "  Index + roles: docs/orchestrator/README.md"
+	@echo "  ADR:           docs/decisions/0008-developer-orchestrator-workflow.md"
+	@echo "Validation: make check | make mcp-check | uv run bsela doctor"
+	@echo "---"
+	@sed -n '1,40p' docs/orchestrator/README.md

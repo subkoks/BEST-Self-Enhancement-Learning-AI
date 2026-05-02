@@ -51,6 +51,11 @@ Deferred past MVP: Router, Auditor, Reviewer, Researcher, MCP server, Codex/Wind
 Phases **P0–P7** are code-complete in the table above; the list below is
 steady-state operator work (dogfood, tuning, and cross-editor depth).
 
+0. **Optional — multi-role dev sessions:** use the repo-local prompts in
+   [`docs/orchestrator/`](orchestrator/README.md) (lead:
+   [`ORCHESTRATOR.md`](orchestrator/ORCHESTRATOR.md); ADR
+   [0008](decisions/0008-developer-orchestrator-workflow.md)). Run
+   `make orchestrator-help` from the repo root for a short reminder.
 1. `bsela hook install --apply` — wire the Claude Code `Stop` hook.
 2. Use Claude Code normally for a few days so sessions accumulate.
    Ingest now auto-runs the deterministic detector, so `ErrorRecord`

@@ -116,6 +116,13 @@ BSELA is single-process, single-user. Ingest runs inline via hook. Distiller + a
 
 `bsela prune` runs `bsela.core.retention.sweep()` using `retention.session_days` and `retention.error_days` in `config/thresholds.toml`. Stale sessions are deleted together with dependent `errors`, `metrics`, and `replay_records` rows so the store (and drift history) does not grow without bound.
 
+## Developer orchestration (optional)
+
+Operators may use **markdown role prompts** under `docs/orchestrator/` for
+multi-session coordination (lead + builder + test, and so on). That
+workflow is human- or editor-driven only; it does not add a second
+process to the BSELA pipeline. See ADR 0008.
+
 ## Extension Points (V2+)
 
 - **MCP** — additional tools beyond the shipped read-only quartet (`bsela_route`, `bsela_audit`, `bsela_status`, `bsela_lessons`); see ADR 0006.

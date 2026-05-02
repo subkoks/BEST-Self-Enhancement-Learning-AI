@@ -13,7 +13,7 @@
 
 - **Harness + context, not weights.** Any suggestion to fine-tune or train a model is out of scope.
 - **Reuse `agents-md`, do not fork it.** Rule changes are proposals against `~/Projects/Current/Active/agents-md`. Never write rules directly into the synced artifacts (`~/.claude/CLAUDE.md`, `~/.cursor/rules/gotcha.md`, etc.) — always upstream to canonical.
-- **Single-agent V1.** No LangGraph / CrewAI / autogen. Reach for sub-agents only after V1 metrics justify it.
+- **Single-agent V1.** No LangGraph / CrewAI / autogen. Reach for sub-agents only after V1 metrics justify it. Optional **developer-session** role prompts (not an in-process framework) live under `docs/orchestrator/`; see ADR 0008 in `docs/decisions/`.
 - **Local-first.** SQLite + filesystem. No Postgres/Redis unless the data shape truly demands it.
 - **Haiku-first pipeline.** Opus 4.7 only for low-confidence distillation, planning, and audits. Track per-session cost.
 
