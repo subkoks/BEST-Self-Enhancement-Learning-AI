@@ -28,8 +28,8 @@ if TYPE_CHECKING:  # pragma: no cover
 class LLMClient(Protocol):
     """Minimal surface used by the distiller. Implementations must be idempotent."""
 
-    def judge(self, *, system: str, user: str) -> JudgeVerdict: ...
-    def distill(self, *, system: str, user: str) -> DistillResponse: ...
+    def judge(self, *, system: str, user: str) -> JudgeVerdict: ...  # pragma: no cover
+    def distill(self, *, system: str, user: str) -> DistillResponse: ...  # pragma: no cover
 
 
 _JSON_OBJECT_RE = re.compile(r"\{.*\}", re.DOTALL)
@@ -184,7 +184,7 @@ class OpenRouterClient:
                     last_exc = RuntimeError(f"OpenRouter API error {exc.code}: {detail}")
                     continue
                 raise RuntimeError(f"OpenRouter API error {exc.code}: {detail}") from exc
-        raise last_exc or RuntimeError("OpenRouter request failed")
+        raise last_exc or RuntimeError("OpenRouter request failed")  # pragma: no cover
 
     def _complete_with_json_retry(
         self, *, model: str, system: str, user: str, max_tokens: int
@@ -200,7 +200,7 @@ class OpenRouterClient:
                     time.sleep(3)
                     continue
                 raise
-        raise RuntimeError("no JSON object found after retries")  # unreachable
+        raise RuntimeError("no JSON object found after retries")  # pragma: no cover
 
     def judge(self, *, system: str, user: str) -> JudgeVerdict:
         raw = self._complete_with_json_retry(

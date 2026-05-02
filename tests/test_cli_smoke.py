@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import json
+import subprocess
+import sys
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -328,3 +330,15 @@ def test_process_cli_errors_hint(tmp_bsela_home: Path, monkeypatch: pytest.Monke
         result = CliRunner().invoke(app, ["process"])
     assert result.exit_code == 0
     assert "hint" in result.stdout
+
+
+def test_python_m_bsela_prints_help() -> None:
+    """Cover __main__.py: `python -m bsela` invokes the CLI and exits cleanly."""
+    result = subprocess.run(
+        [sys.executable, "-m", "bsela", "--help"],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode == 0
+    assert "bsela" in result.stdout.lower()
