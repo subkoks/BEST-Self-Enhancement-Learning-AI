@@ -40,6 +40,10 @@ function parseTextJson<T>(result: unknown): T {
   return JSON.parse(payload.content[0]!.text) as T;
 }
 
+function sortedKeys(value: Record<string, unknown>): Array<string> {
+  return Object.keys(value).sort();
+}
+
 function normalizeAudit(
   payload: AuditPayload,
 ): Omit<AuditPayload, "generated_at" | "window_start" | "window_end"> {
@@ -88,6 +92,19 @@ describe("CLI↔MCP parity", () => {
       const mcpLessons = parseTextJson<typeof directLessons>(lessonsResult);
       expect(mcpLessons).toEqual(directLessons);
       expect(lessonsResult.structuredContent).toEqual({ lessons: directLessons });
+      if (directLessons[0] !== undefined) {
+        expect(sortedKeys(directLessons[0] as unknown as Record<string, unknown>)).toEqual([
+          "confidence",
+          "created_at",
+          "hit_count",
+          "how_to_apply",
+          "id",
+          "rule",
+          "scope",
+          "status",
+          "why",
+        ]);
+      }
     } finally {
       await mcp.close();
     }
