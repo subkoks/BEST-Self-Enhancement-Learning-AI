@@ -75,6 +75,13 @@ MCP gate: `make mcp-check` runs `pnpm check` in `mcp/`.
 `make mcp-parity` runs the CLI↔MCP parity harness (`route`,
 `audit`, `status`, `lessons`).
 
+**Terminal noise (pyenv):** If the integrated terminal shows
+`pyenv: shell integration not enabled`, add the hook from
+[pyenv shell setup](https://github.com/pyenv/pyenv#shell-setup)
+(`eval "$(pyenv init -)"` in `~/.zshrc`) and open a new terminal. For this
+repo, prefer **`uv run …`** and **`.venv`** after `uv sync` instead of
+`pyenv shell`.
+
 ## Architecture
 
 See [`docs/architecture.md`](docs/architecture.md).
