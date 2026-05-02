@@ -12,9 +12,9 @@ Wires the BSELA MCP server into Cursor via the `~/.cursor/mcp.json` config.
 
 1. Copy or symlink [`mcp.json`](mcp.json) to `~/.cursor/mcp.json`:
 
-   ```bash
-   cp /absolute/path/to/BEST-Self-Enhancement-Learning-AI/adapters/cursor/mcp.json ~/.cursor/mcp.json
-   ```
+    ```bash
+    cp /absolute/path/to/BEST-Self-Enhancement-Learning-AI/adapters/cursor/mcp.json ~/.cursor/mcp.json
+    ```
 
 2. Edit `~/.cursor/mcp.json` and replace `<BSELA_REPO>` with the absolute path to this repo.
 
@@ -41,12 +41,12 @@ If you see "bsela not found on PATH", revisit step 1 of prerequisites.
 
 ## Tools available
 
-| Tool | Purpose |
-|------|---------|
-| `bsela_route` | Classify a task into a model role (planner, builder, etc.) |
-| `bsela_audit` | Get audit digest for recent activity |
-| `bsela_status` | Session/error/lesson counts |
-| `bsela_lessons` | List pending lessons with AUTO/REVIEW/SAFETY tags |
+| Tool            | Purpose                                                    |
+| --------------- | ---------------------------------------------------------- |
+| `bsela_route`   | Classify a task into a model role (planner, builder, etc.) |
+| `bsela_audit`   | Get audit digest for recent activity                       |
+| `bsela_status`  | Session/error/lesson counts                                |
+| `bsela_lessons` | List pending lessons with AUTO/REVIEW/SAFETY tags          |
 
 Write surfaces (`bsela ingest`, `review propose`, etc.) stay CLI-only per [ADR 0006](../../docs/decisions/0006-p6-mcp-and-adapters.md).
 
