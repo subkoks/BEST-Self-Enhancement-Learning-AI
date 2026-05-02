@@ -267,6 +267,83 @@ def test_anthropic_client_judge_calls_sdk() -> None:
     assert verdict.confidence == pytest.approx(0.7)
 
 
+# ---- AnthropicClient branch coverage ----
+
+
+def test_anthropic_client_caches_sdk_instance() -> None:
+    """Cover line 74→77: _anthropic() returns the cached _client on second call."""
+    client = AnthropicClient(
+        judge_model="claude-haiku-4-5",
+        distiller_model="claude-opus-4-7",
+        api_key="sk-ant-test",
+    )
+    mock_anthropic_module = MagicMock()
+    with patch("importlib.import_module", return_value=mock_anthropic_module) as mock_import:
+        first = client._anthropic()
+        second = client._anthropic()
+    # importlib.import_module called once; second call returns cached client
+    assert mock_import.call_count == 1
+    assert first is second
+
+
+def test_anthropic_client_complete_skips_non_text_block() -> None:
+    """Cover line 89→87: block without .text attribute is skipped."""
+    client = AnthropicClient(
+        judge_model="claude-haiku-4-5",
+        distiller_model="claude-opus-4-7",
+        api_key="sk-ant-test",
+    )
+    text_block = MagicMock()
+    text_block.text = "hello"
+    non_text_block = MagicMock(spec=[])  # no 'text' attribute → getattr returns None
+    mock_resp = MagicMock()
+    mock_resp.content = [non_text_block, text_block]
+    mock_anthropic_module = MagicMock()
+    mock_anthropic_module.Anthropic.return_value.messages.create.return_value = mock_resp
+
+    with patch("importlib.import_module", return_value=mock_anthropic_module):
+        result = client._complete(model="m", system="s", user="u", max_tokens=10)
+    assert result == "hello"
+
+
+def test_anthropic_client_distill_parses_response() -> None:
+    """Cover lines 103-109: AnthropicClient.distill() calls _complete and parses JSON."""
+    client = AnthropicClient(
+        judge_model="claude-haiku-4-5",
+        distiller_model="claude-opus-4-7",
+        api_key="sk-ant-test",
+    )
+    distill_payload = json.dumps(
+        {
+            "status": "ok",
+            "confidence": 0.88,
+            "lessons": [
+                {
+                    "rule": "use pathlib",
+                    "why": "ergonomic",
+                    "how_to_apply": "replace os.path",
+                    "scope": "project",
+                    "confidence": 0.88,
+                }
+            ],
+        }
+    )
+    mock_block = MagicMock()
+    mock_block.text = distill_payload
+    mock_resp = MagicMock()
+    mock_resp.content = [mock_block]
+    mock_anthropic_module = MagicMock()
+    mock_anthropic_module.Anthropic.return_value.messages.create.return_value = mock_resp
+
+    with patch("importlib.import_module", return_value=mock_anthropic_module):
+        result = client.distill(system="sys", user="usr")
+
+    assert isinstance(result, DistillResponse)
+    assert result.status == "ok"
+    assert len(result.lessons) == 1
+    assert result.lessons[0].rule == "use pathlib"
+
+
 # ---- FakeLLMClient (already in other tests, sanity-check here) ----
 
 
