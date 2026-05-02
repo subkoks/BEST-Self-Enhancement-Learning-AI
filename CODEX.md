@@ -18,8 +18,10 @@
 Index: `[adapters/README.md](adapters/README.md)`. Codex-specific steps:
 `[adapters/codex/README.md](adapters/codex/README.md)` (includes `codex mcp add` and a `config.toml` template). `bsela` must be on `PATH` (`uv tool install -e .` from repo root).
 
-## Suggested next build (P6)
+## Suggested steady-state ops (post-P7)
 
-1. **Cross-editor dogfood** — run one real Codex session and one real Claude Code session against the same `~/.bsela` store, then record parity/notes in `docs/roadmap.md`.
-2. **MCP parity checks** — verify `bsela_route` / `bsela_audit` / `bsela_status` / `bsela_lessons` results match shell `bsela route|audit|status|lessons` output in both editors.
-3. Optional: keep CLI↔MCP contract parity tests current (`route`, `audit`, `status`, `lessons`) whenever payload fields change.
+P0–P7 are shipped; prioritize operator work from [`docs/roadmap.md`](docs/roadmap.md) **Next Action** (hook, ingest/process, review/propose, report, thresholds with ADR when gates move, cross-editor MCP depth).
+
+1. **Cross-editor dogfood** — run real Codex and Claude Code sessions against the same `~/.bsela` store; record parity or gaps in the roadmap or [ADR 0006](docs/decisions/0006-p6-mcp-and-adapters.md) notes.
+2. **MCP parity** — confirm `bsela_route` / `bsela_audit` / `bsela_status` / `bsela_lessons` match `bsela route|audit|status|lessons`; run `make mcp-parity` when CLI or MCP payloads change.
+3. Keep CLI↔MCP contract tests in `mcp/` current whenever tool fields change.
