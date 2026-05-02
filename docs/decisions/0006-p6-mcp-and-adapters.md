@@ -24,19 +24,21 @@ Project AGENTS.md already says `TypeScript only for the future MCP server (P6+)`
 1. **TS workspace lives under `mcp/` inside this repo.** Single repo, two language stacks. Python is still the system of record for core logic (store, detector, distiller, router, auditor); TS is the transport + editor-facing layer. No monorepo tooling beyond pnpm + vitest — nothing Turbo / Nx-scale until three packages justify it.
 
 2. **First MCP surface is read-only.** P6 exposes three tools that map 1:1 to existing `bsela` CLI commands:
-   - `bsela_route(task: string)` → returns the `RouteDecision` JSON.
-   - `bsela_audit(window_days?: number, stdout?: boolean)` → returns the audit markdown.
-   - `bsela_status()` → returns session / error / lesson / pending counts.
-   Write surfaces (`bsela ingest`, `review propose`, `decision add`, `hook install`) stay CLI-only until we have usage data from read surfaces. This caps the blast radius of the first TS code.
-   - **Post-ship update (2026-05-02):** read-only surface now includes
-     `bsela_lessons`; `bsela_audit` and `bsela_status` return typed JSON
-     payloads from `bsela audit --json` and `bsela status --json`.
+    - `bsela_route(task: string)` → returns the `RouteDecision` JSON.
+    - `bsela_audit(window_days?: number, stdout?: boolean)` → returns the audit markdown.
+    - `bsela_status()` → returns session / error / lesson / pending counts.
+      Write surfaces (`bsela ingest`, `review propose`, `decision add`, `hook install`) stay CLI-only until we have usage data from read surfaces. This caps the blast radius of the first TS code.
+    - **Post-ship update (2026-05-02):** read-only surface now includes
+      `bsela_lessons`; `bsela_audit` and `bsela_status` return typed JSON
+      payloads from `bsela audit --json` and `bsela status --json`.
+    - **Post-ship update (2026-05-02):** Cursor adapter shipped alongside
+      Codex and Windsurf under `adapters/cursor/`.
 
 3. **The TS layer shells to the `bsela` binary.** `mcp/src/bsela-client.ts` spawns `bsela <args>` via `node:child_process` and parses JSON on stdout. Reasons:
-   - Zero risk of logic drift — the Python code remains the one source of truth.
-   - No FFI, no IPC server, no shared SQLite driver between Python + TS.
-   - Bsela must be on `PATH` — same requirement the Claude Code Stop hook already has, so `bsela doctor` already gates it.
-   - Startup cost per tool call ≈ Python interpreter boot (≈ 200 ms on this machine); acceptable for infrequent MCP tool dispatches and revisitable if it becomes a bottleneck.
+    - Zero risk of logic drift — the Python code remains the one source of truth.
+    - No FFI, no IPC server, no shared SQLite driver between Python + TS.
+    - Bsela must be on `PATH` — same requirement the Claude Code Stop hook already has, so `bsela doctor` already gates it.
+    - Startup cost per tool call ≈ Python interpreter boot (≈ 200 ms on this machine); acceptable for infrequent MCP tool dispatches and revisitable if it becomes a bottleneck.
 
 4. **Adapters ship after the MCP server, not before.** Codex / Windsurf adapters are config snippets + a short README each. They land in `adapters/<editor>/` in a follow-up commit once the MCP server has a stable tool schema.
 
