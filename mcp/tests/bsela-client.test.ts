@@ -5,7 +5,8 @@ import { tmpdir } from "node:os";
 
 import { describe, expect, it } from "vitest";
 
-import { BselaClient, BselaClientError } from "../src/index.js";
+import { isLessonItem } from "../src/bsela-client.js";
+import { BselaClient, BselaClientError, type LessonItem } from "../src/index.js";
 
 /**
  * These are integration tests: they shell out to the `bsela`
@@ -25,6 +26,40 @@ function makeClient(): BselaClient {
 function sortedKeys(value: Record<string, unknown>): Array<string> {
   return Object.keys(value).sort();
 }
+
+const SAMPLE_LESSON_ITEM: LessonItem = {
+  id: "00000000-0000-4000-8000-000000000001",
+  status: "pending",
+  scope: "project",
+  confidence: 0.91,
+  rule: "Sample rule",
+  why: "Sample why",
+  how_to_apply: "Sample how",
+  hit_count: 0,
+  created_at: "2026-05-02T12:00:00+00:00",
+};
+
+describe("isLessonItem", () => {
+  it("accepts a well-formed lesson row", () => {
+    expect(isLessonItem(SAMPLE_LESSON_ITEM)).toBe(true);
+  });
+
+  it("accepts null or omitted created_at", () => {
+    expect(isLessonItem({ ...SAMPLE_LESSON_ITEM, created_at: null })).toBe(true);
+    const { created_at: _c, ...rest } = SAMPLE_LESSON_ITEM;
+    expect(isLessonItem(rest)).toBe(true);
+  });
+
+  it("rejects created_at when it is not a string, null, or undefined", () => {
+    const base = { ...SAMPLE_LESSON_ITEM };
+    const numericCa: unknown = { ...base, created_at: 123 };
+    const objectCa: unknown = { ...base, created_at: {} };
+    const boolCa: unknown = { ...base, created_at: false };
+    expect(isLessonItem(numericCa)).toBe(false);
+    expect(isLessonItem(objectCa)).toBe(false);
+    expect(isLessonItem(boolCa)).toBe(false);
+  });
+});
 
 describe("BselaClient.route", () => {
   const client = makeClient();

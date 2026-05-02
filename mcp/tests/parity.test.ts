@@ -1,12 +1,29 @@
+import { execFileSync } from "node:child_process";
 import { mkdtemp, rm } from "node:fs/promises";
 import { homedir, tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import { describe, expect, it } from "vitest";
 
-import { BselaClient, createServer, type AuditPayload } from "../src/index.js";
+import { BselaClient, createServer, type AuditPayload, type LessonItem } from "../src/index.js";
+
+/** Sorted keys for each CLI/MCP ``LessonItem`` row (keep aligned with Python contract tests). */
+const EXPECTED_LESSON_ROW_KEYS: Array<string> = [
+  "confidence",
+  "created_at",
+  "hit_count",
+  "how_to_apply",
+  "id",
+  "rule",
+  "scope",
+  "status",
+  "why",
+];
+
+const REPO_ROOT = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 
 function makeClient(): BselaClient {
   const localBin = join(homedir(), ".local", "bin");
@@ -42,6 +59,23 @@ function parseTextJson<T>(result: unknown): T {
 
 function sortedKeys(value: Record<string, unknown>): Array<string> {
   return Object.keys(value).sort();
+}
+
+function assertLessonRowKeyset(row: Record<string, unknown>): void {
+  expect(sortedKeys(row)).toEqual(EXPECTED_LESSON_ROW_KEYS);
+}
+
+function seedOneLesson(home: string, pathEnv: string): void {
+  const script = [
+    "from bsela.memory.models import Lesson",
+    "from bsela.memory.store import save_lesson",
+    "save_lesson(Lesson(scope='project', rule='parity-seed', why='parity', how_to_apply='apply', confidence=0.9))",
+  ].join("\n");
+  execFileSync("uv", ["run", "python", "-c", script], {
+    cwd: REPO_ROOT,
+    env: { ...process.env, PATH: pathEnv, BSELA_HOME: home },
+    stdio: "pipe",
+  });
 }
 
 function normalizeAudit(

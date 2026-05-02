@@ -279,7 +279,7 @@ function isAuditPayload(value: unknown): value is AuditPayload {
   );
 }
 
-function isLessonItem(value: unknown): value is LessonItem {
+export function isLessonItem(value: unknown): value is LessonItem {
   if (typeof value !== "object" || value === null) return false;
   const v = value as Record<string, unknown>;
   const createdOk =
