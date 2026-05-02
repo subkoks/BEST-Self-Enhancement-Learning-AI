@@ -93,6 +93,28 @@ def get_session(session_id: str) -> SessionRecord | None:
         return s.get(SessionRecord, session_id)
 
 
+def resolve_session(id_or_prefix: str) -> SessionRecord | None:
+    """Exact match first; if not found, try a prefix LIKE query.
+
+    Returns ``None`` when no match exists. Raises ``LookupError`` when a
+    prefix matches more than one row so callers can surface an unambiguous
+    error instead of silently picking the first result.
+    """
+    exact = get_session(id_or_prefix)
+    if exact is not None:
+        return exact
+    stmt = (
+        select(SessionRecord)
+        .where(SessionRecord.id.like(f"{id_or_prefix}%"))  # type: ignore[attr-defined]
+        .limit(2)
+    )
+    with session_scope() as s:
+        rows = list(s.exec(stmt).all())
+    if len(rows) > 1:
+        raise LookupError(f"ambiguous prefix '{id_or_prefix}': {len(rows)} sessions match")
+    return rows[0] if rows else None
+
+
 def list_sessions(
     *,
     status: str | None = None,
@@ -169,6 +191,27 @@ def save_lesson(record: Lesson) -> Lesson:
 def get_lesson(lesson_id: str) -> Lesson | None:
     with session_scope() as s:
         return s.get(Lesson, lesson_id)
+
+
+def resolve_lesson(id_or_prefix: str) -> Lesson | None:
+    """Exact match first; if not found, try a prefix LIKE query.
+
+    Returns ``None`` when no match exists. Raises ``LookupError`` when a
+    prefix matches more than one row.
+    """
+    exact = get_lesson(id_or_prefix)
+    if exact is not None:
+        return exact
+    stmt = (
+        select(Lesson)
+        .where(Lesson.id.like(f"{id_or_prefix}%"))  # type: ignore[attr-defined]
+        .limit(2)
+    )
+    with session_scope() as s:
+        rows = list(s.exec(stmt).all())
+    if len(rows) > 1:
+        raise LookupError(f"ambiguous prefix '{id_or_prefix}': {len(rows)} lessons match")
+    return rows[0] if rows else None
 
 
 def update_lesson_status(
@@ -345,6 +388,8 @@ __all__ = [
     "list_sessions",
     "list_sessions_with_errors",
     "reset_engine_cache",
+    "resolve_lesson",
+    "resolve_session",
     "save_decision",
     "save_error",
     "save_lesson",

@@ -69,14 +69,14 @@ from bsela.memory.store import (
     count_lessons,
     count_sessions,
     db_path,
-    get_lesson,
-    get_session,
     increment_hit_count,
     list_decisions,
     list_errors,
     list_lessons,
     list_replay_records,
     list_sessions,
+    resolve_lesson,
+    resolve_session,
     save_decision,
     update_lesson_status,
 )
@@ -381,7 +381,11 @@ def review_propose(
     ] = None,
 ) -> None:
     """Write a proposal branch on agents-md for a pending lesson."""
-    lesson = get_lesson(lesson_id)
+    try:
+        lesson = resolve_lesson(lesson_id)
+    except LookupError as exc:
+        typer.secho(str(exc), fg=typer.colors.RED)
+        raise typer.Exit(code=1) from exc
     if lesson is None:
         typer.secho(f"review: lesson {lesson_id} not found.", fg=typer.colors.RED)
         raise typer.Exit(code=1)
@@ -422,18 +426,22 @@ def review_reject(
     ] = None,
 ) -> None:
     """Mark a pending lesson as rejected. No branch is written."""
-    lesson = get_lesson(lesson_id)
+    try:
+        lesson = resolve_lesson(lesson_id)
+    except LookupError as exc:
+        typer.secho(str(exc), fg=typer.colors.RED)
+        raise typer.Exit(code=1) from exc
     if lesson is None:
         typer.secho(f"review: lesson {lesson_id} not found.", fg=typer.colors.RED)
         raise typer.Exit(code=1)
     if lesson.status != "pending":
         typer.secho(
-            f"review: lesson {lesson_id} is status={lesson.status}; cannot reject.",
+            f"review: lesson {lesson.id} is status={lesson.status}; cannot reject.",
             fg=typer.colors.YELLOW,
         )
         raise typer.Exit(code=1)
-    update_lesson_status(lesson_id, status="rejected", note=note)
-    typer.echo(f"review: rejected lesson {lesson_id}.")
+    update_lesson_status(lesson.id, status="rejected", note=note)
+    typer.echo(f"review: rejected lesson {lesson.id}.")
     raise typer.Exit(code=0)
 
 
@@ -442,7 +450,11 @@ def review_show(
     lesson_id: Annotated[str, typer.Argument(help="Lesson id (uuid).")],
 ) -> None:
     """Show lesson details including rule, context, and application guidance."""
-    row = get_lesson(lesson_id)
+    try:
+        row = resolve_lesson(lesson_id)
+    except LookupError as exc:
+        typer.secho(str(exc), fg=typer.colors.RED)
+        raise typer.Exit(code=1) from exc
     if row is None:
         typer.secho(f"review: lesson {lesson_id} not found.", fg=typer.colors.RED)
         raise typer.Exit(code=1)
@@ -483,17 +495,21 @@ def rollback(
     Exit code 0: rolled back successfully or already rolled back.
     Exit code 1: lesson not found.
     """
-    lesson = get_lesson(lesson_id)
+    try:
+        lesson = resolve_lesson(lesson_id)
+    except LookupError as exc:
+        typer.secho(str(exc), fg=typer.colors.RED)
+        raise typer.Exit(code=1) from exc
     if lesson is None:
         typer.secho(f"rollback: lesson not found: {lesson_id}", fg=typer.colors.RED)
         raise typer.Exit(code=1)
 
     if lesson.status == "rolled_back":
-        typer.echo(f"rollback: {lesson_id} is already rolled back — nothing to do.")
+        typer.echo(f"rollback: {lesson.id} is already rolled back — nothing to do.")
         raise typer.Exit(code=0)
 
     prev_status = lesson.status
-    update_lesson_status(lesson_id, status="rolled_back", note=note)
+    update_lesson_status(lesson.id, status="rolled_back", note=note)
     typer.secho(
         f"rolled back: [{prev_status}] {lesson.rule}",
         fg=typer.colors.YELLOW,
@@ -525,8 +541,16 @@ def replay(
     Exit code 1: drift detected or session not found.
     """
     try:
+        resolved = resolve_session(session_id)
+    except LookupError as exc:
+        typer.secho(str(exc), fg=typer.colors.RED)
+        raise typer.Exit(code=1) from exc
+    if resolved is None:
+        typer.secho(f"replay: session not found: {session_id}", fg=typer.colors.RED)
+        raise typer.Exit(code=1)
+    try:
         llm = make_llm_client()
-        result = replay_session(session_id, client=llm, persist_result=not no_save)
+        result = replay_session(resolved.id, client=llm, persist_result=not no_save)
     except LookupError as exc:
         typer.secho(str(exc), fg=typer.colors.RED)
         raise typer.Exit(code=1) from exc
@@ -635,7 +659,11 @@ def sessions_show(
     session_id: Annotated[str, typer.Argument(help="Session id (uuid).")],
 ) -> None:
     """Show session metadata and its detected errors."""
-    row = get_session(session_id)
+    try:
+        row = resolve_session(session_id)
+    except LookupError as exc:
+        typer.secho(str(exc), fg=typer.colors.RED)
+        raise typer.Exit(code=1) from exc
     if row is None:
         typer.secho(f"sessions: {session_id} not found.", fg=typer.colors.RED)
         raise typer.Exit(code=1)

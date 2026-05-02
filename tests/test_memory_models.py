@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import uuid
 from pathlib import Path
 
 import pytest
@@ -18,6 +19,8 @@ from bsela.memory.store import (
     list_replay_records,
     list_sessions,
     list_sessions_with_errors,
+    resolve_lesson,
+    resolve_session,
     save_decision,
     save_error,
     save_lesson,
@@ -193,3 +196,49 @@ def test_increment_hit_count_empty_list_is_noop(tmp_bsela_home: Path) -> None:
 def test_increment_hit_count_skips_missing_ids(tmp_bsela_home: Path) -> None:
     """Nonexistent lesson IDs are silently skipped."""
     increment_hit_count(["nonexistent-id"])  # should not raise
+
+
+# ---- resolve_session / resolve_lesson prefix lookup -------------------------
+
+
+def test_resolve_session_exact(tmp_bsela_home: Path) -> None:
+    sess = save_session(SessionRecord(source="test", transcript_path="t.jsonl", content_hash="h"))
+    assert resolve_session(sess.id) is not None
+    assert resolve_session(sess.id).id == sess.id  # type: ignore[union-attr]
+
+
+def test_resolve_session_prefix(tmp_bsela_home: Path) -> None:
+    sess = save_session(SessionRecord(source="test", transcript_path="t.jsonl", content_hash="h"))
+    prefix = sess.id[:8]
+    resolved = resolve_session(prefix)
+    assert resolved is not None
+    assert resolved.id == sess.id
+
+
+def test_resolve_session_not_found(tmp_bsela_home: Path) -> None:
+    assert resolve_session("00000000") is None
+
+
+def test_resolve_session_ambiguous(tmp_bsela_home: Path) -> None:
+    shared = "aaaaaaaa"
+    for i in range(2):
+        fake_id = f"{shared}-{str(uuid.uuid4())[9:]}"
+        s = SessionRecord(source="test", transcript_path="t.jsonl", content_hash=f"h{i}")
+        s.id = fake_id
+        save_session(s)
+    with pytest.raises(LookupError, match="ambiguous prefix"):
+        resolve_session(shared)
+
+
+def test_resolve_lesson_prefix(tmp_bsela_home: Path) -> None:
+    lesson = save_lesson(
+        Lesson(rule="r", why="w", how_to_apply="h", scope="project", confidence=0.9)
+    )
+    prefix = lesson.id[:8]
+    resolved = resolve_lesson(prefix)
+    assert resolved is not None
+    assert resolved.id == lesson.id
+
+
+def test_resolve_lesson_not_found(tmp_bsela_home: Path) -> None:
+    assert resolve_lesson("00000000") is None
