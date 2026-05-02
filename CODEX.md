@@ -3,7 +3,7 @@
 ## Read first
 
 1. `[AGENTS.md](AGENTS.md)` — project invariants, commit scopes, quality gate.
-2. `[docs/roadmap.md](docs/roadmap.md)` — phase order; **P6** is active for MCP + adapters.
+2. `[docs/roadmap.md](docs/roadmap.md)` — phase order; **P0–P7 shipped**; MCP + adapters remain the main integration surface for editors.
 3. `[docs/decisions/0006-p6-mcp-and-adapters.md](docs/decisions/0006-p6-mcp-and-adapters.md)` — MCP design and adapter expectations.
 
 ## Quality gate before you ship
