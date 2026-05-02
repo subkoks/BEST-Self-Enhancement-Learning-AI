@@ -62,7 +62,8 @@ steady-state operator work (dogfood, tuning, and cross-editor depth).
    rows land without a second command.
 3. `bsela process -n 10 -d 7` — batch-distill the most recent week.
    Needs `ANTHROPIC_API_KEY`; skips quarantined, error-free, and
-   already-distilled sessions automatically.
+   already-distilled sessions automatically. `make dogfood-process`
+   prints the exact command as a reminder (it does not run the job).
 4. `bsela review` → `bsela review propose <id>` for AUTO-tagged
    lessons; `bsela review reject <id> -n "…"` for false positives.
 5. `bsela report --stdout` (or let the weekly launchd plist write to

@@ -2,7 +2,7 @@
 # ruff / mypy / pytest matrix. All targets run via uv so tool versions
 # follow the pyproject lockfile.
 
-.PHONY: help check doctor lint format format-check type test cov fix clean mcp-check mcp-parity orchestrator-help dogfood-report dogfood-audit
+.PHONY: help check doctor lint format format-check type test cov fix clean mcp-check mcp-parity orchestrator-help dogfood-report dogfood-audit dogfood-process
 
 help:
 	@echo "BSELA make targets:"
@@ -21,6 +21,7 @@ help:
 	@echo "  orchestrator-help  print docs/orchestrator quick reference"
 	@echo "  dogfood-report   uv run bsela report --stdout (P4 dogfood; uses BSELA_HOME)"
 	@echo "  dogfood-audit    uv run bsela audit --weekly --stdout (P5 digest; exit 1 if alerts)"
+	@echo "  dogfood-process  print the batch-distill command (uses API; does not run it)"
 
 check: lint format-check type test
 
@@ -63,6 +64,10 @@ dogfood-report:
 
 dogfood-audit:
 	uv run bsela audit --weekly --stdout
+
+dogfood-process:
+	@echo "Batch distill (API spend):  uv run bsela process -n 10 -d 7"
+	@echo "Needs ANTHROPIC_API_KEY; skips quarantined, no-error, and already-distilled sessions."
 
 orchestrator-help:
 	@echo "BSELA repo-local orchestrator (markdown roles):"
