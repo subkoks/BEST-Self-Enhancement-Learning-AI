@@ -2,9 +2,18 @@
 
 from __future__ import annotations
 
+from unittest.mock import MagicMock
+
 import pytest
 
-from bsela.core.router import DEFAULT_CLASS, RouteDecision, classify
+from bsela.core.router import (
+    _COMPILED,
+    DEFAULT_CLASS,
+    RouteDecision,
+    _bucket_index,
+    _role_for,
+    classify,
+)
 from bsela.utils.config import ModelsConfig, load_models
 
 
@@ -104,3 +113,24 @@ def test_default_models_are_loaded_when_cfg_omitted() -> None:
     decision = classify("plan the migration")
     assert decision.task_class == "planner"
     assert decision.model  # some non-empty model id
+
+
+def test_bucket_index_returns_len_for_unknown_name() -> None:
+    """Cover line 226: _bucket_index returns len(_COMPILED) for unknown bucket name."""
+    result = _bucket_index("nonexistent-bucket-xyz")
+    assert result == len(_COMPILED)
+
+
+def test_role_for_raises_on_unknown_task_class() -> None:
+    """Cover lines 232-233: getattr raises AttributeError → ValueError."""
+    cfg = MagicMock(spec=[])  # no attributes
+    with pytest.raises(ValueError, match="no role named"):
+        _role_for(cfg, "nonexistent_role")
+
+
+def test_role_for_raises_when_not_model_role() -> None:
+    """Cover lines 234-235: attribute exists but is not a ModelRole → ValueError."""
+    cfg = MagicMock()
+    cfg.my_role = "a-string-not-a-ModelRole"
+    with pytest.raises(ValueError, match="is not a ModelRole"):
+        _role_for(cfg, "my_role")
