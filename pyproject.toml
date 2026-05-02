@@ -117,6 +117,11 @@ python_files = ["test_*.py", "*_test.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
 
+[tool.hypothesis]
+# Use a deterministic profile in CI; locally keep the default (more examples).
+# Override per-test with @settings(max_examples=N) for expensive properties.
+suppress_health_check = ["too_slow"]
+
 [tool.coverage.run]
 source = ["src/bsela"]
 branch = true
