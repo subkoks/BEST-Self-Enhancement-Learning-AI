@@ -69,8 +69,8 @@ doctor` validates this.
 | Tool | Inputs | Returns |
 |---|---|---|
 | `bsela_route` | `task: string` | JSON `RouteDecision` (text + structuredContent) |
-| `bsela_audit` | `window_days?: number (1..365)` | Audit markdown (raw text) |
-| `bsela_status` | — | Store counts + bsela home (raw text) |
+| `bsela_audit` | `window_days?: number (1..365)` | JSON audit payload (text + structuredContent) |
+| `bsela_status` | — | JSON status payload (text + structuredContent) |
 
 ## Other scripts
 
@@ -109,9 +109,8 @@ mcp/
 
 - The client is the *seam*. The Python core owns all logic; this
   package is strictly a transport / adaptation layer.
-- `route` is the only typed path today. `audit` and `status` return
-  raw markdown/text because the Python CLI doesn't emit JSON for
-  those commands yet — adding JSON output is a small follow-up on
-  the Python side, not a TS side change.
+- `route`, `audit`, and `status` are typed paths. `bsela audit --json`
+  and `bsela status --json` are treated as contract surfaces by the
+  TypeScript client.
 - Errors surface as `BselaClientError` with the exit code and a
   truncated stderr snippet. No rethrown unknowns.

@@ -46,7 +46,7 @@ bsela hook install [--apply]              # wire the Claude Code Stop hook (dry-
 bsela decision add "<title>" -c ... -d ... -x ...  # log a load-bearing autonomous decision
 bsela decision list [-n 20]               # show recent decisions, newest first
 bsela route "<task>" [--json]             # P5 router: classify task → model role
-bsela audit [--weekly|--window-days N] [--stdout]  # P5 weekly audit digest → ~/.bsela/reports/audit.md
+bsela audit [--weekly|--window-days N] [--stdout|--json]  # P5 weekly audit digest (markdown or JSON)
 ```
 
 The detector now runs inline during `bsela ingest` (and therefore during

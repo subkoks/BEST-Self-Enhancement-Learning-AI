@@ -20,4 +20,4 @@ Index: `[adapters/README.md](adapters/README.md)`. Codex-specific steps:
 
 1. **Cross-editor dogfood** — run one real Codex session and one real Claude Code session against the same `~/.bsela` store, then record parity/notes in `docs/roadmap.md`.
 2. **MCP parity checks** — verify `bsela_route` / `bsela_audit` / `bsela_status` results match shell `bsela route|audit|status` output in both editors.
-3. Optional: JSON output on the Python side for `bsela audit` / `bsela status` to tighten the MCP contract (ADR 0006 follow-up).
+3. Optional: expose a top-level `bsela lessons --json` alias (today this lives at `bsela review list --json`) to tighten parity with MCP `bsela_lessons`.
