@@ -57,6 +57,16 @@ def test_status_json_exits_zero_when_store_missing(
     assert payload["lessons_pending"] == 0
     assert payload["lessons_proposed"] == 0
     assert "bsela_home" in payload
+    assert sorted(payload.keys()) == [
+        "bsela_home",
+        "errors",
+        "lessons",
+        "lessons_pending",
+        "lessons_proposed",
+        "replay_records",
+        "sessions",
+        "sessions_quarantined",
+    ]
 
 
 def test_review_with_empty_store_exits_zero(
