@@ -2,7 +2,7 @@
 # ruff / mypy / pytest matrix. All targets run via uv so tool versions
 # follow the pyproject lockfile.
 
-.PHONY: help check lint format format-check type test cov fix clean
+.PHONY: help check lint format format-check type test cov fix clean mcp-check mcp-parity
 
 help:
 	@echo "BSELA make targets:"
@@ -15,6 +15,8 @@ help:
 	@echo "  cov           pytest -q with coverage (same flags as CI)"
 	@echo "  fix           ruff check --fix + ruff format (auto-fix what can be fixed)"
 	@echo "  clean         remove caches (.pytest_cache, .mypy_cache, .ruff_cache)"
+	@echo "  mcp-check     run pnpm check in mcp/ (format, lint, typecheck, tests)"
+	@echo "  mcp-parity    run CLI↔MCP parity harness in mcp/"
 
 check: lint format-check type test
 
@@ -42,3 +44,9 @@ fix:
 
 clean:
 	rm -rf .pytest_cache .mypy_cache .ruff_cache
+
+mcp-check:
+	cd mcp && pnpm check
+
+mcp-parity:
+	cd mcp && pnpm parity

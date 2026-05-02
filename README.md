@@ -69,6 +69,10 @@ auto-resolves what ruff can. The same checks run in CI
 ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)) on every push
 to `main` and every PR.
 
+MCP gate: `make mcp-check` runs `pnpm check` in `mcp/`.
+`make mcp-parity` runs the CLI↔MCP parity harness (`route`,
+`audit`, `status`, `lessons`).
+
 ## Architecture
 
 See [`docs/architecture.md`](docs/architecture.md).
