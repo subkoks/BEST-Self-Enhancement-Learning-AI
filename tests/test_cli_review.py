@@ -286,3 +286,24 @@ def test_lessons_alias_track_hits_json_reflects_increment(tmp_bsela_home: Path) 
     updated = get_lesson(lesson.id)
     assert updated is not None
     assert updated.hit_count == 1
+
+
+def test_review_show_displays_lesson_details(tmp_bsela_home: Path) -> None:
+    """Cover review_show: displays lesson fields including rule, why, how_to_apply."""
+    lesson = _project_lesson(confidence=0.87)
+    result = CliRunner().invoke(app, ["review", "show", lesson.id])
+    assert result.exit_code == 0
+    assert lesson.id in result.stdout
+    assert "pending" in result.stdout
+    assert "project" in result.stdout
+    assert "0.87" in result.stdout
+    assert lesson.rule in result.stdout
+    assert lesson.why in result.stdout
+    assert lesson.how_to_apply in result.stdout
+
+
+def test_review_show_not_found_exits_nonzero(tmp_bsela_home: Path) -> None:
+    """Cover review_show not-found branch."""
+    result = CliRunner().invoke(app, ["review", "show", "nonexistent-uuid"])
+    assert result.exit_code == 1
+    assert "not found" in result.stdout

@@ -437,6 +437,37 @@ def review_reject(
     raise typer.Exit(code=0)
 
 
+@review_app.command("show")
+def review_show(
+    lesson_id: Annotated[str, typer.Argument(help="Lesson id (uuid).")],
+) -> None:
+    """Show lesson details including rule, context, and application guidance."""
+    row = get_lesson(lesson_id)
+    if row is None:
+        typer.secho(f"review: lesson {lesson_id} not found.", fg=typer.colors.RED)
+        raise typer.Exit(code=1)
+
+    typer.echo(f"id:           {row.id}")
+    typer.echo(f"status:       {row.status}")
+    typer.echo(f"scope:        {row.scope}")
+    typer.echo(f"confidence:   {row.confidence:.2f}")
+    typer.echo(f"hit_count:    {row.hit_count}")
+    typer.echo(f"created_at:   {row.created_at.isoformat()}")
+    typer.echo(f"updated_at:   {row.updated_at.isoformat()}")
+    if row.source_error_id:
+        typer.echo(f"source_error: {row.source_error_id}")
+    typer.echo("")
+    typer.echo("rule:")
+    typer.echo(f"  {row.rule}")
+    typer.echo("")
+    typer.echo("why:")
+    typer.echo(f"  {row.why}")
+    typer.echo("")
+    typer.echo("how_to_apply:")
+    typer.echo(f"  {row.how_to_apply}")
+    raise typer.Exit(code=0)
+
+
 @app.command()
 def rollback(
     lesson_id: Annotated[str, typer.Argument(help="Lesson identifier to revert.")],
