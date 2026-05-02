@@ -2,7 +2,7 @@
 
 - **Status:** Shipped
 - **Date:** 2026-04-28
-- **Shipped:** 2026-05-02 — `bsela replay` validated; `ReplayRecord` persisted; drift alarm fires at 25% threshold; `bsela rollback` wired; 310 tests green, CI passing.
+- **Shipped:** 2026-05-02 — `bsela replay` validated; `ReplayRecord` persisted; drift alarm wired to `bsela audit`; `bsela rollback` wired; CI test suite green.
 
 ## Context
 
@@ -26,7 +26,7 @@ P7 per the roadmap:
 
 4. **`bsela rollback <lesson-id>` reverts a lesson to `rolled_back` status.** Rollback does not delete — it soft-marks so downstream aggregates (report, audit) exclude the lesson from the active corpus. Every change remains a commit; the `rolled_back` status is the undo token. Re-instating a rolled-back lesson is a manual `bsela review propose` → auto-merge cycle.
 
-5. **`ReplayRecord` participates in the retention sweep.** `bsela retention --sweep` cascade-deletes replay records for sessions that fall outside the 90-day error window. This keeps `replay_records` from growing unboundedly for high-frequency dogfood setups.
+5. **`ReplayRecord` participates in the retention sweep.** `bsela prune` runs `sweep()` in `bsela.core.retention`, which deletes error rows older than `retention.error_days` and session rows older than `retention.session_days` from `config/thresholds.toml` (defaults: 90 days each). When a session row is removed, dependent `errors`, `metrics`, and `replay_records` for that session are deleted in the same transaction, so `replay_records` does not grow without bound after heavy replay use.
 
 6. **No new LLM calls for rollback.** Rollback is a pure store operation. It does not re-run the judge or distiller — the decision to roll back is always operator-driven.
 
