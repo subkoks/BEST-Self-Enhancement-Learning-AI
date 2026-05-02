@@ -2,6 +2,8 @@
 
 Wires the BSELA MCP server into Cursor via the `~/.cursor/mcp.json` config.
 
+For **multi-session / role-scoped** work in this repo, use the markdown orchestrator: start from [`docs/orchestrator/ORCHESTRATOR.md`](../../docs/orchestrator/ORCHESTRATOR.md) and the role index in [`docs/orchestrator/README.md`](../../docs/orchestrator/README.md) (see [ADR 0008](../../docs/decisions/0008-developer-orchestrator-workflow.md)).
+
 ## Prerequisites
 
 1. `bsela` on `PATH` — `uv sync && uv tool install -e .` from the repo root

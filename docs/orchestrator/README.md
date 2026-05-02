@@ -7,12 +7,26 @@ This folder defines a **lightweight multi-role workflow** for day-to-day develop
 - You want one **lead** session to coordinate, route work, and synthesize results.
 - You spawn **focused** follow-ups (or reuse the same session sequentially) with a single role prompt and a tight **Execution Brief**.
 
-## Quick start (Claude Code CLI)
+## Quick start
+
+### Cursor
+
+1. Open this repository as the workspace root in Cursor.
+2. Give the lead session [`ORCHESTRATOR.md`](ORCHESTRATOR.md) (attach the file, paste it, or reference it from project rules so it stays in context).
+3. For each delegated unit, pass **only** the **Execution Brief** plus **one** role file from [`roles/`](roles/).
+4. Track active context in a **local** handoff file (see below); do not commit secrets or raw transcripts.
+
+### Claude Code CLI
 
 1. Open the repo root in Claude Code.
 2. Load [`ORCHESTRATOR.md`](ORCHESTRATOR.md) as the lead instructions (paste, file reference, or project instruction that points here).
 3. For each delegated unit, pass **only** the brief plus **one** role file from [`roles/`](roles/).
 4. Track active context in a **local** handoff file (see below); do not commit secrets or raw transcripts.
+
+### Codex CLI and Windsurf
+
+- Codex: [`CODEX.md`](../../CODEX.md) and [`adapters/codex/README.md`](../../adapters/codex/README.md).
+- Windsurf: [`adapters/windsurf/README.md`](../../adapters/windsurf/README.md).
 
 ## Role index
 
