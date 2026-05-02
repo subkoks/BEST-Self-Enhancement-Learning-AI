@@ -1,3 +1,4 @@
+import { mkdtemp, rm } from "node:fs/promises";
 import { homedir, tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -11,6 +12,17 @@ function makeClient(): BselaClient {
   const localBin = join(homedir(), ".local", "bin");
   const path = `${localBin}:${process.env["PATH"] ?? ""}`;
   return new BselaClient({ env: { ...process.env, PATH: path }, cwd: tmpdir() });
+}
+
+async function makeIsolatedClient(): Promise<{ client: BselaClient; home: string }> {
+  const localBin = join(homedir(), ".local", "bin");
+  const path = `${localBin}:${process.env["PATH"] ?? ""}`;
+  const home = await mkdtemp(join(tmpdir(), "bsela-parity-empty-"));
+  const client = new BselaClient({
+    env: { ...process.env, PATH: path, BSELA_HOME: home },
+    cwd: home,
+  });
+  return { client, home };
 }
 
 async function connectClient(client: BselaClient): Promise<Client> {
@@ -78,6 +90,26 @@ describe("CLI↔MCP parity", () => {
       expect(lessonsResult.structuredContent).toEqual({ lessons: directLessons });
     } finally {
       await mcp.close();
+    }
+  });
+
+  it("keeps empty-lessons parity for direct and MCP paths", async () => {
+    const { client, home } = await makeIsolatedClient();
+    const mcp = await connectClient(client);
+    try {
+      const directLessons = await client.lessons({ status: "pending", limit: 3 });
+      expect(directLessons).toEqual([]);
+
+      const lessonsResult = await mcp.callTool({
+        name: "bsela_lessons",
+        arguments: { status: "pending", limit: 3 },
+      });
+      const mcpLessons = parseTextJson<typeof directLessons>(lessonsResult);
+      expect(mcpLessons).toEqual([]);
+      expect(lessonsResult.structuredContent).toEqual({ lessons: [] });
+    } finally {
+      await mcp.close();
+      await rm(home, { recursive: true, force: true });
     }
   });
 });

@@ -78,6 +78,49 @@ def test_review_with_empty_store_exits_zero(
     assert "no lessons awaiting action" in result.stdout
 
 
+def test_lessons_json_with_empty_store_returns_empty_array(tmp_bsela_home: Path) -> None:
+    result = CliRunner().invoke(app, ["lessons", "--json"])
+    assert result.exit_code == 0
+    payload = json.loads(result.stdout)
+    assert payload == []
+
+
+def test_lessons_json_locks_item_keys(tmp_bsela_home: Path, sample_clean_session: Path) -> None:
+    ingest_file(sample_clean_session)
+    session_id = list_sessions()[0].id
+    err = save_error(
+        ErrorRecord(session_id=session_id, category="loop", severity="medium", snippet="test")
+    )
+    save_lesson(
+        Lesson(
+            source_error_id=err.id,
+            scope="project",
+            rule="Never repeat the same failed call",
+            why="Avoid retry loops and token waste.",
+            how_to_apply="Change strategy after repeated failure.",
+            confidence=0.9,
+            status="pending",
+        )
+    )
+
+    result = CliRunner().invoke(app, ["lessons", "--json", "--limit", "1"])
+    assert result.exit_code == 0
+    payload = json.loads(result.stdout)
+    assert isinstance(payload, list)
+    assert len(payload) == 1
+    assert sorted(payload[0].keys()) == [
+        "confidence",
+        "created_at",
+        "hit_count",
+        "how_to_apply",
+        "id",
+        "rule",
+        "scope",
+        "status",
+        "why",
+    ]
+
+
 def test_rollback_not_found_exits_1(tmp_bsela_home: Path) -> None:
     result = CliRunner().invoke(app, ["rollback", "no-such-id"])
     assert result.exit_code == 1

@@ -238,6 +238,18 @@ describe("handleLessons", () => {
     expect(result.structuredContent).toEqual({ lessons: [sampleLesson] });
   });
 
+  it("returns empty lessons in both text and structured content", async () => {
+    const lessons = vi.fn().mockResolvedValue([]);
+    const client = stubClient({ lessons });
+
+    const result = await handleLessons(client, {});
+
+    expect(lessons).toHaveBeenCalledWith({});
+    const parsed = JSON.parse((result.content[0] as { text: string }).text) as unknown[];
+    expect(parsed).toEqual([]);
+    expect(result.structuredContent).toEqual({ lessons: [] });
+  });
+
   it("passes status filter through to the client", async () => {
     const lessons = vi.fn().mockResolvedValue([]);
     const client = stubClient({ lessons });

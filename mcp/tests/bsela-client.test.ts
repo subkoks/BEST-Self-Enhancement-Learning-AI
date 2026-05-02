@@ -131,6 +131,22 @@ describe("BselaClient.status", () => {
 describe("BselaClient.lessons", () => {
   const client = makeClient();
 
+  it("returns empty array for lessons on a fresh BSELA_HOME", async () => {
+    const home = await mkdtemp(join(tmpdir(), "bsela-lessons-empty-"));
+    try {
+      const localBin = join(homedir(), ".local", "bin");
+      const path = `${localBin}:${process.env["PATH"] ?? ""}`;
+      const isolatedClient = new BselaClient({
+        env: { ...process.env, PATH: path, BSELA_HOME: home },
+        cwd: home,
+      });
+      const payload = await isolatedClient.lessons({ status: "pending", limit: 5 });
+      expect(payload).toEqual([]);
+    } finally {
+      await rm(home, { recursive: true, force: true });
+    }
+  });
+
   it("returns lesson items from the top-level lessons alias", async () => {
     const payload = await client.lessons({ limit: 1 });
     expect(Array.isArray(payload)).toBe(true);
