@@ -69,6 +69,27 @@ def test_audit_json_returns_machine_payload(tmp_bsela_home: Path) -> None:
     result = CliRunner().invoke(app, ["audit", "--json"])
     assert result.exit_code == 0
     payload = json.loads(result.stdout)
+    assert sorted(payload.keys()) == [
+        "adrs",
+        "alerts",
+        "cost",
+        "drift",
+        "errors_total",
+        "generated_at",
+        "replay_drift",
+        "sessions",
+        "window_days",
+        "window_end",
+        "window_start",
+    ]
+    assert sorted(payload["sessions"].keys()) == ["quarantine_rate", "quarantined", "total"]
+    assert sorted(payload["cost"].keys()) == [
+        "burn_ratio",
+        "monthly_budget_usd",
+        "over_budget",
+        "prorated_monthly_usd",
+        "total_usd",
+    ]
     assert payload["window_days"] == 30
     assert payload["sessions"]["total"] == 0
     assert payload["errors_total"] == 0
