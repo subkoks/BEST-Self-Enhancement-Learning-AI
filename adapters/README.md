@@ -23,7 +23,8 @@ live in [`mcp/`](../mcp/) — adapters never re-implement BSELA logic.
 |---|---|---|
 | Codex CLI | [`codex/config.toml`](codex/config.toml) | `~/.codex/config.toml` |
 | Windsurf | [`windsurf/mcp_config.json`](windsurf/mcp_config.json) | `~/.codeium/windsurf/mcp_config.json` |
-| Claude Code / Claude Desktop | [`mcp/README.md`](../mcp/README.md#running-the-mcp-server) | `~/.claude/settings.json` (or Desktop config) |
+| Claude Code                    | [`claude/README.md`](claude/README.md) (hook + MCP + local permissions) | `~/.claude/settings.json` + optional repo `.claude/settings.local.json` |
+| Claude Desktop                 | [`mcp/README.md`](../mcp/README.md#running-the-mcp-server)               | Desktop MCP config (same `mcpServers` shape as in `claude/settings.example.json`) |
 | Cursor | (not yet wired — Cursor speaks MCP via the same JSON shape as Claude Desktop; reuse the snippet in `mcp/README.md`) | `~/.cursor/mcp.json` |
 
 The Codex + Windsurf snippets are the two adapters formally tracked

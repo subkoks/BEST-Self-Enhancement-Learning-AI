@@ -1,0 +1,21 @@
+{
+  "hooks": {
+    "Stop": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bsela hook claude-stop"
+          }
+        ]
+      }
+    ]
+  },
+  "mcpServers": {
+    "bsela": {
+      "command": "node",
+      "args": ["<BSELA_REPO>/mcp/dist/server.js"]
+    }
+  }
+}

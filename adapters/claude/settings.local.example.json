@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(uv run *)",
+      "Bash(bsela *)",
+      "Bash(make *)",
+      "Bash(git status)",
+      "Bash(git diff *)",
+      "Bash(git add *)",
+      "Bash(git commit *)",
+      "Bash(command -v *)",
+      "Bash(pnpm *)",
+      "Bash(node *)",
+      "Read(**)"
+    ]
+  }
+}
