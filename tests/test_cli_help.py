@@ -107,3 +107,30 @@ def test_lessons_json_empty_store(tmp_bsela_home: Path, runner: CliRunner) -> No
     result = runner.invoke(app, ["lessons", "--json"])
     assert result.exit_code == 0, result.stdout
     assert json.loads(result.stdout) == []
+
+
+_AUDIT_JSON_TOP_LEVEL = frozenset(
+    {
+        "generated_at",
+        "window_days",
+        "window_start",
+        "window_end",
+        "sessions",
+        "errors_total",
+        "cost",
+        "drift",
+        "replay_drift",
+        "adrs",
+        "alerts",
+    }
+)
+
+
+def test_audit_json_contract_stable_keys(tmp_bsela_home: Path, runner: CliRunner) -> None:
+    """Keep CLI JSON aligned with MCP ``bsela_audit`` / ``AuditPayload``."""
+    result = runner.invoke(app, ["audit", "--window-days", "1", "--json"])
+    assert result.exit_code == 0, result.stdout
+    data = json.loads(result.stdout)
+    assert set(data.keys()) == _AUDIT_JSON_TOP_LEVEL
+    assert data["window_days"] == 1
+    assert isinstance(data["alerts"], list)
