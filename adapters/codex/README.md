@@ -58,6 +58,17 @@ manually and check the process boots without errors. Then re-check
 that `[mcp_servers.bsela]` is present in `~/.codex/config.toml` and
 that the `command` / `args` paths are absolute.
 
+## Tools available
+
+| Tool            | Purpose                                                    |
+| --------------- | ---------------------------------------------------------- |
+| `bsela_route`   | Classify a task into a model role (planner, builder, etc.) |
+| `bsela_audit`   | Get audit digest for recent activity                       |
+| `bsela_status`  | Session/error/lesson counts                                |
+| `bsela_lessons` | List pending lessons with AUTO/REVIEW/SAFETY tags          |
+
+Write surfaces (`bsela ingest`, `review propose`, etc.) stay CLI-only per [ADR 0006](../../docs/decisions/0006-p6-mcp-and-adapters.md).
+
 ## Notes
 
 - The snippet uses `node` + an absolute `args` path rather than the

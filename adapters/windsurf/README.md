@@ -43,6 +43,17 @@ If Windsurf reports the tool is missing, the most common cause is the
 GUI not seeing `bsela` on `PATH` — set `env.PATH` explicitly per
 step 3.
 
+## Tools available
+
+| Tool            | Purpose                                                    |
+| --------------- | ---------------------------------------------------------- |
+| `bsela_route`   | Classify a task into a model role (planner, builder, etc.) |
+| `bsela_audit`   | Get audit digest for recent activity                       |
+| `bsela_status`  | Session/error/lesson counts                                |
+| `bsela_lessons` | List pending lessons with AUTO/REVIEW/SAFETY tags          |
+
+Write surfaces (`bsela ingest`, `review propose`, etc.) stay CLI-only per [ADR 0006](../../docs/decisions/0006-p6-mcp-and-adapters.md).
+
 ## Notes
 
 - Windsurf already keeps timestamped backups of `mcp_config.json`
@@ -52,6 +63,6 @@ step 3.
   Windsurf re-spawns the server when you reload the workspace; no
   config change needed.
 - This snippet matches the shape Cursor and Claude Desktop also
-  consume (`mcpServers` map keyed by server name) — if you wire
-  Cursor next, reuse the JSON object verbatim and drop it into
+  consume (`mcpServers` map keyed by server name). For Cursor, use
+  [`../cursor/mcp.json`](../cursor/mcp.json) as the template for
   `~/.cursor/mcp.json`.
