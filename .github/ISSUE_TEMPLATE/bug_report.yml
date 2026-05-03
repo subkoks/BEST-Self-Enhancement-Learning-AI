@@ -1,0 +1,47 @@
+name: Bug report
+description: Report something that isn't behaving as expected
+title: "bug: <short summary>"
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to file a bug. Please fill in what you can.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: Describe the bug. Include exact commands, output, or screenshots.
+      placeholder: "When I run X, I expected Y, but Z happened."
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      description: Minimal steps to reproduce.
+      placeholder: |
+        1. Run `bsela ...`
+        2. Observe `...`
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: BSELA version / commit
+      placeholder: "e.g. v0.3.1 or commit abcd123"
+  - type: input
+    id: host
+    attributes:
+      label: Agent host
+      placeholder: "Claude Code / Codex / Cursor / Windsurf / other"
+  - type: input
+    id: env
+    attributes:
+      label: OS + Python
+      placeholder: "e.g. macOS 26.4, Python 3.13.2"
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant logs / context
+      render: shell
