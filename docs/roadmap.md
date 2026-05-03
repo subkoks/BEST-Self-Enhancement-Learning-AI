@@ -107,7 +107,7 @@ Per ADR 0006, the TS side landed as:
 
 - `mcp/` pnpm workspace — strict TS, vitest, eslint, prettier.
 - `BselaClient` — shells to the `bsela` CLI and returns typed
-  `RouteDecision` / typed audit + status output. Seventeen integration
+  `RouteDecision` / typed audit + status output. Twenty-two integration
   tests green against the real CLI.
 - `bsela-mcp` server binary (`mcp/src/server.ts`, dist entry
   `mcp/dist/server.js`) — stdio transport, six tools registered:
