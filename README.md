@@ -91,6 +91,8 @@ PRs/issues. See [adapters/claude/README.md §7](adapters/claude/README.md).
 
 **Cursor:** to avoid spurious workflow diagnostics, open [`bsela.code-workspace`](bsela.code-workspace) (see [adapters/cursor/README.md](adapters/cursor/README.md)).
 
+**Git:** if `~/.gitignore_global` ignores `.vscode/`, Git will refuse a plain `git add` on [`.vscode/settings.json`](.vscode/settings.json). Use `git add -f .vscode/settings.json` for that path, or drop `.vscode/` from your global ignore.
+
 **Terminal noise (pyenv):** If the integrated terminal shows
 `pyenv: shell integration not enabled`, add the hook from
 [pyenv shell setup](https://github.com/pyenv/pyenv#shell-setup)

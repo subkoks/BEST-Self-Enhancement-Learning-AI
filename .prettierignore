@@ -1,0 +1,2 @@
+# JSON with strict parsers (no JSONC); avoid trailing-comma rewrites on save.
+bsela.code-workspace

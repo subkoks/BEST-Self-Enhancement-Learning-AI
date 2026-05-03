@@ -18,6 +18,8 @@ For the fewest editor quirks (including false **GitHub Actions** diagnostics on 
 
 That workspace embeds the same `files.associations` / `github-actions.use-enterprise` defaults as [`.vscode/settings.json`](../../.vscode/settings.json). After opening, run **Developer: Reload Window** once if the status bar still shows **GitHub Actions Workflow** for files under `.github/workflows/`.
 
+If **Source Control / Git** reports that `.vscode/settings.json` is ignored, your `~/.gitignore_global` likely contains `.vscode/`. Either run `git add -f .vscode/settings.json` when that file changes, or remove `.vscode/` from the global ignore so the tracked file stages normally.
+
 ## Wiring
 
 1. Copy or symlink [`mcp.json`](mcp.json) to `~/.cursor/mcp.json`:
