@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 from datetime import UTC, datetime
 from pathlib import Path
+from unittest.mock import patch
 
 from typer.testing import CliRunner
 
@@ -292,6 +293,19 @@ def test_errors_list_json_output(tmp_bsela_home: Path) -> None:
         "severity",
         "snippet",
     ]
+
+
+def test_sessions_show_ambiguous_prefix_exits_1(tmp_bsela_home: Path) -> None:
+    with patch("bsela.cli.resolve_session", side_effect=LookupError("ambiguous")):
+        result = CliRunner().invoke(app, ["sessions", "show", "abc"])
+    assert result.exit_code == 1
+    assert "ambiguous" in result.stdout
+
+
+def test_detect_missing_session_id_exits_1(tmp_bsela_home: Path) -> None:
+    result = CliRunner().invoke(app, ["detect", "--session-id", "nonexistent-999"])
+    assert result.exit_code == 1
+    assert "not found" in result.stdout
 
 
 def test_errors_list_json_session_filter(tmp_bsela_home: Path) -> None:

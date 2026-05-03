@@ -382,6 +382,27 @@ def test_replay_persist_had_drift_true_when_drift(
 # ---- CLI bsela replay -------------------------------------------------------
 
 
+def test_cli_replay_ambiguous_prefix_exits_1(tmp_bsela_home: Path) -> None:
+    with patch("bsela.cli.resolve_session", side_effect=LookupError("ambiguous")):
+        result = CliRunner().invoke(app, ["replay", "abc"])
+    assert result.exit_code == 1
+    assert "ambiguous" in result.stdout
+
+
+def test_cli_replay_session_lookup_error_from_replay_session(
+    tmp_bsela_home: Path, sample_clean_session: Path
+) -> None:
+    ingest_file(sample_clean_session)
+    session_id = list_sessions(status="captured")[0].id
+    with (
+        patch("bsela.cli.replay_session", side_effect=LookupError("session gone")),
+        patch("bsela.cli.make_llm_client", return_value=None),
+    ):
+        result = CliRunner().invoke(app, ["replay", session_id])
+    assert result.exit_code == 1
+    assert "session gone" in result.stdout
+
+
 def test_cli_replay_not_found_exits_1(tmp_bsela_home: Path) -> None:
     fake = FakeLLMClient(
         judge_response=JudgeVerdict(

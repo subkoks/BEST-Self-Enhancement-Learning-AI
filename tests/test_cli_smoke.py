@@ -12,7 +12,7 @@ import pytest
 from typer.testing import CliRunner
 
 from bsela import __version__
-from bsela.cli import app
+from bsela.cli import _audit_json_payload, app
 from bsela.core.capture import ingest_file
 from bsela.core.hook_install import InstallPlan, InstallResult
 from bsela.core.process import ProcessResult
@@ -126,6 +126,13 @@ def test_lessons_json_locks_item_keys(tmp_bsela_home: Path, sample_clean_session
         "status",
         "why",
     ]
+
+
+def test_rollback_ambiguous_prefix_exits_1(tmp_bsela_home: Path) -> None:
+    with patch("bsela.cli.resolve_lesson", side_effect=LookupError("ambiguous")):
+        result = CliRunner().invoke(app, ["rollback", "abc"])
+    assert result.exit_code == 1
+    assert "ambiguous" in result.stdout
 
 
 def test_rollback_not_found_exits_1(tmp_bsela_home: Path) -> None:
@@ -400,6 +407,24 @@ def test_process_cli_errors_hint(tmp_bsela_home: Path, monkeypatch: pytest.Monke
         result = CliRunner().invoke(app, ["process"])
     assert result.exit_code == 0
     assert "hint" in result.stdout
+
+
+def test_distill_ambiguous_prefix_exits_1(tmp_bsela_home: Path) -> None:
+    with patch("bsela.cli.resolve_session", side_effect=LookupError("ambiguous")):
+        result = CliRunner().invoke(app, ["distill", "--session-id", "abc"])
+    assert result.exit_code == 1
+    assert "ambiguous" in result.stdout
+
+
+def test_distill_session_not_found_exits_1(tmp_bsela_home: Path) -> None:
+    result = CliRunner().invoke(app, ["distill", "--session-id", "nonexistent-999"])
+    assert result.exit_code == 1
+    assert "not found" in result.stdout
+
+
+def test_audit_json_payload_rejects_non_audit_report() -> None:
+    with pytest.raises(TypeError, match="AuditReport"):
+        _audit_json_payload("bad")
 
 
 def test_python_m_bsela_prints_help() -> None:

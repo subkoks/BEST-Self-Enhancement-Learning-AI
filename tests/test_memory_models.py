@@ -19,6 +19,7 @@ from bsela.memory.store import (
     list_replay_records,
     list_sessions,
     list_sessions_with_errors,
+    reset_engine_cache,
     resolve_lesson,
     resolve_session,
     save_decision,
@@ -242,3 +243,23 @@ def test_resolve_lesson_prefix(tmp_bsela_home: Path) -> None:
 
 def test_resolve_lesson_not_found(tmp_bsela_home: Path) -> None:
     assert resolve_lesson("00000000") is None
+
+
+def test_resolve_lesson_ambiguous(tmp_bsela_home: Path) -> None:
+    shared = "bbbbbbbb"
+    for i in range(2):
+        fake_id = f"{shared}-{str(uuid.uuid4())[9:]}"
+        lesson = Lesson(rule=f"rule{i}", why="w", how_to_apply="h", scope="project", confidence=0.9)
+        lesson.id = fake_id
+        save_lesson(lesson)
+    with pytest.raises(LookupError, match="ambiguous prefix"):
+        resolve_lesson(shared)
+
+
+def test_reset_engine_cache(tmp_bsela_home: Path) -> None:
+    # Ensure at least one engine is cached by touching the store.
+    save_lesson(Lesson(rule="r", why="w", how_to_apply="h", scope="project", confidence=0.9))
+    # reset_engine_cache must not raise; subsequent store operations still work.
+    reset_engine_cache()
+    result = resolve_lesson("00000000")
+    assert result is None

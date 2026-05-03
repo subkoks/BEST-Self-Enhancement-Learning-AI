@@ -12,8 +12,15 @@ from typer.testing import CliRunner
 
 from bsela.cli import app
 from bsela.core.updater import UpdaterError
-from bsela.memory.models import Lesson
-from bsela.memory.store import get_lesson, increment_hit_count, save_lesson, update_lesson_status
+from bsela.memory.models import ErrorRecord, Lesson, SessionRecord
+from bsela.memory.store import (
+    get_lesson,
+    increment_hit_count,
+    save_error,
+    save_lesson,
+    save_session,
+    update_lesson_status,
+)
 
 
 def _git(repo: Path, *args: str) -> str:
@@ -307,6 +314,48 @@ def test_review_show_not_found_exits_nonzero(tmp_bsela_home: Path) -> None:
     result = CliRunner().invoke(app, ["review", "show", "nonexistent-uuid"])
     assert result.exit_code == 1
     assert "not found" in result.stdout
+
+
+def test_review_propose_ambiguous_prefix_exits_1(tmp_bsela_home: Path) -> None:
+    with patch("bsela.cli.resolve_lesson", side_effect=LookupError("ambiguous")):
+        result = CliRunner().invoke(app, ["review", "propose", "abc"])
+    assert result.exit_code == 1
+    assert "ambiguous" in result.stdout
+
+
+def test_review_reject_ambiguous_prefix_exits_1(tmp_bsela_home: Path) -> None:
+    with patch("bsela.cli.resolve_lesson", side_effect=LookupError("ambiguous")):
+        result = CliRunner().invoke(app, ["review", "reject", "abc"])
+    assert result.exit_code == 1
+    assert "ambiguous" in result.stdout
+
+
+def test_review_show_ambiguous_prefix_exits_1(tmp_bsela_home: Path) -> None:
+    with patch("bsela.cli.resolve_lesson", side_effect=LookupError("ambiguous")):
+        result = CliRunner().invoke(app, ["review", "show", "abc"])
+    assert result.exit_code == 1
+    assert "ambiguous" in result.stdout
+
+
+def test_review_show_text_output_includes_source_error_id(tmp_bsela_home: Path) -> None:
+    session = save_session(
+        SessionRecord(source="test", transcript_path="t.jsonl", content_hash="h")
+    )
+    err = save_error(ErrorRecord(session_id=session.id, category="loop", snippet="x"))
+    lesson = save_lesson(
+        Lesson(
+            scope="project",
+            rule="rule with source error",
+            why="w",
+            how_to_apply="h",
+            confidence=0.9,
+            source_error_id=err.id,
+        )
+    )
+    result = CliRunner().invoke(app, ["review", "show", lesson.id])
+    assert result.exit_code == 0, result.stdout
+    assert "source_error:" in result.stdout
+    assert err.id in result.stdout
 
 
 def test_review_show_json_output(tmp_bsela_home: Path) -> None:
