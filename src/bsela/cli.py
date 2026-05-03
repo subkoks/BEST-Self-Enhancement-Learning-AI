@@ -412,9 +412,9 @@ def review_propose(
         raise typer.Exit(code=2) from None
 
     new_status = "approved" if gate.auto_merge else "proposed"
-    update_lesson_status(lesson_id, status=new_status, note=f"branch={result.branch}")
+    update_lesson_status(lesson.id, status=new_status, note=f"branch={result.branch}")
     typer.secho(
-        f"review: proposed lesson {lesson_id} -> {result.branch} "
+        f"review: proposed lesson {lesson.id} -> {result.branch} "
         f"(base={result.base_branch}, status={new_status})",
         fg=typer.colors.GREEN,
     )
