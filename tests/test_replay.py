@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 from typing import Literal
 from unittest.mock import patch
@@ -15,8 +16,14 @@ from bsela.core.detector import detect_errors
 from bsela.core.replay import LessonDiff, ReplayResult, replay_session
 from bsela.llm.client import FakeLLMClient
 from bsela.llm.types import DistillResponse, JudgeVerdict, LessonCandidate
-from bsela.memory.models import ErrorRecord, Lesson
-from bsela.memory.store import list_replay_records, list_sessions, save_error, save_lesson
+from bsela.memory.models import ErrorRecord, Lesson, ReplayRecord
+from bsela.memory.store import (
+    list_replay_records,
+    list_sessions,
+    save_error,
+    save_lesson,
+    save_replay_record,
+)
 
 FIXTURES = Path(__file__).parent / "fixtures" / "sample-sessions"
 
@@ -403,3 +410,67 @@ def test_cli_replay_no_save_skips_record(tmp_bsela_home: Path, sample_clean_sess
     # replay may exit 0 (no drift) or 1 (drift detected) — both valid
     assert result.exit_code in (0, 1)
     assert list_replay_records() == []
+
+
+def test_cli_replays_list_empty(tmp_bsela_home: Path) -> None:
+    result = CliRunner().invoke(app, ["replays", "list"])
+    assert result.exit_code == 0
+    assert "no entries" in result.stdout
+
+
+def test_cli_replays_list_shows_records(tmp_bsela_home: Path, sample_clean_session: Path) -> None:
+    ingest_file(sample_clean_session)
+    sid = list_sessions(status="captured")[0].id
+    save_replay_record(
+        ReplayRecord(
+            session_id=sid,
+            had_drift=True,
+            added_count=1,
+            removed_count=2,
+            changed_count=0,
+            unchanged_count=3,
+        )
+    )
+
+    result = CliRunner().invoke(app, ["replays", "list"])
+    assert result.exit_code == 0
+    assert "DRIFT" in result.stdout
+    assert sid[:8] in result.stdout
+
+
+def test_cli_replays_list_drift_only_filter(
+    tmp_bsela_home: Path, sample_clean_session: Path
+) -> None:
+    ingest_file(sample_clean_session)
+    sid = list_sessions(status="captured")[0].id
+    save_replay_record(
+        ReplayRecord(session_id=sid, had_drift=False, added_count=0, removed_count=0)
+    )
+
+    result = CliRunner().invoke(app, ["replays", "list", "--drift-only"])
+    assert result.exit_code == 0
+    assert "no entries" in result.stdout
+
+
+def test_cli_replays_list_json_output(tmp_bsela_home: Path, sample_clean_session: Path) -> None:
+    ingest_file(sample_clean_session)
+    sid = list_sessions(status="captured")[0].id
+    save_replay_record(ReplayRecord(session_id=sid, had_drift=True, added_count=1, removed_count=0))
+
+    result = CliRunner().invoke(app, ["replays", "list", "--json"])
+    assert result.exit_code == 0
+    rows = json.loads(result.stdout)
+    assert isinstance(rows, list)
+    assert len(rows) == 1
+    assert sorted(rows[0].keys()) == [
+        "added_count",
+        "changed_count",
+        "had_drift",
+        "id",
+        "removed_count",
+        "replayed_at",
+        "session_id",
+        "unchanged_count",
+    ]
+    assert rows[0]["had_drift"] is True
+    assert rows[0]["session_id"] == sid

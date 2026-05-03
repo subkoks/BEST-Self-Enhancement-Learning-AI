@@ -125,6 +125,13 @@ errors_app = typer.Typer(
     add_completion=False,
 )
 app.add_typer(errors_app, name="errors")
+replays_app = typer.Typer(
+    name="replays",
+    help="Inspect replay records (drift tracking).",
+    no_args_is_help=True,
+    add_completion=False,
+)
+app.add_typer(replays_app, name="replays")
 
 
 def _version_callback(value: bool) -> None:
@@ -774,6 +781,55 @@ def errors_list(
         typer.echo(
             f"- {row.id}  {stamp}  [{row.category}/{row.severity}] "
             f"sess={row.session_id[:8]}… {line}: {row.snippet[:80]}"
+        )
+    raise typer.Exit(code=0)
+
+
+@replays_app.command("list")
+def replays_list(
+    limit: Annotated[
+        int,
+        typer.Option("--limit", "-n", min=1, help="Max records to show."),
+    ] = 50,
+    drift_only: Annotated[
+        bool,
+        typer.Option("--drift-only", help="Show only records where drift was detected."),
+    ] = False,
+    as_json: Annotated[
+        bool,
+        typer.Option("--json", help="Emit a JSON array instead of human-readable text."),
+    ] = False,
+) -> None:
+    """List replay records (newest first)."""
+    rows = list_replay_records(limit=limit)
+    if drift_only:
+        rows = [r for r in rows if r.had_drift]
+    if as_json:
+        payload = [
+            {
+                "id": row.id,
+                "session_id": row.session_id,
+                "replayed_at": row.replayed_at.isoformat() if row.replayed_at else None,
+                "had_drift": row.had_drift,
+                "added_count": row.added_count,
+                "removed_count": row.removed_count,
+                "changed_count": row.changed_count,
+                "unchanged_count": row.unchanged_count,
+            }
+            for row in rows
+        ]
+        typer.echo(json.dumps(payload))
+        raise typer.Exit(code=0)
+    if not rows:
+        typer.echo("replays: no entries.")
+        raise typer.Exit(code=0)
+    for row in rows:
+        stamp = row.replayed_at.strftime("%Y-%m-%d %H:%M")
+        drift_tag = "DRIFT" if row.had_drift else "ok"
+        typer.echo(
+            f"- {row.id}  {stamp}  [{drift_tag}]  "
+            f"sess={row.session_id[:8]}…  "
+            f"+{row.added_count}/-{row.removed_count}/~{row.changed_count}/={row.unchanged_count}"
         )
     raise typer.Exit(code=0)
 
