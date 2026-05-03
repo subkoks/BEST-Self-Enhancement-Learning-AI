@@ -1,0 +1,9 @@
+{
+  // GitHub Actions extension resolves `uses:` via api.github.com; false 401s
+  // ("Unable to resolve action") are common. Plain YAML avoids GHA LS diagnostics here.
+  "github-actions.use-enterprise": false,
+  "files.associations": {
+    "**/.github/workflows/*.yml": "yaml",
+    "**/.github/workflows/*.yaml": "yaml"
+  }
+}
