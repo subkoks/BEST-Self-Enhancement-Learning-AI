@@ -47,3 +47,5 @@ jobs:
           plugins: |
             code-review@claude-plugins-official
             mcp-server-dev@claude-plugins-official
+            pyright-lsp@claude-plugins-official
+            typescript-lsp@claude-plugins-official
