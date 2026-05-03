@@ -41,15 +41,16 @@ bsela report [--window-days 7] [--stdout] # P4 dogfood report → ~/.bsela/repor
 bsela status                              # session / error / lesson counts
 bsela sessions list [--status captured]   # list captured sessions, newest first
 bsela sessions show <session-id>          # metadata + detected errors for one session
-bsela errors list [--session-id <id>]     # list detected error records
+bsela errors list [--session-id <id>] [--json]  # list detected error records
 bsela prune                               # drop rows outside retention windows
 bsela doctor                              # environment health check (API key, hook, agents-md repo)
 bsela hook install [--apply]              # wire the Claude Code Stop hook (dry-run by default)
 bsela decision add "<title>" -c ... -d ... -x ...  # log a load-bearing autonomous decision
-bsela decision list [-n 20]               # show recent decisions, newest first
+bsela decision list [-n 20] [--json]      # show recent decisions (--json for machine consumption)
 bsela route "<task>" [--json]             # P5 router: classify task → model role
 bsela audit [--weekly|--window-days N] [--stdout|--json]  # P5 weekly audit digest (markdown or JSON)
 bsela replay <session-id> [--no-save]   # P7: re-distill vs stored lessons; exit 1 on drift (needs API key)
+bsela replays list [--drift-only] [--json] [-n N]  # P7: list replay records (drift history)
 bsela rollback <lesson-id> [-n "..."]     # P7: soft-mark lesson rolled_back (local store only)
 ```
 
