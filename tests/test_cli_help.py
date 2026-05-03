@@ -10,6 +10,7 @@ from typer.testing import CliRunner
 
 from bsela import __version__
 from bsela.cli import app
+from bsela.core.capture import ingest_file
 from bsela.memory.models import Lesson
 from bsela.memory.store import save_lesson
 
@@ -32,6 +33,7 @@ def test_root_help_lists_core_commands(runner: CliRunner) -> None:
         "route",
         "audit",
         "replay",
+        "replays",
         "rollback",
         "doctor",
         "hook",
@@ -80,6 +82,7 @@ def test_nested_command_help_pages_load(runner: CliRunner) -> None:
         ["sessions", "list", "--help"],
         ["errors", "list", "--help"],
         ["decision", "add", "--help"],
+        ["replays", "list", "--help"],
         ["detect", "--help"],
         ["hook", "install", "--help"],
     ):
@@ -209,3 +212,38 @@ def test_audit_json_contract_stable_keys(tmp_bsela_home: Path, runner: CliRunner
     assert set(data.keys()) == _AUDIT_JSON_TOP_LEVEL
     assert data["window_days"] == 1
     assert isinstance(data["alerts"], list)
+
+
+# Must match ``SessionItem`` in ``mcp/src/bsela-client.ts`` (MCP ``bsela_sessions``).
+_SESSION_ITEM_JSON_KEYS = frozenset(
+    {"id", "status", "source", "turn_count", "tool_call_count", "ingested_at"}
+)
+
+# Must match ``ErrorItem`` in ``mcp/src/bsela-client.ts`` (MCP ``bsela_errors``).
+_ERROR_ITEM_JSON_KEYS = frozenset(
+    {"id", "session_id", "category", "severity", "line_number", "snippet", "detected_at"}
+)
+
+
+def test_sessions_list_json_contract(tmp_bsela_home: Path, runner: CliRunner) -> None:
+    """bsela sessions list --json row shape matches MCP SessionItem."""
+    fixtures = Path(__file__).parent / "fixtures" / "sample-sessions"
+    ingest_file(fixtures / "clean.jsonl")
+
+    result = runner.invoke(app, ["sessions", "list", "--json"])
+    assert result.exit_code == 0, result.stdout
+    rows = json.loads(result.stdout)
+    assert len(rows) == 1
+    assert set(rows[0].keys()) == _SESSION_ITEM_JSON_KEYS
+
+
+def test_errors_list_json_contract(tmp_bsela_home: Path, runner: CliRunner) -> None:
+    """bsela errors list --json row shape matches MCP ErrorItem."""
+    fixtures = Path(__file__).parent / "fixtures" / "sample-sessions"
+    ingest_file(fixtures / "user-correction.jsonl")
+
+    result = runner.invoke(app, ["errors", "list", "--json"])
+    assert result.exit_code == 0, result.stdout
+    rows = json.loads(result.stdout)
+    assert len(rows) >= 1
+    assert set(rows[0].keys()) == _ERROR_ITEM_JSON_KEYS
