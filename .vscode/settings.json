@@ -1,9 +1,9 @@
 {
   "github-actions.use-enterprise": false,
   "files.associations": {
-    ".github/workflows/audit.yml": "yaml",
-    ".github/workflows/ci.yml": "yaml",
-    ".github/workflows/claude.yml": "yaml",
-    ".github/workflows/mcp.yml": "yaml"
+    "**/.github/workflows/audit.yml": "yaml",
+    "**/.github/workflows/ci.yml": "yaml",
+    "**/.github/workflows/claude.yml": "yaml",
+    "**/.github/workflows/mcp.yml": "yaml"
   }
 }

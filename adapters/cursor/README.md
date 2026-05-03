@@ -10,6 +10,14 @@ For **multi-session / role-scoped** work in this repo, use the markdown orchestr
 2. MCP server built — `cd mcp && pnpm install --frozen-lockfile && pnpm build`
 3. Confirm `mcp/dist/server.js` exists
 
+## Open this repo in Cursor (recommended)
+
+For the fewest editor quirks (including false **GitHub Actions** diagnostics on workflow YAML), open the multi-root workspace file instead of only the folder:
+
+**File → Open Workspace from File… → choose [`bsela.code-workspace`](../../bsela.code-workspace)** at the repo root.
+
+That workspace embeds the same `files.associations` / `github-actions.use-enterprise` defaults as [`.vscode/settings.json`](../../.vscode/settings.json). After opening, run **Developer: Reload Window** once if the status bar still shows **GitHub Actions Workflow** for files under `.github/workflows/`.
+
 ## Wiring
 
 1. Copy or symlink [`mcp.json`](mcp.json) to `~/.cursor/mcp.json`:
@@ -57,4 +65,4 @@ Write surfaces (`bsela ingest`, `review propose`, etc.) stay CLI-only per [ADR 0
 - **"command not found"** — `bsela` is not on PATH. Run `bsela doctor` to diagnose.
 - **"ENOENT: dist/server.js"** — MCP server not built. Run `pnpm build` in `mcp/`.
 - **Empty response** — Check the absolute path in `mcp.json` is correct and points to `mcp/dist/server.js`.
-- **Problems: “Unable to resolve action …” on `.github/workflows/*.yml`** — False positives from the GitHub Actions extension when it cannot resolve `uses:` via the API (auth, rate limits, or [extension bugs](https://github.com/github/vscode-github-actions/issues/433)). This repo sets [`../../.vscode/settings.json`](../../.vscode/settings.json) (`files.associations` → plain `yaml` for each workflow file). Reload the window (`Developer: Reload Window`). If errors remain, confirm the folder is **Workspace Trusted**, sign in to GitHub under **Accounts**, or use **Extensions → GitHub Actions → Disable (Workspace)**.
+- **Problems: “Unable to resolve action …” on `.github/workflows/*.yml`** — False positives from the GitHub Actions extension when it cannot resolve `uses:` via the API (auth, rate limits, or [extension bugs](https://github.com/github/vscode-github-actions/issues/433)). Prefer opening [`bsela.code-workspace`](../../bsela.code-workspace); otherwise rely on [`.vscode/settings.json`](../../.vscode/settings.json) (`files.associations` → plain `yaml`). Reload the window (**Developer: Reload Window**). If the status bar still says **GitHub Actions Workflow**, use **Change Language Mode** (`Cmd/Ctrl+K` then `M`) → **YAML** once, or **Extensions → GitHub Actions → Disable (Workspace)**. Confirm the folder is **Workspace Trusted** and you are signed in to GitHub under **Accounts** if you keep the extension enabled.

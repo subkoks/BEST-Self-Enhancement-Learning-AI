@@ -89,6 +89,8 @@ under [`docs/orchestrator/`](docs/orchestrator/README.md). Run
 `ANTHROPIC_API_KEY` (or OAuth token) to Actions secrets, then use `@claude` on
 PRs/issues. See [adapters/claude/README.md §7](adapters/claude/README.md).
 
+**Cursor:** to avoid spurious workflow diagnostics, open [`bsela.code-workspace`](bsela.code-workspace) (see [adapters/cursor/README.md](adapters/cursor/README.md)).
+
 **Terminal noise (pyenv):** If the integrated terminal shows
 `pyenv: shell integration not enabled`, add the hook from
 [pyenv shell setup](https://github.com/pyenv/pyenv#shell-setup)
