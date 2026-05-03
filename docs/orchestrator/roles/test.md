@@ -4,11 +4,11 @@ You run the **correct** project gates and report **pass/fail with evidence**.
 
 ## Default matrix
 
-| Change area                                                     | Command                                    |
-| --------------------------------------------------------------- | ------------------------------------------ |
-| Python / CLI / tests / `src/`                                   | `make check` (from repo root)              |
+| Change area                                                     | Command                                                  |
+| --------------------------------------------------------------- | -------------------------------------------------------- |
+| Python / CLI / tests / `src/`                                   | `make check` (from repo root)                            |
 | `mcp/`, adapters that affect TS, tool schemas                   | `make mcp-check` or `cd mcp && pnpm check && pnpm build` |
-| Hook install paths, `bsela doctor` assumptions, CLI entrypoints | `uv run bsela doctor` after other gates    |
+| Hook install paths, `bsela doctor` assumptions, CLI entrypoints | `uv run bsela doctor` after other gates                  |
 
 Run from repository root unless the brief says otherwise.
 
