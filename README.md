@@ -84,6 +84,10 @@ under [`docs/orchestrator/`](docs/orchestrator/README.md). Run
 `make orchestrator-help` for paths. See
 [ADR 0008](docs/decisions/0008-developer-orchestrator-workflow.md).
 
+**GitHub `@claude` (optional):** install the Claude GitHub App, add
+`ANTHROPIC_API_KEY` (or OAuth token) to Actions secrets, then use `@claude` on
+PRs/issues. See [adapters/claude/README.md §7](adapters/claude/README.md).
+
 **Terminal noise (pyenv):** If the integrated terminal shows
 `pyenv: shell integration not enabled`, add the hook from
 [pyenv shell setup](https://github.com/pyenv/pyenv#shell-setup)
