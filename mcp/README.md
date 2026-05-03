@@ -7,10 +7,10 @@ CLI client it is built on. Part of P6 per
 ## Status
 
 - `BselaClient` — shells out to the `bsela` Python CLI and parses
-  JSON / text. First tools covered: `route`, `audit`, `status`.
+  JSON / text. Covers all six MCP tools.
 - MCP server binary `bsela-mcp` — implemented. Stdio transport,
-  four read-only tools (`bsela_route`, `bsela_audit`,
-  `bsela_status`, `bsela_lessons`). Built artefact at `dist/server.js`.
+  six read-only tools (`bsela_route`, `bsela_audit`, `bsela_status`,
+  `bsela_lessons`, `bsela_sessions`, `bsela_errors`). Built artefact at `dist/server.js`.
 - Codex / Windsurf / Cursor adapters — config snippets + per-editor READMEs
   shipped under [`../adapters/`](../adapters/). Real-session
   validation against live BSELA state still pending.
@@ -66,12 +66,14 @@ doctor` validates this.
 
 ### Tools exposed
 
-| Tool            | Inputs                          | Returns                                                |
-| --------------- | ------------------------------- | ------------------------------------------------------ |
-| `bsela_route`   | `task: string`                  | JSON `RouteDecision` (text + structuredContent)        |
-| `bsela_audit`   | `window_days?: number (1..365)` | JSON audit payload (text + structuredContent)          |
-| `bsela_status`  | —                               | JSON status payload (text + structuredContent)         |
-| `bsela_lessons` | `status?: enum, limit?: number` | JSON lesson array (text + `structuredContent.lessons`) |
+| Tool              | Inputs                                   | Returns                                                  |
+| ----------------- | ---------------------------------------- | -------------------------------------------------------- |
+| `bsela_route`     | `task: string`                           | JSON `RouteDecision` (text + structuredContent)          |
+| `bsela_audit`     | `window_days?: number (1..365)`          | JSON audit payload (text + structuredContent)            |
+| `bsela_status`    | —                                        | JSON status payload (text + structuredContent)           |
+| `bsela_lessons`   | `status?: enum, limit?: number`          | JSON lesson array (text + `structuredContent.lessons`)   |
+| `bsela_sessions`  | `status?: enum, limit?: number`          | JSON session array (text + `structuredContent.sessions`) |
+| `bsela_errors`    | `session_id?: string, limit?: number`    | JSON error array (text + `structuredContent.errors`)     |
 
 ## Other scripts
 
@@ -111,8 +113,8 @@ mcp/
 
 - The client is the _seam_. The Python core owns all logic; this
   package is strictly a transport / adaptation layer.
-- `route`, `audit`, and `status` are typed paths. `bsela audit --json`
-  and `bsela status --json` are treated as contract surfaces by the
-  TypeScript client.
+- All six tools are typed contract surfaces. The `--json` output of
+  each underlying `bsela` subcommand is treated as a versioned interface
+  by the TypeScript client; the parity test suite enforces alignment.
 - Errors surface as `BselaClientError` with the exit code and a
   truncated stderr snippet. No rethrown unknowns.

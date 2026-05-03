@@ -2,11 +2,14 @@
 /**
  * BSELA MCP server entry point.
  *
- * Per ADR 0006 the server exposes three read-only tools that shell
- * out to the `bsela` Python CLI:
+ * Per ADR 0006 the server exposes read-only tools that shell out to
+ * the `bsela` Python CLI. Current surface (six tools):
  *   * bsela_route(task)
  *   * bsela_audit(window_days?)
  *   * bsela_status()
+ *   * bsela_lessons(status?, limit?)
+ *   * bsela_sessions(status?, limit?)
+ *   * bsela_errors(session_id?, limit?)
  *
  * Transport: stdio. Editors launch this binary as a subprocess and
  * speak JSON-RPC over stdin/stdout. `bsela` must be on PATH —

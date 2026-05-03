@@ -2,11 +2,14 @@
  * MCP tool handlers for BSELA. Pure functions (client + args -> result)
  * so they can be unit-tested without the SDK transport.
  *
- * Per ADR 0006 the first MCP surface is read-only and maps 1:1 to
- * existing `bsela` CLI commands:
- *   * bsela_route   -> bsela route <task> --json
- *   * bsela_audit   -> bsela audit --json [--window-days N]
- *   * bsela_status  -> bsela status
+ * Per ADR 0006 the MCP surface is read-only and maps 1:1 to
+ * existing `bsela` CLI commands (six tools):
+ *   * bsela_route    -> bsela route <task> --json
+ *   * bsela_audit    -> bsela audit --json [--window-days N]
+ *   * bsela_status   -> bsela status --json
+ *   * bsela_lessons  -> bsela lessons --json [--status S] [--limit N]
+ *   * bsela_sessions -> bsela sessions list --json [--status S] [--limit N]
+ *   * bsela_errors   -> bsela errors list --json [--session-id X] [--limit N]
  */
 
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
