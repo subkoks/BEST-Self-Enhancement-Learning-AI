@@ -114,7 +114,7 @@ Per ADR 0006, the TS side landed as:
   `bsela_route`, `bsela_audit`, `bsela_status`, `bsela_lessons`.
   Smoke-tested via the
   MCP SDK `Client` over `InMemoryTransport` and over real `stdio`.
-- `.github/workflows/mcp.yml` — runs `pnpm check` inside `mcp/` on
+- `.github/workflows/mcp.yml` — runs `pnpm check` then `pnpm build` inside `mcp/` on
   PRs that touch `mcp/**` or any Python surface the JSON contract
   depends on. Python gates still explicitly exclude `mcp/`.
 

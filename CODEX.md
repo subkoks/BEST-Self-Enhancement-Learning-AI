@@ -12,7 +12,7 @@
 
 - Python: `make check` (ruff, mypy, pytest).
 - Health: `make doctor` (`uv run bsela doctor` — PATH, store, hook, agents-md).
-- TypeScript MCP: `make mcp-check` or `cd mcp && pnpm check`; server entry is `mcp/dist/server.js` after `pnpm build`.
+- TypeScript MCP: `make mcp-check` (runs `pnpm check` then `pnpm build`) or `cd mcp && pnpm check && pnpm build`; server entry is `mcp/dist/server.js`.
 
 ## Wire BSELA into Codex
 

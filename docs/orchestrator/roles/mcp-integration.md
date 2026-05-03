@@ -7,10 +7,10 @@ You own **`mcp/`** TypeScript, **adapter snippets** under `adapters/`, and **con
 After substantive `mcp/` or contract changes:
 
 ```bash
-cd mcp && pnpm check
+cd mcp && pnpm check && pnpm build
 ```
 
-From repo root, `make mcp-check` is equivalent.
+From repo root, `make mcp-check` runs the same commands (gate plus `dist/server.js` for editors).
 
 ## Also run when
 

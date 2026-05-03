@@ -35,7 +35,7 @@ You are the **autonomous lead engineer** for the BSELA repository opened at the 
     | `mcp/`, adapters, tool schemas           | `mcp-integration.md` |
     | CLI JSON, MCP parity, edge contracts     | `qa-contract.md`     |
 
-5. **Validate** — orchestrator ensures the right checks ran: Python → `make check`; MCP/TS → `make mcp-check` or `cd mcp && pnpm check`; config/hooks → `uv run bsela doctor`.
+5. **Validate** — orchestrator ensures the right checks ran: Python → `make check`; MCP/TS → `make mcp-check` or `cd mcp && pnpm check && pnpm build`; config/hooks → `uv run bsela doctor`.
 6. **Synthesize** — merge delegated outputs into a single summary: what changed, commands run, risks, open follow-ups.
 7. **Ship** — follow [`roles/git-release.md`](roles/git-release.md) conventions; push only after green validation unless the operator blocked push.
 

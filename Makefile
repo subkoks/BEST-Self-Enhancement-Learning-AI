@@ -16,7 +16,7 @@ help:
 	@echo "  cov           pytest -q with coverage (same flags as CI)"
 	@echo "  fix           ruff check --fix + ruff format (auto-fix what can be fixed)"
 	@echo "  clean         remove caches (.pytest_cache, .mypy_cache, .ruff_cache)"
-	@echo "  mcp-check     run pnpm check in mcp/ (format, lint, typecheck, tests)"
+	@echo "  mcp-check     run pnpm check + pnpm build in mcp/ (gate + dist/server.js)"
 	@echo "  mcp-parity    run CLI↔MCP parity harness in mcp/"
 	@echo "  orchestrator-help  print docs/orchestrator quick reference"
 	@echo "  dogfood-report   uv run bsela report --stdout (P4 dogfood; uses BSELA_HOME)"
@@ -54,7 +54,7 @@ clean:
 	rm -rf .pytest_cache .mypy_cache .ruff_cache
 
 mcp-check:
-	cd mcp && pnpm check
+	cd mcp && pnpm check && pnpm build
 
 mcp-parity:
 	cd mcp && pnpm parity

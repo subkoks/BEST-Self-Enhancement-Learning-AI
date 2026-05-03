@@ -15,8 +15,8 @@ cd mcp && pnpm install --frozen-lockfile && pnpm build
 make mcp-check
 ```
 
-(`make doctor` is `uv run bsela doctor`; `make mcp-check` is the full MCP
-workspace gate from the repo `Makefile`.)
+(`make doctor` is `uv run bsela doctor`; `make mcp-check` is `pnpm check`
+then `pnpm build` in `mcp/` so `dist/server.js` exists for MCP wiring.)
 
 Replace `<BSELA_REPO>` below with the absolute path to this repository
 (for example `/Users/you/Projects/.../BEST-Self-Enhancement-Learning-AI`).

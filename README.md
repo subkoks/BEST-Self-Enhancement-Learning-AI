@@ -75,7 +75,8 @@ to `main` and every PR.
 Health: `make doctor` runs `uv run bsela doctor` (Python, `bsela` on
 `PATH`, API key, `~/.bsela` store, agents-md repo, Claude Stop hook).
 
-MCP gate: `make mcp-check` runs `pnpm check` in `mcp/`.
+MCP gate: `make mcp-check` runs `pnpm check` then `pnpm build` in `mcp/`
+(so `dist/server.js` exists for editor MCP configs).
 `make mcp-parity` runs the CLI↔MCP parity harness (`route`,
 `audit`, `status`, `lessons`).
 
