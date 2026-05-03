@@ -23,9 +23,9 @@ Five types, one SQLite DB, typed tables:
 
 - `short-term task` — editor-native; BSELA does not persist.
 - `project` — `<repo>/AGENTS.md` + `<repo>/.bsela/project.db`.
-- `long-term learning` — `~/.bsela/lessons.db`; permanent; git-versioned via `agents-md`.
-- `error` — `~/.bsela/errors.db`; 90-day rolling window.
-- `decision` — `~/.bsela/decisions.db`; ADR-style, permanent.
+- `long-term learning` — `Lesson` rows in `~/.bsela/bsela.db`; durable rules ship via `agents-md` proposal branches.
+- `error` — `ErrorRecord` rows in `~/.bsela/bsela.db`; 90-day rolling window (`bsela prune`).
+- `decision` — `Decision` rows in `~/.bsela/bsela.db`; operator audit trail (separate from repo ADRs under `docs/decisions/`).
 
 ## Improvement Loop Contract
 
@@ -63,14 +63,14 @@ Pause and surface even in Auto Mode when a change would:
 - **Follow `docs/roadmap.md` phase order.** Jumping a phase requires a one-line flag in the status update and an ADR if the deviation is durable.
 - **Stay on `main` for solo work** per repo convention. No force-push, no history rewrites, no branch deletion without explicit ask.
 - **Batch + compact.** Parallelize independent reads/greps in one turn; avoid sleep-polling; prefer targeted diffs, short plans, terse status updates.
-- **Log autonomous decisions.** When resolving ambiguity without asking, add a one-sentence note to the end-of-turn summary and, once `bsela decision add` lands, persist load-bearing ones to the `decisions` table.
+- **Log autonomous decisions.** When resolving ambiguity without asking, add a one-sentence note to the end-of-turn summary and persist load-bearing ones with `bsela decision add` (same `~/.bsela/bsela.db` store).
 - **Two-failure rule.** If the same approach or identical tool call fails twice, switch strategy — do not loop retries.
 
 ## Tech Stack
 
 - Python 3.13 via pyenv; `uv` for deps.
 - `typer`, `sqlmodel`, `anthropic`, `pydantic`, `ruff`, `mypy`, `pytest`, `hypothesis`.
-- TypeScript only for the future MCP server (P6+).
+- TypeScript in `mcp/` for the MCP server (P6; see ADR 0006).
 
 ## Commit Conventions
 

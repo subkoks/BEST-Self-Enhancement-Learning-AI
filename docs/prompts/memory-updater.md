@@ -3,7 +3,7 @@ role: memory-updater
 model: haiku-4-5
 inputs:
   - lesson_draft: { rule, why, how_to_apply, scope, confidence }
-  - existing_lessons: top-K nearest matches from lessons.db
+  - existing_lessons: top-K nearest matches from the Lesson table in ~/.bsela/bsela.db
 outputs:
   - action: { create | merge | skip, target_id?, final_lesson }
 rules:
