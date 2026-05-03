@@ -32,12 +32,13 @@ P6. Claude Desktop and Claude Code are documented inline.
 
 ## Tools exposed (read-only, P6)
 
-| Tool            | Inputs                          | Returns              |
-| --------------- | ------------------------------- | -------------------- |
-| `bsela_route`   | `task: string`                  | `RouteDecision` JSON |
-| `bsela_audit`   | `window_days?: number (1..365)` | audit JSON payload   |
-| `bsela_status`  | —                               | status JSON payload  |
-| `bsela_lessons` | `status?: enum, limit?: number` | lessons JSON array   |
+| Tool              | Inputs                                    | Returns                |
+| ----------------- | ----------------------------------------- | ---------------------- |
+| `bsela_route`     | `task: string`                            | `RouteDecision` JSON   |
+| `bsela_audit`     | `window_days?: number (1..365)`           | audit JSON payload     |
+| `bsela_status`    | —                                         | status JSON payload    |
+| `bsela_lessons`   | `status?: enum, limit?: number`           | lessons JSON array     |
+| `bsela_sessions`  | `status?: captured\|quarantined, limit?`  | sessions JSON array    |
 
 Write surfaces (`bsela ingest`, `review propose`, `decision add`,
 `hook install`) stay CLI-only until the read surfaces have telemetry.
