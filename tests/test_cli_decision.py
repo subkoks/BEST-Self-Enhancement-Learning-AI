@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 from typer.testing import CliRunner
@@ -86,3 +87,61 @@ def test_decision_requires_all_fields(tmp_bsela_home: Path) -> None:
     )
     assert result.exit_code != 0
     assert list_decisions() == []
+
+
+def test_decision_list_json_empty(tmp_bsela_home: Path) -> None:
+    """decision list --json returns an empty array when no decisions exist."""
+    result = CliRunner().invoke(app, ["decision", "list", "--json"])
+    assert result.exit_code == 0, result.stdout
+    rows = json.loads(result.stdout)
+    assert rows == []
+
+
+def test_decision_list_json_output(tmp_bsela_home: Path) -> None:
+    """decision list --json emits a JSON array with the expected keys."""
+    runner = CliRunner()
+    runner.invoke(
+        app,
+        [
+            "decision",
+            "add",
+            "Use Haiku for judge",
+            "--context",
+            "Cost ceiling.",
+            "--decision",
+            "claude-haiku-4-5",
+            "--consequences",
+            "Slightly higher false-positive rate.",
+        ],
+    )
+
+    result = runner.invoke(app, ["decision", "list", "--json"])
+    assert result.exit_code == 0, result.stdout
+    rows = json.loads(result.stdout)
+    assert isinstance(rows, list)
+    assert len(rows) == 1
+    assert sorted(rows[0].keys()) == [
+        "consequences",
+        "context",
+        "created_at",
+        "decision",
+        "id",
+        "title",
+    ]
+    assert rows[0]["title"] == "Use Haiku for judge"
+
+
+def test_decision_list_json_respects_limit(tmp_bsela_home: Path) -> None:
+    """decision list --json --limit N caps returned rows."""
+    runner = CliRunner()
+    for title in ("first", "second", "third"):
+        runner.invoke(
+            app,
+            ["decision", "add", title, "--context", "c", "--decision", "d", "--consequences", "x"],
+        )
+
+    result = runner.invoke(app, ["decision", "list", "--json", "--limit", "2"])
+    assert result.exit_code == 0, result.stdout
+    rows = json.loads(result.stdout)
+    assert len(rows) == 2
+    assert rows[0]["title"] == "third"

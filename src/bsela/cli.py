@@ -613,9 +613,27 @@ def decision_list(
         int,
         typer.Option("--limit", "-n", min=1, help="Max decisions to show."),
     ] = 20,
+    as_json: Annotated[
+        bool,
+        typer.Option("--json", help="Emit a JSON array instead of human-readable text."),
+    ] = False,
 ) -> None:
     """List recently recorded decisions (newest first)."""
     rows = list_decisions(limit=limit)
+    if as_json:
+        payload = [
+            {
+                "id": row.id,
+                "title": row.title,
+                "context": row.context,
+                "decision": row.decision,
+                "consequences": row.consequences,
+                "created_at": row.created_at.isoformat() if row.created_at else None,
+            }
+            for row in rows
+        ]
+        typer.echo(json.dumps(payload))
+        raise typer.Exit(code=0)
     if not rows:
         typer.echo("decision: no entries yet.")
         raise typer.Exit(code=0)
@@ -725,9 +743,28 @@ def errors_list(
         int,
         typer.Option("--limit", "-n", min=1, help="Max errors to show."),
     ] = 50,
+    as_json: Annotated[
+        bool,
+        typer.Option("--json", help="Emit a JSON array instead of human-readable text."),
+    ] = False,
 ) -> None:
     """List detected error records (newest first)."""
     rows = list_errors(session_id=session_id, limit=limit)
+    if as_json:
+        payload = [
+            {
+                "id": row.id,
+                "session_id": row.session_id,
+                "category": row.category,
+                "severity": row.severity,
+                "line_number": row.line_number,
+                "snippet": row.snippet,
+                "detected_at": row.detected_at.isoformat() if row.detected_at else None,
+            }
+            for row in rows
+        ]
+        typer.echo(json.dumps(payload))
+        raise typer.Exit(code=0)
     if not rows:
         typer.echo("errors: no entries.")
         raise typer.Exit(code=0)

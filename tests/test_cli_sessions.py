@@ -1,4 +1,4 @@
-"""Tests for ``bsela sessions list/show`` and ``bsela errors list``."""
+"""Tests for ``bsela sessions list/show``, ``bsela errors list``, and ``bsela detect``."""
 
 from __future__ import annotations
 
@@ -264,4 +264,46 @@ def test_sessions_list_json_status_filter(tmp_bsela_home: Path) -> None:
     assert result.exit_code == 0, result.stdout
     rows = json.loads(result.stdout)
     assert all(r["status"] == "quarantined" for r in rows)
+
+
+def test_errors_list_json_empty(tmp_bsela_home: Path) -> None:
+    """errors list --json returns an empty array when no errors exist."""
+    result = CliRunner().invoke(app, ["errors", "list", "--json"])
+    assert result.exit_code == 0, result.stdout
+    rows = json.loads(result.stdout)
+    assert rows == []
+
+
+def test_errors_list_json_output(tmp_bsela_home: Path) -> None:
+    """errors list --json emits a JSON array with the expected keys."""
+    ingest_file(FIXTURES / "user-correction.jsonl")
+
+    result = CliRunner().invoke(app, ["errors", "list", "--json"])
+    assert result.exit_code == 0, result.stdout
+    rows = json.loads(result.stdout)
+    assert isinstance(rows, list)
+    assert len(rows) >= 1
+    assert sorted(rows[0].keys()) == [
+        "category",
+        "detected_at",
+        "id",
+        "line_number",
+        "session_id",
+        "severity",
+        "snippet",
+    ]
+
+
+def test_errors_list_json_session_filter(tmp_bsela_home: Path) -> None:
+    """errors list --json --session-id filters to one session's errors."""
+    ingest_file(FIXTURES / "user-correction.jsonl")
+    ingest_file(FIXTURES / "looped-read.jsonl")
+    sessions = list_sessions(status="captured", limit=10)
+    assert len(sessions) == 2
+    target_id = sessions[0].id
+
+    result = CliRunner().invoke(app, ["errors", "list", "--json", "--session-id", target_id])
+    assert result.exit_code == 0, result.stdout
+    rows = json.loads(result.stdout)
+    assert all(r["session_id"] == target_id for r in rows)
     assert len(rows) == 1
