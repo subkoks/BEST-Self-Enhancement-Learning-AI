@@ -1,19 +1,19 @@
-# BSELA developer gate. Mirrors what CI enforces — CI runs the same
-# ruff / mypy / pytest matrix. All targets run via uv so tool versions
-# follow the pyproject lockfile.
+# BSELA developer gate. `make check` mirrors CI: orchestrator drift guard,
+# ruff, mypy, pytest with `--cov-fail-under=99` (same as `.github/workflows/ci.yml`).
+# All targets run via uv so tool versions follow the pyproject lockfile.
 
 .PHONY: help check doctor lint format format-check type test cov fix clean mcp-check mcp-parity orchestrator-help dogfood-report dogfood-audit dogfood-process
 
 help:
 	@echo "BSELA make targets:"
-	@echo "  check         run lint + format-check + type + test (the full gate)"
+	@echo "  check         orchestrator-help + lint + format-check + type + cov (CI parity)"
 	@echo "  doctor        uv run bsela doctor (PATH, store, hook, agents-md)"
 	@echo "  lint          ruff check ."
 	@echo "  format        ruff format . (writes)"
 	@echo "  format-check  ruff format --check ."
 	@echo "  type          mypy src tests"
 	@echo "  test          pytest -q"
-	@echo "  cov           pytest -q with coverage (same flags as CI)"
+	@echo "  cov           pytest -q with coverage + --cov-fail-under=99 (CI parity)"
 	@echo "  fix           ruff check --fix + ruff format (auto-fix what can be fixed)"
 	@echo "  clean         remove caches (.pytest_cache, .mypy_cache, .ruff_cache)"
 	@echo "  mcp-check     run pnpm check + pnpm build in mcp/ (gate + dist/server.js)"
@@ -23,7 +23,7 @@ help:
 	@echo "  dogfood-audit    uv run bsela audit --weekly --stdout (P5 digest; exit 1 if alerts)"
 	@echo "  dogfood-process  print the batch-distill command (uses API; does not run it)"
 
-check: lint format-check type test
+check: orchestrator-help lint format-check type cov
 
 doctor:
 	uv run bsela doctor
@@ -44,7 +44,7 @@ test:
 	uv run pytest -q
 
 cov:
-	uv run pytest -q --cov=bsela --cov-report=term-missing
+	uv run pytest -q --cov=bsela --cov-report=term-missing --cov-fail-under=99
 
 fix:
 	uv run ruff check --fix .

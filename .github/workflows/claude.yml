@@ -1,6 +1,11 @@
 # Interactive Claude on GitHub: @claude in PR/issue/review threads.
 # Setup: https://github.com/anthropics/claude-code-action/blob/main/docs/setup.md
 # Security: https://github.com/anthropics/claude-code-action/blob/main/docs/security.md
+#
+# ANTHROPIC_API_KEY (repository secret): GitHub web UI → this repo → Settings →
+# Secrets and variables → Actions → New repository secret. Name: ANTHROPIC_API_KEY.
+# (Org-wide: Organization Settings → Secrets and variables → Actions.) Details:
+# adapters/claude/README.md section 7.
 
 name: Claude Code
 
