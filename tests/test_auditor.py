@@ -269,7 +269,7 @@ def test_replay_drift_below_threshold_no_alert(tmp_bsela_home: Path) -> None:
     _replay_rec(sess.id, had_drift=False)
     _replay_rec(sess.id, had_drift=False)
     _replay_rec(sess.id, had_drift=True)
-    _replay_rec(sess.id, had_drift=True)  # 2/4 = 50% < 80% threshold, not over
+    _replay_rec(sess.id, had_drift=True)  # 2/4 = 50% < replay_drift_threshold, not over
 
     report = build_audit(window_days=30, now=NOW)
     assert report.replay_drift.sessions_replayed == 4

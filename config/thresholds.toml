@@ -1,10 +1,12 @@
 # BSELA operational thresholds
 #
-# Tuned during P4 dogfood. Initial values are conservative placeholders.
+# Typed config surface (ADR 0006); replay drift semantics in ADR 0007.
+# Tuned 2026-05: ~36% human rejection on proposed lessons — stricter dedupe +
+# higher auto-merge bar cuts marginal duplicates and borderline auto-merge noise.
 
 [gates]
 # Minimum distiller confidence required to auto-merge a project-scoped lesson.
-auto_merge_confidence = 0.9
+auto_merge_confidence = 0.93
 
 # Global rules always require human review regardless of confidence.
 global_rules_require_review = true
@@ -25,8 +27,9 @@ retry_threshold = 4
 correction_markers = ["hard stop", "no wait", "don't do that", "revert that", "that's wrong", "start over", "you misunderstood"]
 
 [dedupe]
-# Cosine similarity above which two lessons are considered duplicates.
-similarity_threshold = 0.85
+# Jaccard overlap on rule tokens ≥ this → duplicate (distiller skips persist).
+# Lower = more aggressive dedupe (fewer near-duplicate pending lessons).
+similarity_threshold = 0.78
 
 # Hard cap on global lessons; oldest + lowest-hit evicted during compaction.
 max_global_lessons = 200
@@ -53,11 +56,10 @@ digest_day = 0
 drift_alarm_threshold = 0.5
 
 # Replay drift alarm: fraction of replayed sessions (30d window) that showed drift.
-# Fires when the pipeline's distillation changes too often vs. stored lessons.
-# Free-tier non-deterministic models (OpenRouter gpt-oss-20b:free) produce ~85-90%
-# drift on every run. Set to 0.92 while using free tier so the alarm fires only
-# on near-total inconsistency. Lower to 0.25 when switching to Anthropic claude-haiku.
-replay_drift_threshold = 0.92
+# Fires when drift_rate > this value (see bsela.core.auditor.ReplayDriftSnapshot).
+# Free-tier models often land ~85–90% drift; 0.88 is an early-warning band before
+# quality regressions dominate. Tighten toward 0.25 when on deterministic Haiku.
+replay_drift_threshold = 0.88
 
 [scrubber]
 # Pre-ingest secret patterns. Any match quarantines the session.
