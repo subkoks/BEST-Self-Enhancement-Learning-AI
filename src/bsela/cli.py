@@ -456,6 +456,10 @@ def review_reject(
 @review_app.command("show")
 def review_show(
     lesson_id: Annotated[str, typer.Argument(help="Lesson id (uuid).")],
+    as_json: Annotated[
+        bool,
+        typer.Option("--json", help="Emit the lesson as a JSON object."),
+    ] = False,
 ) -> None:
     """Show lesson details including rule, context, and application guidance."""
     try:
@@ -466,6 +470,26 @@ def review_show(
     if row is None:
         typer.secho(f"review: lesson {lesson_id} not found.", fg=typer.colors.RED)
         raise typer.Exit(code=1)
+
+    if as_json:
+        typer.echo(
+            json.dumps(
+                {
+                    "id": row.id,
+                    "status": row.status,
+                    "scope": row.scope,
+                    "confidence": row.confidence,
+                    "hit_count": row.hit_count,
+                    "rule": row.rule,
+                    "why": row.why,
+                    "how_to_apply": row.how_to_apply,
+                    "source_error_id": row.source_error_id,
+                    "created_at": row.created_at.isoformat() if row.created_at else None,
+                    "updated_at": row.updated_at.isoformat() if row.updated_at else None,
+                }
+            )
+        )
+        raise typer.Exit(code=0)
 
     typer.echo(f"id:           {row.id}")
     typer.echo(f"status:       {row.status}")

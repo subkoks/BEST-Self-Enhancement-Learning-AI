@@ -307,3 +307,27 @@ def test_review_show_not_found_exits_nonzero(tmp_bsela_home: Path) -> None:
     result = CliRunner().invoke(app, ["review", "show", "nonexistent-uuid"])
     assert result.exit_code == 1
     assert "not found" in result.stdout
+
+
+def test_review_show_json_output(tmp_bsela_home: Path) -> None:
+    """review show --json emits a JSON object with the expected keys."""
+    lesson = _project_lesson(confidence=0.91)
+    result = CliRunner().invoke(app, ["review", "show", lesson.id, "--json"])
+    assert result.exit_code == 0, result.stdout
+    data = json.loads(result.stdout)
+    assert sorted(data.keys()) == [
+        "confidence",
+        "created_at",
+        "hit_count",
+        "how_to_apply",
+        "id",
+        "rule",
+        "scope",
+        "source_error_id",
+        "status",
+        "updated_at",
+        "why",
+    ]
+    assert data["id"] == lesson.id
+    assert data["confidence"] == pytest.approx(0.91)
+    assert data["status"] == "pending"
