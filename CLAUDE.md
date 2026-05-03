@@ -10,7 +10,8 @@ Rule changes belong in `~/Projects/Current/Active/agents-md`, not in editor-sync
 **Multi-role dev workflow (optional):** lead + focused sub-sessions use
 [`docs/orchestrator/ORCHESTRATOR.md`](docs/orchestrator/ORCHESTRATOR.md)
 and [`docs/orchestrator/README.md`](docs/orchestrator/README.md) (ADR
-[0008](docs/decisions/0008-developer-orchestrator-workflow.md)).
+[0008](docs/decisions/0008-developer-orchestrator-workflow.md); Agent SDK posture:
+[0009](docs/decisions/0009-claude-agent-sdk-non-adoption.md)).
 
 For **Cursor** (MCP wiring), see [`adapters/cursor/README.md`](adapters/cursor/README.md) and the editor index in [`adapters/README.md`](adapters/README.md).
 

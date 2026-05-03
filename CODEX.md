@@ -6,6 +6,7 @@
 2. `[docs/roadmap.md](docs/roadmap.md)` — phase order; **P0–P7 shipped**; MCP + adapters remain the main integration surface for editors.
 3. `[docs/decisions/0006-p6-mcp-and-adapters.md](docs/decisions/0006-p6-mcp-and-adapters.md)` — MCP design and adapter expectations.
 4. Optional multi-role workflow: `[docs/orchestrator/README.md](docs/orchestrator/README.md)` (lead: `[docs/orchestrator/ORCHESTRATOR.md](docs/orchestrator/ORCHESTRATOR.md)`; ADR [0008](docs/decisions/0008-developer-orchestrator-workflow.md)).
+5. Agent SDK posture: `[docs/decisions/0009-claude-agent-sdk-non-adoption.md](docs/decisions/0009-claude-agent-sdk-non-adoption.md)`.
 
 ## Quality gate before you ship
 
