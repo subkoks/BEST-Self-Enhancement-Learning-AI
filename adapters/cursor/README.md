@@ -57,3 +57,4 @@ Write surfaces (`bsela ingest`, `review propose`, etc.) stay CLI-only per [ADR 0
 - **"command not found"** — `bsela` is not on PATH. Run `bsela doctor` to diagnose.
 - **"ENOENT: dist/server.js"** — MCP server not built. Run `pnpm build` in `mcp/`.
 - **Empty response** — Check the absolute path in `mcp.json` is correct and points to `mcp/dist/server.js`.
+- **Problems: “Unable to resolve action …” on `.github/workflows/*.yml`** — False positives from the GitHub Actions extension when it cannot resolve `uses:` via the API (auth, rate limits, or [extension bugs](https://github.com/github/vscode-github-actions/issues/433)). This repo sets [`../../.vscode/settings.json`](../../.vscode/settings.json) (`files.associations` → plain `yaml` for each workflow file). Reload the window (`Developer: Reload Window`). If errors remain, confirm the folder is **Workspace Trusted**, sign in to GitHub under **Accounts**, or use **Extensions → GitHub Actions → Disable (Workspace)**.
