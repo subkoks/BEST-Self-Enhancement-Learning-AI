@@ -110,9 +110,9 @@ Per ADR 0006, the TS side landed as:
   `RouteDecision` / typed audit + status output. Seventeen integration
   tests green against the real CLI.
 - `bsela-mcp` server binary (`mcp/src/server.ts`, dist entry
-  `mcp/dist/server.js`) — stdio transport, five tools registered:
+  `mcp/dist/server.js`) — stdio transport, six tools registered:
   `bsela_route`, `bsela_audit`, `bsela_status`, `bsela_lessons`,
-  `bsela_sessions`.
+  `bsela_sessions`, `bsela_errors`.
   Smoke-tested via the
   MCP SDK `Client` over `InMemoryTransport` and over real `stdio`.
 - `.github/workflows/mcp.yml` — runs `pnpm check` then `pnpm build` inside `mcp/` on

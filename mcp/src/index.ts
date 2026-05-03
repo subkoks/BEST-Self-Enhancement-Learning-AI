@@ -11,6 +11,8 @@ export {
   BselaClient,
   BselaClientError,
   type BselaClientOptions,
+  type ErrorItem,
+  isErrorItem,
   isLessonItem,
   isSessionItem,
   type LessonItem,
@@ -24,6 +26,7 @@ export { createServer, main, type CreateServerOptions } from "./server.js";
 
 export {
   handleAudit,
+  handleErrors,
   handleLessons,
   handleRoute,
   handleSessions,

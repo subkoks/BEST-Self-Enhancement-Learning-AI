@@ -11,11 +11,13 @@ import {
   BselaClient,
   BselaClientError,
   handleAudit,
+  handleErrors,
   handleLessons,
   handleRoute,
   handleSessions,
   handleStatus,
   toolDefinitions,
+  type ErrorItem,
   type LessonItem,
   type RouteDecision,
   type SessionItem,
@@ -31,9 +33,10 @@ function sortedKeys(value: Record<string, unknown>): Array<string> {
 }
 
 describe("toolDefinitions", () => {
-  it("declares the five tools including bsela_sessions", () => {
+  it("declares all six tools including bsela_errors", () => {
     expect(Object.keys(toolDefinitions).sort()).toEqual([
       "bsela_audit",
+      "bsela_errors",
       "bsela_lessons",
       "bsela_route",
       "bsela_sessions",
@@ -377,6 +380,71 @@ describe("handleSessions", () => {
     const client = stubClient({ sessions });
 
     const result = await handleSessions(client, {});
+
+    expect(result.isError).toBe(true);
+    expect((result.content[0] as { text: string }).text).toContain("cli failed");
+  });
+});
+
+describe("handleErrors", () => {
+  const sampleError: ErrorItem = {
+    id: "err-001",
+    session_id: "sess-001",
+    category: "correction",
+    severity: "medium",
+    line_number: 42,
+    snippet: "user said stop",
+    detected_at: "2026-05-02T10:00:00+00:00",
+  };
+
+  it("returns error items as JSON text and structuredContent.errors", async () => {
+    const errors = vi.fn().mockResolvedValue([sampleError]);
+    const client = stubClient({ errors });
+
+    const result = await handleErrors(client, {});
+
+    expect(result.isError).toBeFalsy();
+    const parsed = JSON.parse((result.content[0] as { text: string }).text) as unknown[];
+    expect(parsed).toEqual([sampleError]);
+    expect(result.structuredContent).toEqual({ errors: [sampleError] });
+  });
+
+  it("returns empty array when no errors exist", async () => {
+    const errors = vi.fn().mockResolvedValue([]);
+    const client = stubClient({ errors });
+
+    const result = await handleErrors(client, {});
+
+    expect(result.isError).toBeFalsy();
+    expect(errors).toHaveBeenCalledWith({});
+    const parsed = JSON.parse((result.content[0] as { text: string }).text) as unknown[];
+    expect(parsed).toEqual([]);
+    expect(result.structuredContent).toEqual({ errors: [] });
+  });
+
+  it("passes session_id filter to the client as sessionId", async () => {
+    const errors = vi.fn().mockResolvedValue([]);
+    const client = stubClient({ errors });
+
+    await handleErrors(client, { session_id: "sess-abc" });
+
+    expect(errors).toHaveBeenCalledWith({ sessionId: "sess-abc" });
+  });
+
+  it("passes limit through to the client", async () => {
+    const errors = vi.fn().mockResolvedValue([sampleError]);
+    const client = stubClient({ errors });
+
+    await handleErrors(client, { limit: 10 });
+
+    expect(errors).toHaveBeenCalledWith({ limit: 10 });
+  });
+
+  it("returns error result on client failure", async () => {
+    const errors = vi.fn().mockRejectedValue(new BselaClientError("cli failed", 1, "stderr"));
+    const client = stubClient({ errors });
+
+    const result = await handleErrors(client, {});
 
     expect(result.isError).toBe(true);
     expect((result.content[0] as { text: string }).text).toContain("cli failed");

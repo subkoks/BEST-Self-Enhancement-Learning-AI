@@ -39,6 +39,7 @@ P6. Claude Desktop and Claude Code are documented inline.
 | `bsela_status`    | —                                         | status JSON payload    |
 | `bsela_lessons`   | `status?: enum, limit?: number`           | lessons JSON array     |
 | `bsela_sessions`  | `status?: captured\|quarantined, limit?`  | sessions JSON array    |
+| `bsela_errors`    | `session_id?: string, limit?`             | errors JSON array      |
 
 Write surfaces (`bsela ingest`, `review propose`, `decision add`,
 `hook install`) stay CLI-only until the read surfaces have telemetry.

@@ -108,6 +108,16 @@ export interface SessionItem {
   ingested_at: string | null;
 }
 
+export interface ErrorItem {
+  id: string;
+  session_id: string;
+  category: string;
+  severity: string;
+  line_number: number | null;
+  snippet: string;
+  detected_at: string | null;
+}
+
 export interface BselaClientOptions {
   binary?: string;
   cwd?: string;
@@ -321,6 +331,24 @@ export function isSessionItem(value: unknown): value is SessionItem {
   );
 }
 
+export function isErrorItem(value: unknown): value is ErrorItem {
+  if (typeof value !== "object" || value === null) return false;
+  const v = value as Record<string, unknown>;
+  const lineOk =
+    v.line_number === null || v.line_number === undefined || typeof v.line_number === "number";
+  const detectedOk =
+    v.detected_at === undefined || v.detected_at === null || typeof v.detected_at === "string";
+  return (
+    typeof v.id === "string" &&
+    typeof v.session_id === "string" &&
+    typeof v.category === "string" &&
+    typeof v.severity === "string" &&
+    typeof v.snippet === "string" &&
+    lineOk &&
+    detectedOk
+  );
+}
+
 export class BselaClient {
   private readonly options: BselaClientOptions;
 
@@ -432,6 +460,25 @@ export class BselaClient {
     if (!Array.isArray(parsed) || !parsed.every(isSessionItem)) {
       throw new BselaClientError(
         "bsela sessions list returned an unexpected payload shape",
+        result.exitCode,
+        JSON.stringify(parsed).slice(0, 200),
+      );
+    }
+    return parsed;
+  }
+
+  async errors(options: { sessionId?: string; limit?: number } = {}): Promise<Array<ErrorItem>> {
+    const args = ["errors", "list", "--json"];
+    if (options.sessionId !== undefined) args.push("--session-id", options.sessionId);
+    if (options.limit !== undefined) args.push("--limit", String(options.limit));
+
+    const result = await runBsela(args, this.options);
+    assertSuccess(args, result);
+
+    const parsed = parseJson(result.stdout.trim());
+    if (!Array.isArray(parsed) || !parsed.every(isErrorItem)) {
+      throw new BselaClientError(
+        "bsela errors list returned an unexpected payload shape",
         result.exitCode,
         JSON.stringify(parsed).slice(0, 200),
       );

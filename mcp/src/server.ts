@@ -20,6 +20,7 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { BselaClient } from "./bsela-client.js";
 import {
   handleAudit,
+  handleErrors,
   handleLessons,
   handleRoute,
   handleSessions,
@@ -91,6 +92,16 @@ export function createServer(options: CreateServerOptions = {}): McpServer {
       inputSchema: toolDefinitions.bsela_sessions.inputSchema,
     },
     async (args) => handleSessions(client, args),
+  );
+
+  server.registerTool(
+    "bsela_errors",
+    {
+      title: toolDefinitions.bsela_errors.title,
+      description: toolDefinitions.bsela_errors.description,
+      inputSchema: toolDefinitions.bsela_errors.inputSchema,
+    },
+    async (args) => handleErrors(client, args),
   );
 
   return server;

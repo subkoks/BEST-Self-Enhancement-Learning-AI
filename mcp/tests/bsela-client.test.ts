@@ -5,7 +5,13 @@ import { tmpdir } from "node:os";
 
 import { describe, expect, it } from "vitest";
 
-import { BselaClient, BselaClientError, isLessonItem, type LessonItem } from "../src/index.js";
+import {
+  BselaClient,
+  BselaClientError,
+  isErrorItem,
+  isLessonItem,
+  type LessonItem,
+} from "../src/index.js";
 
 /**
  * These are integration tests: they shell out to the `bsela`
@@ -266,6 +272,67 @@ exit 1
       expect(payload).toEqual([]);
     } finally {
       await rm(dir, { recursive: true, force: true });
+    }
+  });
+});
+
+describe("isErrorItem", () => {
+  const sample = {
+    id: "err-001",
+    session_id: "sess-001",
+    category: "correction",
+    severity: "medium",
+    line_number: 42,
+    snippet: "user said stop",
+    detected_at: "2026-05-02T10:00:00+00:00",
+  };
+
+  it("accepts a well-formed error row", () => {
+    expect(isErrorItem(sample)).toBe(true);
+  });
+
+  it("accepts null line_number and detected_at", () => {
+    expect(isErrorItem({ ...sample, line_number: null, detected_at: null })).toBe(true);
+  });
+
+  it("rejects if session_id is missing", () => {
+    const { session_id: _s, ...rest } = sample;
+    expect(isErrorItem(rest)).toBe(false);
+  });
+});
+
+describe("BselaClient.errors", () => {
+  const client = makeClient();
+
+  it("returns an array (possibly empty) of error items", async () => {
+    const items = await client.errors({ limit: 5 });
+    expect(Array.isArray(items)).toBe(true);
+    if (items[0] !== undefined) {
+      expect(sortedKeys(items[0] as unknown as Record<string, unknown>)).toEqual([
+        "category",
+        "detected_at",
+        "id",
+        "line_number",
+        "session_id",
+        "severity",
+        "snippet",
+      ]);
+    }
+  });
+
+  it("returns empty array on a fresh BSELA_HOME", async () => {
+    const home = await mkdtemp(join(tmpdir(), "bsela-errors-empty-"));
+    try {
+      const localBin = join(homedir(), ".local", "bin");
+      const path = `${localBin}:${process.env["PATH"] ?? ""}`;
+      const isolatedClient = new BselaClient({
+        env: { ...process.env, PATH: path, BSELA_HOME: home },
+        cwd: home,
+      });
+      const items = await isolatedClient.errors({ limit: 5 });
+      expect(items).toEqual([]);
+    } finally {
+      await rm(home, { recursive: true, force: true });
     }
   });
 });

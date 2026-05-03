@@ -6,7 +6,7 @@ BSELA captures every session, distills recurring failures into durable rules, pr
 
 ## Status
 
-**P0–P7 are complete** per [`docs/roadmap.md`](docs/roadmap.md): capture through replay, drift alarms, rollback, and the TypeScript MCP server ([ADR 0006](docs/decisions/0006-p6-mcp-and-adapters.md)) with five read-only tools in [`mcp/`](mcp/), plus editor wiring under [`adapters/`](adapters/) (Claude Code: [`adapters/claude/README.md`](adapters/claude/README.md); Codex/Windsurf: per-editor folders there). Ongoing operator work is dogfood, threshold tuning, and cross-editor MCP validation — see the **Next Action** section in the roadmap. Quick Codex handoff: [`CODEX.md`](CODEX.md).
+**P0–P7 are complete** per [`docs/roadmap.md`](docs/roadmap.md): capture through replay, drift alarms, rollback, and the TypeScript MCP server ([ADR 0006](docs/decisions/0006-p6-mcp-and-adapters.md)) with six read-only tools in [`mcp/`](mcp/), plus editor wiring under [`adapters/`](adapters/) (Claude Code: [`adapters/claude/README.md`](adapters/claude/README.md); Codex/Windsurf: per-editor folders there). Ongoing operator work is dogfood, threshold tuning, and cross-editor MCP validation — see the **Next Action** section in the roadmap. Quick Codex handoff: [`CODEX.md`](CODEX.md).
 
 ## Mission
 

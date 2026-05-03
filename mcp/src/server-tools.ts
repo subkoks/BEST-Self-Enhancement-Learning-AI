@@ -16,6 +16,7 @@ import {
   BselaClientError,
   type AuditPayload,
   type BselaClient,
+  type ErrorItem,
   type LessonItem,
   type SessionItem,
   type StatusPayload,
@@ -43,6 +44,11 @@ export const lessonsInputSchema = {
 export const sessionsInputSchema = {
   status: z.enum(["captured", "quarantined"]).optional(),
   limit: z.number().int().positive().max(200).optional(),
+} as const;
+
+export const errorsInputSchema = {
+  session_id: z.string().optional(),
+  limit: z.number().int().positive().max(500).optional(),
 } as const;
 
 function errorResult(err: unknown, fallback: string): ToolTextResult {
@@ -140,6 +146,24 @@ export async function handleSessions(
   }
 }
 
+export async function handleErrors(
+  client: BselaClient,
+  args: { session_id?: string | undefined; limit?: number | undefined },
+): Promise<ToolTextResult> {
+  try {
+    const opts: { sessionId?: string; limit?: number } = {};
+    if (args.session_id !== undefined) opts.sessionId = args.session_id;
+    if (args.limit !== undefined) opts.limit = args.limit;
+    const items: Array<ErrorItem> = await client.errors(opts);
+    return {
+      content: [{ type: "text", text: JSON.stringify(items, null, 2) }],
+      structuredContent: { errors: items } as unknown as Record<string, unknown>,
+    };
+  } catch (err) {
+    return errorResult(err, "bsela errors list failed");
+  }
+}
+
 export const toolDefinitions = {
   bsela_route: {
     title: "BSELA route",
@@ -170,6 +194,12 @@ export const toolDefinitions = {
     description:
       "Return captured BSELA sessions as a JSON array plus structuredContent.sessions. Optionally filter by status (captured|quarantined) and cap results with limit. Each item includes id, status, source, turn_count, tool_call_count, and ingested_at.",
     inputSchema: sessionsInputSchema,
+  },
+  bsela_errors: {
+    title: "BSELA errors",
+    description:
+      "Return detected error records as a JSON array plus structuredContent.errors. Optionally filter by session_id and cap results with limit. Each item includes id, session_id, category, severity, line_number, snippet, and detected_at.",
+    inputSchema: errorsInputSchema,
   },
 } as const;
 

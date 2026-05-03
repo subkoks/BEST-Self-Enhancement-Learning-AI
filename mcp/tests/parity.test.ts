@@ -12,6 +12,7 @@ import {
   BselaClient,
   createServer,
   type AuditPayload,
+  type ErrorItem,
   type LessonItem,
   type SessionItem,
 } from "../src/index.js";
@@ -37,6 +38,17 @@ const EXPECTED_SESSION_ROW_KEYS: Array<string> = [
   "status",
   "tool_call_count",
   "turn_count",
+];
+
+/** Sorted keys for each CLI/MCP ``ErrorItem`` row. */
+const EXPECTED_ERROR_ROW_KEYS: Array<string> = [
+  "category",
+  "detected_at",
+  "id",
+  "line_number",
+  "session_id",
+  "severity",
+  "snippet",
 ];
 
 const REPO_ROOT = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
@@ -236,6 +248,49 @@ describe("CLI↔MCP parity", () => {
       if (directSessions[0] !== undefined) {
         expect(sortedKeys(directSessions[0] as unknown as Record<string, unknown>)).toEqual(
           EXPECTED_SESSION_ROW_KEYS,
+        );
+      }
+    } finally {
+      await mcp.close();
+    }
+  });
+
+  it("keeps empty-errors parity for direct and MCP paths", async () => {
+    const { client, home } = await makeIsolatedClient();
+    const mcp = await connectClient(client);
+    try {
+      const directErrors = await client.errors({ limit: 3 });
+      expect(directErrors).toEqual([]);
+
+      const errorsResult = await mcp.callTool({
+        name: "bsela_errors",
+        arguments: { limit: 3 },
+      });
+      const mcpErrors = parseTextJson<Array<ErrorItem>>(errorsResult);
+      expect(mcpErrors).toEqual([]);
+      expect(errorsResult.structuredContent).toEqual({ errors: [] });
+    } finally {
+      await mcp.close();
+      await rm(home, { recursive: true, force: true });
+    }
+  });
+
+  it("keeps errors row-key parity for direct and MCP paths when errors exist", async () => {
+    const client = makeClient();
+    const mcp = await connectClient(client);
+    try {
+      const directErrors = await client.errors({ limit: 1 });
+
+      const errorsResult = await mcp.callTool({
+        name: "bsela_errors",
+        arguments: { limit: 1 },
+      });
+      const mcpErrors = parseTextJson<Array<ErrorItem>>(errorsResult);
+      expect(mcpErrors).toEqual(directErrors);
+      expect(errorsResult.structuredContent).toEqual({ errors: directErrors });
+      if (directErrors[0] !== undefined) {
+        expect(sortedKeys(directErrors[0] as unknown as Record<string, unknown>)).toEqual(
+          EXPECTED_ERROR_ROW_KEYS,
         );
       }
     } finally {
