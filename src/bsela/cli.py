@@ -1195,7 +1195,12 @@ def process(
         ),
     ] = False,
 ) -> None:
-    """Batch-distill recent captured sessions (requires ANTHROPIC_API_KEY)."""
+    """Batch-distill recent captured sessions.
+
+    Live mode needs ANTHROPIC_API_KEY and may write pending lessons. Use
+    --dry-run to preview the same session selection with no API calls and no
+    store mutations.
+    """
     if dry_run:
         result = process_sessions(
             client=None,

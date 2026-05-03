@@ -330,3 +330,18 @@ def test_process_dry_run_cli_empty_store(tmp_bsela_home: Path) -> None:
     assert result.exit_code == 0, result.stdout
     assert "dry-run" in result.stdout
     assert "no LLM calls" in result.stdout
+
+
+def test_process_help_mentions_dry_run_without_api_key(tmp_bsela_home: Path) -> None:
+    """CLI help distinguishes live mode (API key) from --dry-run (no key)."""
+    runner = CliRunner()
+    result = runner.invoke(
+        app,
+        ["process", "--help"],
+        env={"NO_COLOR": "1", "TERM": "dumb"},
+    )
+    assert result.exit_code == 0, result.stdout
+    lowered = result.stdout.lower()
+    assert "anthropic_api_key" in lowered
+    assert "--dry-run" in lowered
+    assert "no api calls" in lowered
