@@ -267,6 +267,13 @@ def test_sessions_list_json_status_filter(tmp_bsela_home: Path) -> None:
     assert all(r["status"] == "quarantined" for r in rows)
 
 
+def test_sessions_list_json_quarantined_empty_when_only_captured(tmp_bsela_home: Path) -> None:
+    ingest_file(FIXTURES / "clean.jsonl")
+    result = CliRunner().invoke(app, ["sessions", "list", "--json", "--status", "quarantined"])
+    assert result.exit_code == 0, result.stdout
+    assert json.loads(result.stdout) == []
+
+
 def test_errors_list_json_empty(tmp_bsela_home: Path) -> None:
     """errors list --json returns an empty array when no errors exist."""
     result = CliRunner().invoke(app, ["errors", "list", "--json"])
@@ -321,3 +328,19 @@ def test_errors_list_json_session_filter(tmp_bsela_home: Path) -> None:
     rows = json.loads(result.stdout)
     assert all(r["session_id"] == target_id for r in rows)
     assert len(rows) == 1
+
+
+def test_errors_list_json_session_filter_empty_when_session_has_no_errors(
+    tmp_bsela_home: Path,
+) -> None:
+    ingest_file(FIXTURES / "clean.jsonl")
+    ingest_file(FIXTURES / "user-correction.jsonl")
+    without_errors: str | None = None
+    for sess in list_sessions(status="captured", limit=10):
+        if not list_errors(session_id=sess.id, limit=None):
+            without_errors = sess.id
+            break
+    assert without_errors is not None
+    result = CliRunner().invoke(app, ["errors", "list", "--json", "--session-id", without_errors])
+    assert result.exit_code == 0, result.stdout
+    assert json.loads(result.stdout) == []

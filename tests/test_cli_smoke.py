@@ -92,6 +92,22 @@ def test_lessons_json_with_empty_store_returns_empty_array(tmp_bsela_home: Path)
     assert payload == []
 
 
+def test_lessons_json_status_mismatch_returns_empty_array(tmp_bsela_home: Path) -> None:
+    save_lesson(
+        Lesson(
+            scope="project",
+            rule="r",
+            why="w",
+            how_to_apply="h",
+            confidence=0.9,
+            status="pending",
+        )
+    )
+    result = CliRunner().invoke(app, ["lessons", "--json", "--status", "proposed"])
+    assert result.exit_code == 0
+    assert json.loads(result.stdout) == []
+
+
 def test_lessons_json_locks_item_keys(tmp_bsela_home: Path, sample_clean_session: Path) -> None:
     ingest_file(sample_clean_session)
     session_id = list_sessions()[0].id
