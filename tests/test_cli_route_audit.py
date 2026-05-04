@@ -65,6 +65,16 @@ def test_route_empty_task_falls_back_to_default() -> None:
     assert "0.50" in result.stdout
 
 
+def test_route_empty_task_json_payload_matches_fallthrough() -> None:
+    result = CliRunner().invoke(app, ["route", "   ", "--json"])
+    assert result.exit_code == 0
+    payload = json.loads(result.stdout)
+    assert payload["task_class"] == "builder"
+    assert payload["confidence"] == 0.5
+    assert payload["matched_keywords"] == []
+    assert "empty" in payload["reason"].lower()
+
+
 def test_audit_writes_markdown_when_store_empty(tmp_bsela_home: Path) -> None:
     result = CliRunner().invoke(app, ["audit"])
     # Empty store, no alerts → exit 0, file written.
