@@ -31,6 +31,32 @@ def test_route_json_mode_returns_machine_payload() -> None:
     assert "refactor" in payload["matched_keywords"]
 
 
+def test_route_json_locks_top_level_keys() -> None:
+    result = CliRunner().invoke(app, ["route", "plan the P5 rollout", "--json"])
+    assert result.exit_code == 0
+    payload = json.loads(result.stdout)
+    assert sorted(payload.keys()) == [
+        "confidence",
+        "matched_keywords",
+        "model",
+        "reason",
+        "task_class",
+    ]
+
+
+def test_route_json_matched_keywords_empty_when_no_bucket_matches() -> None:
+    """Neutral text must not invent keywords; JSON still lists the key as []."""
+    result = CliRunner().invoke(
+        app,
+        ["route", "qwertyuiop asdfghjkl zxcvbnm typography neutral", "--json"],
+    )
+    assert result.exit_code == 0
+    payload = json.loads(result.stdout)
+    assert payload["task_class"] == "builder"
+    assert payload["confidence"] == 0.5
+    assert payload["matched_keywords"] == []
+
+
 def test_route_empty_task_falls_back_to_default() -> None:
     result = CliRunner().invoke(app, ["route", "   "])
     assert result.exit_code == 0

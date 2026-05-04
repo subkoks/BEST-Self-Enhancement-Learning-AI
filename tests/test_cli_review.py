@@ -207,6 +207,14 @@ def test_review_list_json_empty_store_returns_empty_array(tmp_bsela_home: Path) 
     assert json.loads(result.stdout) == []
 
 
+def test_review_list_json_status_mismatch_returns_empty_array(tmp_bsela_home: Path) -> None:
+    """``--status proposed`` with only pending rows must serialize as []."""
+    _project_lesson()
+    result = CliRunner().invoke(app, ["review", "list", "--json", "--status", "proposed"])
+    assert result.exit_code == 0
+    assert json.loads(result.stdout) == []
+
+
 def test_review_list_json_track_hits_persists_after_payload(tmp_bsela_home: Path) -> None:
     lesson = _project_lesson()
     result = CliRunner().invoke(app, ["review", "list", "--json", "--track-hits", "--limit", "1"])
