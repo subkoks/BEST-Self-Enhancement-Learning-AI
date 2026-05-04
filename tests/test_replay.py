@@ -439,6 +439,25 @@ def test_cli_replays_list_empty(tmp_bsela_home: Path) -> None:
     assert "no entries" in result.stdout
 
 
+def test_cli_replays_list_json_empty_store_returns_empty_array(tmp_bsela_home: Path) -> None:
+    result = CliRunner().invoke(app, ["replays", "list", "--json"])
+    assert result.exit_code == 0
+    assert json.loads(result.stdout) == []
+
+
+def test_cli_replays_list_json_drift_only_returns_empty_when_only_non_drift_records(
+    tmp_bsela_home: Path, sample_clean_session: Path
+) -> None:
+    ingest_file(sample_clean_session)
+    sid = list_sessions(status="captured")[0].id
+    save_replay_record(
+        ReplayRecord(session_id=sid, had_drift=False, added_count=0, removed_count=0)
+    )
+    result = CliRunner().invoke(app, ["replays", "list", "--json", "--drift-only"])
+    assert result.exit_code == 0
+    assert json.loads(result.stdout) == []
+
+
 def test_cli_replays_list_shows_records(tmp_bsela_home: Path, sample_clean_session: Path) -> None:
     ingest_file(sample_clean_session)
     sid = list_sessions(status="captured")[0].id
