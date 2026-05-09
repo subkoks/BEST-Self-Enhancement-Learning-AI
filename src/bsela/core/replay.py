@@ -20,9 +20,15 @@ from dataclasses import dataclass
 from typing import Literal
 
 from bsela.llm.client import LLMClient
-from bsela.llm.distiller import DistillationResult, distill_session
+from bsela.llm.distiller import (
+    DistillationResult,
+    _jaccard,
+    _tokens,
+    distill_session,
+)
 from bsela.memory.models import Lesson, ReplayRecord
 from bsela.memory.store import get_session, list_lessons, save_replay_record
+from bsela.utils.config import load_thresholds
 
 _CONFIDENCE_DRIFT_THRESHOLD = 0.1
 
@@ -75,32 +81,77 @@ def _diff_lessons(
     stored: list[Lesson],
     replayed: list[Lesson],
 ) -> tuple[LessonDiff, ...]:
-    """Rule-level diff with scope/confidence drift detection.
+    """Semantic rule-level diff with scope/confidence drift detection.
 
-    Rules are matched on normalised text. When a rule matches, scope or a
-    confidence delta ≥ _CONFIDENCE_DRIFT_THRESHOLD produces "changed" rather
-    than "unchanged", so safety-gate-affecting replay differences surface.
+    Rules are matched via Jaccard token similarity using the same
+    ``dedupe.similarity_threshold`` that the distiller applies — so paraphrases
+    of the same rule pair as ``unchanged``/``changed`` rather than inflating
+    drift with ``+`` and ``-`` rows. First, exact normalised matches are paired
+    (cheap and stable); then each remaining stored lesson greedily pairs with
+    the most-similar remaining replayed lesson above threshold. Anything left
+    over is genuinely added/removed.
+
+    Why: temperature=0 + seed cannot fully stabilise paraphrasing across
+    Anthropic (no seed support) and judge non-determinism. Aligning the diff
+    metric with the dedupe metric prevents replay drift from firing on noise
+    that would have been deduped at persist time anyway.
     """
-    stored_rules = {_normalize(s.rule): s for s in stored}
-    replayed_rules = {_normalize(r.rule): r for r in replayed}
+    threshold = load_thresholds().dedupe.similarity_threshold
+
+    stored_remaining = list(stored)
+    replayed_remaining = list(replayed)
+    pairs: list[tuple[Lesson, Lesson]] = []
+
+    # Pass 1: exact normalised matches — fast and stable.
+    norm_replayed: dict[str, int] = {}
+    for idx, r in enumerate(replayed_remaining):
+        norm_replayed.setdefault(_normalize(r.rule), idx)
+    matched_stored: set[int] = set()
+    matched_replayed: set[int] = set()
+    for s_idx, s in enumerate(stored_remaining):
+        r_idx = norm_replayed.get(_normalize(s.rule))
+        if r_idx is not None and r_idx not in matched_replayed:
+            pairs.append((s, replayed_remaining[r_idx]))
+            matched_stored.add(s_idx)
+            matched_replayed.add(r_idx)
+
+    # Pass 2: greedy semantic match on remaining — best Jaccard above threshold.
+    leftover_stored = [s for i, s in enumerate(stored_remaining) if i not in matched_stored]
+    leftover_replayed_idx = [i for i in range(len(replayed_remaining)) if i not in matched_replayed]
+    replayed_used: set[int] = set()
+    stored_used: set[int] = set()
+    scored: list[tuple[float, int, int]] = []
+    for ls_idx, s in enumerate(leftover_stored):
+        s_toks = _tokens(s.rule)
+        for r_idx in leftover_replayed_idx:
+            r = replayed_remaining[r_idx]
+            sim = _jaccard(s_toks, _tokens(r.rule))
+            if sim >= threshold:
+                scored.append((sim, ls_idx, r_idx))
+    scored.sort(key=lambda x: x[0], reverse=True)
+    for _sim, ls_idx, r_idx in scored:
+        if ls_idx in stored_used or r_idx in replayed_used:
+            continue
+        pairs.append((leftover_stored[ls_idx], replayed_remaining[r_idx]))
+        stored_used.add(ls_idx)
+        replayed_used.add(r_idx)
+
+    paired_stored = {id(s) for s, _ in pairs}
+    paired_replayed = {id(r) for _, r in pairs}
 
     diffs: list[LessonDiff] = []
-    all_keys = stored_rules.keys() | replayed_rules.keys()
-    for key in sorted(all_keys):
-        if key in stored_rules and key in replayed_rules:
-            s = stored_rules[key]
-            r = replayed_rules[key]
-            scope_drifted = s.scope != r.scope
-            conf_drifted = abs(s.confidence - r.confidence) >= _CONFIDENCE_DRIFT_THRESHOLD
-            kind: Literal["unchanged", "changed"] = (
-                "changed" if (scope_drifted or conf_drifted) else "unchanged"
-            )
-            diffs.append(LessonDiff(kind, r.rule, r.confidence, r.scope))
-        elif key in replayed_rules:
-            r = replayed_rules[key]
+    for s, r in pairs:
+        scope_drifted = s.scope != r.scope
+        conf_drifted = abs(s.confidence - r.confidence) >= _CONFIDENCE_DRIFT_THRESHOLD
+        kind: Literal["unchanged", "changed"] = (
+            "changed" if (scope_drifted or conf_drifted) else "unchanged"
+        )
+        diffs.append(LessonDiff(kind, r.rule, r.confidence, r.scope))
+    for r in replayed_remaining:
+        if id(r) not in paired_replayed:
             diffs.append(LessonDiff("added", r.rule, r.confidence, r.scope))
-        else:
-            s = stored_rules[key]
+    for s in stored_remaining:
+        if id(s) not in paired_stored:
             diffs.append(LessonDiff("removed", s.rule, s.confidence, s.scope))
     return tuple(diffs)
 
