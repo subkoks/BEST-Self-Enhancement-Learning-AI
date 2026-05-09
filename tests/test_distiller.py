@@ -225,6 +225,41 @@ def test_distill_dedup_suppresses_duplicate_candidate(tmp_bsela_home: Path) -> N
     assert count_lessons(status="pending") == 1  # only the pre-saved one
 
 
+def test_distill_dedup_blocks_approved_outside_recent_window(tmp_bsela_home: Path) -> None:
+    """An approved lesson outside the recent-N window must still block duplicates.
+
+    Regression for 2026-05-09: a batch of 17 candidates duplicated rules that
+    were already promoted to ``status='approved'`` weeks earlier. Because
+    ``distill_session`` only consulted the most-recent ``recent_lessons_limit``
+    rows for dedupe, those approved rules slipped past the gate once newer
+    pending rows pushed them out of the top N.
+    """
+    sid = ingest_file(FIXTURES / "looped-read.jsonl").session_id
+    detect_errors(sid)
+
+    rule = "Stop retrying Read on a missing path after the first ENOENT"
+    approved = _make_lesson(rule)
+    approved.status = "approved"
+    save_lesson(approved)
+
+    # Push the approved lesson past the recent-N window with unrelated rows.
+    for i in range(5):
+        save_lesson(_make_lesson(f"Unrelated rule number {i} about completely different topic"))
+
+    client = FakeLLMClient(
+        judge_response=_unhealthy_verdict(),
+        distill_response=_sample_distill(),
+    )
+    result = distill_session(sid, client=client, recent_lessons_limit=3)
+    assert result.distilled is True
+    assert result.persisted == (), (
+        "candidate duplicating an approved-but-old rule must be deduped "
+        "regardless of recent_lessons_limit"
+    )
+    # Approved + 5 unrelated pending rows; nothing else.
+    assert count_lessons() == 6
+
+
 def test_distill_dedup_within_batch(tmp_bsela_home: Path) -> None:
     """Two identical candidates in the same response — only one should persist."""
     sid = ingest_file(FIXTURES / "looped-read.jsonl").session_id

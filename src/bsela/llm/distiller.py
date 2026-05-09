@@ -210,6 +210,14 @@ def distill_session(
     recent = list_lessons(limit=recent_lessons_limit)
     user_payload = _session_payload(session, errors, recent)
 
+    # Dedupe must always check against the canonical body of approved/applied
+    # lessons regardless of recency — otherwise a candidate that duplicates an
+    # older approved rule slips through once newer pending rows push it past
+    # ``recent_lessons_limit`` (root cause of the 2026-05-09 17/17 dup batch).
+    approved_corpus = list_lessons(status="approved", limit=None) + list_lessons(
+        status="applied", limit=None
+    )
+
     verdict = client.judge(system=JUDGE_SYSTEM_PROMPT, user=user_payload)
 
     healthy = (
@@ -232,8 +240,12 @@ def distill_session(
     persisted: list[Lesson] = []
     if persist:
         source_error_id = errors[0].id if errors else None
-        # saved_this_batch tracks within-session dedup too
-        saved_this_batch: list[Lesson] = list(recent)
+        # saved_this_batch tracks within-session dedup too. The corpus we check
+        # against is: most-recent N (any status) + all approved + all applied.
+        # Duplicates inside that union are dropped via the existing _is_duplicate
+        # path which iterates the list, so identical IDs across the two queries
+        # are harmless.
+        saved_this_batch: list[Lesson] = list(recent) + list(approved_corpus)
         for candidate in response.lessons:
             if _is_duplicate(candidate.rule, saved_this_batch, dedup_threshold):
                 continue
