@@ -44,3 +44,28 @@ updates:
         update-types:
           - "minor"
           - "patch"
+
+  # MCP TypeScript workspace (pnpm-aware via npm ecosystem on pnpm-lock.yaml).
+  # Without this entry, security advisories on transitive deps trigger the
+  # default npm_and_yarn updater and fail with NoChangeError because they
+  # cannot rewrite a pnpm lockfile.
+  - package-ecosystem: "npm"
+    directory: "/mcp"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "UTC"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "mcp"
+    commit-message:
+      prefix: "chore"
+      include: "scope"
+    groups:
+      mcp-minor-patch:
+        applies-to: version-updates
+        update-types:
+          - "minor"
+          - "patch"
