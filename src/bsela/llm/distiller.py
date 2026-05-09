@@ -232,8 +232,16 @@ def distill_session(
     persisted: list[Lesson] = []
     if persist:
         source_error_id = errors[0].id if errors else None
-        # saved_this_batch tracks within-session dedup too
-        saved_this_batch: list[Lesson] = list(recent)
+        # Dedupe must always check against the canonical body of approved/applied
+        # lessons regardless of recency — otherwise a candidate that duplicates
+        # an older approved rule slips through once newer pending rows push it
+        # past ``recent_lessons_limit`` (root cause of the 2026-05-09 17/17 dup
+        # batch). Fetched lazily inside this branch to avoid two unbounded DB
+        # reads on healthy sessions and ``persist=False`` calls.
+        approved_corpus = list_lessons(status="approved", limit=None) + list_lessons(
+            status="applied", limit=None
+        )
+        saved_this_batch: list[Lesson] = list(recent) + list(approved_corpus)
         for candidate in response.lessons:
             if _is_duplicate(candidate.rule, saved_this_batch, dedup_threshold):
                 continue
