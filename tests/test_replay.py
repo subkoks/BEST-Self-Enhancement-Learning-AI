@@ -214,6 +214,45 @@ def test_replay_diff_normalization_ignores_case_and_whitespace(
     assert len(unchanged) >= 1
 
 
+def test_replay_paraphrase_pairs_as_unchanged(
+    tmp_bsela_home: Path, sample_clean_session: Path
+) -> None:
+    """Two paraphrases of the same rule pair via Jaccard-similarity rather than inflating +/-."""
+    ingest_file(sample_clean_session)
+    session_id = list_sessions(status="captured")[0].id
+    err = _seed_error(session_id)
+
+    stored_rule = (
+        "Validate tool-invocation arguments to the expected types before "
+        "the call, especially numeric parameters as numbers, not strings."
+    )
+    save_lesson(
+        Lesson(
+            source_error_id=err.id,
+            scope="project",
+            rule=stored_rule,
+            why="r",
+            how_to_apply="a",
+            confidence=0.85,
+            status="approved",
+        )
+    )
+
+    paraphrase = (
+        "Validate and coerce tool-invocation arguments to the expected types "
+        "before the call, especially numeric parameters as numbers, not strings."
+    )
+    result = replay_session(
+        session_id,
+        client=_fake_client(distill=_distill_response(paraphrase, confidence=0.85)),
+    )
+
+    kinds = {d.kind for d in result.diff}
+    assert "added" not in kinds, result.diff
+    assert "removed" not in kinds, result.diff
+    assert any(d.kind == "unchanged" for d in result.diff)
+
+
 def test_replay_scope_change_shows_changed(
     tmp_bsela_home: Path, sample_clean_session: Path
 ) -> None:

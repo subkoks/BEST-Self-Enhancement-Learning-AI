@@ -77,6 +77,55 @@ def _normalize(rule: str) -> str:
     return " ".join(rule.lower().split())
 
 
+def _pair_exact(
+    stored: list[Lesson], replayed: list[Lesson]
+) -> tuple[list[tuple[Lesson, Lesson]], set[int], set[int]]:
+    """First-pass exact normalised match: cheap and stable."""
+    norm_replayed: dict[str, int] = {}
+    for idx, r in enumerate(replayed):
+        norm_replayed.setdefault(_normalize(r.rule), idx)
+    pairs: list[tuple[Lesson, Lesson]] = []
+    matched_stored: set[int] = set()
+    matched_replayed: set[int] = set()
+    for s_idx, s in enumerate(stored):
+        r_idx = norm_replayed.get(_normalize(s.rule))
+        if r_idx is not None and r_idx not in matched_replayed:
+            pairs.append((s, replayed[r_idx]))
+            matched_stored.add(s_idx)
+            matched_replayed.add(r_idx)
+    return pairs, matched_stored, matched_replayed
+
+
+def _pair_semantic(
+    stored: list[Lesson],
+    replayed: list[Lesson],
+    skip_stored: set[int],
+    skip_replayed: set[int],
+    threshold: float,
+) -> list[tuple[Lesson, Lesson]]:
+    """Second-pass: greedy Jaccard match on remaining lessons above ``threshold``."""
+    leftover_stored = [(i, s) for i, s in enumerate(stored) if i not in skip_stored]
+    leftover_replayed = [(i, r) for i, r in enumerate(replayed) if i not in skip_replayed]
+    scored: list[tuple[float, int, int]] = []
+    for s_idx, s in leftover_stored:
+        s_toks = _tokens(s.rule)
+        for r_idx, r in leftover_replayed:
+            sim = _jaccard(s_toks, _tokens(r.rule))
+            if sim >= threshold:
+                scored.append((sim, s_idx, r_idx))
+    scored.sort(key=lambda x: x[0], reverse=True)
+    used_stored: set[int] = set()
+    used_replayed: set[int] = set()
+    pairs: list[tuple[Lesson, Lesson]] = []
+    for _sim, s_idx, r_idx in scored:
+        if s_idx in used_stored or r_idx in used_replayed:
+            continue
+        pairs.append((stored[s_idx], replayed[r_idx]))
+        used_stored.add(s_idx)
+        used_replayed.add(r_idx)
+    return pairs
+
+
 def _diff_lessons(
     stored: list[Lesson],
     replayed: list[Lesson],
@@ -97,44 +146,9 @@ def _diff_lessons(
     that would have been deduped at persist time anyway.
     """
     threshold = load_thresholds().dedupe.similarity_threshold
-
-    stored_remaining = list(stored)
-    replayed_remaining = list(replayed)
-    pairs: list[tuple[Lesson, Lesson]] = []
-
-    # Pass 1: exact normalised matches — fast and stable.
-    norm_replayed: dict[str, int] = {}
-    for idx, r in enumerate(replayed_remaining):
-        norm_replayed.setdefault(_normalize(r.rule), idx)
-    matched_stored: set[int] = set()
-    matched_replayed: set[int] = set()
-    for s_idx, s in enumerate(stored_remaining):
-        r_idx = norm_replayed.get(_normalize(s.rule))
-        if r_idx is not None and r_idx not in matched_replayed:
-            pairs.append((s, replayed_remaining[r_idx]))
-            matched_stored.add(s_idx)
-            matched_replayed.add(r_idx)
-
-    # Pass 2: greedy semantic match on remaining — best Jaccard above threshold.
-    leftover_stored = [s for i, s in enumerate(stored_remaining) if i not in matched_stored]
-    leftover_replayed_idx = [i for i in range(len(replayed_remaining)) if i not in matched_replayed]
-    replayed_used: set[int] = set()
-    stored_used: set[int] = set()
-    scored: list[tuple[float, int, int]] = []
-    for ls_idx, s in enumerate(leftover_stored):
-        s_toks = _tokens(s.rule)
-        for r_idx in leftover_replayed_idx:
-            r = replayed_remaining[r_idx]
-            sim = _jaccard(s_toks, _tokens(r.rule))
-            if sim >= threshold:
-                scored.append((sim, ls_idx, r_idx))
-    scored.sort(key=lambda x: x[0], reverse=True)
-    for _sim, ls_idx, r_idx in scored:
-        if ls_idx in stored_used or r_idx in replayed_used:
-            continue
-        pairs.append((leftover_stored[ls_idx], replayed_remaining[r_idx]))
-        stored_used.add(ls_idx)
-        replayed_used.add(r_idx)
+    exact_pairs, matched_s, matched_r = _pair_exact(stored, replayed)
+    semantic_pairs = _pair_semantic(stored, replayed, matched_s, matched_r, threshold)
+    pairs = exact_pairs + semantic_pairs
 
     paired_stored = {id(s) for s, _ in pairs}
     paired_replayed = {id(r) for _, r in pairs}
@@ -147,12 +161,16 @@ def _diff_lessons(
             "changed" if (scope_drifted or conf_drifted) else "unchanged"
         )
         diffs.append(LessonDiff(kind, r.rule, r.confidence, r.scope))
-    for r in replayed_remaining:
-        if id(r) not in paired_replayed:
-            diffs.append(LessonDiff("added", r.rule, r.confidence, r.scope))
-    for s in stored_remaining:
-        if id(s) not in paired_stored:
-            diffs.append(LessonDiff("removed", s.rule, s.confidence, s.scope))
+    diffs.extend(
+        LessonDiff("added", r.rule, r.confidence, r.scope)
+        for r in replayed
+        if id(r) not in paired_replayed
+    )
+    diffs.extend(
+        LessonDiff("removed", s.rule, s.confidence, s.scope)
+        for s in stored
+        if id(s) not in paired_stored
+    )
     return tuple(diffs)
 
 
