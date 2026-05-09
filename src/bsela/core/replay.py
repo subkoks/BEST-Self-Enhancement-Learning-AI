@@ -20,9 +20,15 @@ from dataclasses import dataclass
 from typing import Literal
 
 from bsela.llm.client import LLMClient
-from bsela.llm.distiller import DistillationResult, distill_session
+from bsela.llm.distiller import (
+    DistillationResult,
+    _jaccard,
+    _tokens,
+    distill_session,
+)
 from bsela.memory.models import Lesson, ReplayRecord
 from bsela.memory.store import get_session, list_lessons, save_replay_record
+from bsela.utils.config import load_thresholds
 
 _CONFIDENCE_DRIFT_THRESHOLD = 0.1
 
@@ -71,37 +77,100 @@ def _normalize(rule: str) -> str:
     return " ".join(rule.lower().split())
 
 
+def _pair_exact(
+    stored: list[Lesson], replayed: list[Lesson]
+) -> tuple[list[tuple[Lesson, Lesson]], set[int], set[int]]:
+    """First-pass exact normalised match: cheap and stable."""
+    norm_replayed: dict[str, int] = {}
+    for idx, r in enumerate(replayed):
+        norm_replayed.setdefault(_normalize(r.rule), idx)
+    pairs: list[tuple[Lesson, Lesson]] = []
+    matched_stored: set[int] = set()
+    matched_replayed: set[int] = set()
+    for s_idx, s in enumerate(stored):
+        r_idx = norm_replayed.get(_normalize(s.rule))
+        if r_idx is not None and r_idx not in matched_replayed:
+            pairs.append((s, replayed[r_idx]))
+            matched_stored.add(s_idx)
+            matched_replayed.add(r_idx)
+    return pairs, matched_stored, matched_replayed
+
+
+def _pair_semantic(
+    stored: list[Lesson],
+    replayed: list[Lesson],
+    skip_stored: set[int],
+    skip_replayed: set[int],
+    threshold: float,
+) -> list[tuple[Lesson, Lesson]]:
+    """Second-pass: greedy Jaccard match on remaining lessons above ``threshold``."""
+    leftover_stored = [(i, s) for i, s in enumerate(stored) if i not in skip_stored]
+    leftover_replayed = [(i, r) for i, r in enumerate(replayed) if i not in skip_replayed]
+    scored: list[tuple[float, int, int]] = []
+    for s_idx, s in leftover_stored:
+        s_toks = _tokens(s.rule)
+        for r_idx, r in leftover_replayed:
+            sim = _jaccard(s_toks, _tokens(r.rule))
+            if sim >= threshold:
+                scored.append((sim, s_idx, r_idx))
+    scored.sort(key=lambda x: x[0], reverse=True)
+    used_stored: set[int] = set()
+    used_replayed: set[int] = set()
+    pairs: list[tuple[Lesson, Lesson]] = []
+    for _sim, s_idx, r_idx in scored:
+        if s_idx in used_stored or r_idx in used_replayed:
+            continue
+        pairs.append((stored[s_idx], replayed[r_idx]))
+        used_stored.add(s_idx)
+        used_replayed.add(r_idx)
+    return pairs
+
+
 def _diff_lessons(
     stored: list[Lesson],
     replayed: list[Lesson],
 ) -> tuple[LessonDiff, ...]:
-    """Rule-level diff with scope/confidence drift detection.
+    """Semantic rule-level diff with scope/confidence drift detection.
 
-    Rules are matched on normalised text. When a rule matches, scope or a
-    confidence delta ≥ _CONFIDENCE_DRIFT_THRESHOLD produces "changed" rather
-    than "unchanged", so safety-gate-affecting replay differences surface.
+    Rules are matched via Jaccard token similarity using the same
+    ``dedupe.similarity_threshold`` that the distiller applies — so paraphrases
+    of the same rule pair as ``unchanged``/``changed`` rather than inflating
+    drift with ``+`` and ``-`` rows. First, exact normalised matches are paired
+    (cheap and stable); then each remaining stored lesson greedily pairs with
+    the most-similar remaining replayed lesson above threshold. Anything left
+    over is genuinely added/removed.
+
+    Why: temperature=0 + seed cannot fully stabilise paraphrasing across
+    Anthropic (no seed support) and judge non-determinism. Aligning the diff
+    metric with the dedupe metric prevents replay drift from firing on noise
+    that would have been deduped at persist time anyway.
     """
-    stored_rules = {_normalize(s.rule): s for s in stored}
-    replayed_rules = {_normalize(r.rule): r for r in replayed}
+    threshold = load_thresholds().dedupe.similarity_threshold
+    exact_pairs, matched_s, matched_r = _pair_exact(stored, replayed)
+    semantic_pairs = _pair_semantic(stored, replayed, matched_s, matched_r, threshold)
+    pairs = exact_pairs + semantic_pairs
+
+    paired_stored = {id(s) for s, _ in pairs}
+    paired_replayed = {id(r) for _, r in pairs}
 
     diffs: list[LessonDiff] = []
-    all_keys = stored_rules.keys() | replayed_rules.keys()
-    for key in sorted(all_keys):
-        if key in stored_rules and key in replayed_rules:
-            s = stored_rules[key]
-            r = replayed_rules[key]
-            scope_drifted = s.scope != r.scope
-            conf_drifted = abs(s.confidence - r.confidence) >= _CONFIDENCE_DRIFT_THRESHOLD
-            kind: Literal["unchanged", "changed"] = (
-                "changed" if (scope_drifted or conf_drifted) else "unchanged"
-            )
-            diffs.append(LessonDiff(kind, r.rule, r.confidence, r.scope))
-        elif key in replayed_rules:
-            r = replayed_rules[key]
-            diffs.append(LessonDiff("added", r.rule, r.confidence, r.scope))
-        else:
-            s = stored_rules[key]
-            diffs.append(LessonDiff("removed", s.rule, s.confidence, s.scope))
+    for s, r in pairs:
+        scope_drifted = s.scope != r.scope
+        conf_drifted = abs(s.confidence - r.confidence) >= _CONFIDENCE_DRIFT_THRESHOLD
+        kind: Literal["unchanged", "changed"] = (
+            "changed" if (scope_drifted or conf_drifted) else "unchanged"
+        )
+        diffs.append(LessonDiff(kind, r.rule, r.confidence, r.scope))
+    diffs.extend(
+        LessonDiff("added", r.rule, r.confidence, r.scope)
+        for r in replayed
+        if id(r) not in paired_replayed
+    )
+    diffs.extend(
+        LessonDiff("removed", s.rule, s.confidence, s.scope)
+        for s in stored
+        if id(s) not in paired_stored
+    )
     return tuple(diffs)
 
 
