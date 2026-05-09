@@ -84,7 +84,14 @@ class AnthropicClient:
             self._client = module.Anthropic(api_key=self.api_key)
         return self._client
 
-    def _complete(self, *, model: str, system: str, user: str, max_tokens: int) -> str:
+    def _complete(
+        self,
+        *,
+        model: str,
+        system: str,
+        user: str,
+        max_tokens: int,
+    ) -> str:
         resp = self._anthropic().messages.create(
             model=model,
             max_tokens=max_tokens,
@@ -148,7 +155,15 @@ class OpenRouterClient:
             api_key=api_key or os.environ.get("OPENROUTER_API_KEY"),
         )
 
-    def _complete(self, *, model: str, system: str, user: str, max_tokens: int) -> str:
+    def _complete(
+        self,
+        *,
+        model: str,
+        system: str,
+        user: str,
+        max_tokens: int,
+        seed: int = _DETERMINISTIC_SEED,
+    ) -> str:
         key = self.api_key
         if not key:
             raise RuntimeError(
@@ -162,7 +177,7 @@ class OpenRouterClient:
                 "model": model,
                 "max_tokens": max_tokens,
                 "temperature": _DETERMINISTIC_TEMPERATURE,
-                "seed": _DETERMINISTIC_SEED,
+                "seed": seed,
                 "messages": [
                     {"role": "user", "content": combined_user},
                 ],
@@ -200,9 +215,19 @@ class OpenRouterClient:
     def _complete_with_json_retry(
         self, *, model: str, system: str, user: str, max_tokens: int
     ) -> str:
-        """Retry _complete up to 2x when the model returns prose instead of JSON."""
+        """Retry _complete up to 2x when the model returns prose instead of JSON.
+
+        First attempt keeps the deterministic baseline seed; each retry bumps
+        seed by +1 so providers that honor seed can escape repeated prose.
+        """
         for attempt in range(3):
-            raw = self._complete(model=model, system=system, user=user, max_tokens=max_tokens)
+            raw = self._complete(
+                model=model,
+                system=system,
+                user=user,
+                max_tokens=max_tokens,
+                seed=_DETERMINISTIC_SEED + attempt,
+            )
             try:
                 _extract_json_object(raw)
                 return raw

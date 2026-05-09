@@ -177,6 +177,22 @@ def test_json_retry_retries_on_prose_then_returns_json() -> None:
     assert result == good_json
 
 
+def test_json_retry_increments_seed_on_each_retry() -> None:
+    client = _or_client()
+    seen_seeds: list[int] = []
+
+    def _side_effect(*_args: Any, **kwargs: Any) -> str:
+        seen_seeds.append(int(kwargs["seed"]))
+        if len(seen_seeds) < 3:
+            return "prose only"
+        return '{"goal_achieved": false, "confidence": 0.5}'
+
+    with patch.object(client, "_complete", side_effect=_side_effect), patch("time.sleep"):
+        client._complete_with_json_retry(model="m", system="s", user="u", max_tokens=10)
+
+    assert seen_seeds == [42, 43, 44]
+
+
 def test_json_retry_raises_after_all_prose() -> None:
     client = _or_client()
     with (
