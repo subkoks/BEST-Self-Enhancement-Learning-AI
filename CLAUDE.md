@@ -17,7 +17,35 @@ For **Cursor** (MCP wiring), see [`adapters/cursor/README.md`](adapters/cursor/R
 
 For Codex CLI continuation from this repo, see [`CODEX.md`](CODEX.md).
 
-## Last session — 2026-05-03
+## Last session — 2026-05-09
+
+### Completed (PR/security cleanup sweep)
+
+1. **Merged 9 PRs** — #22 (python-minor), #23 (mcp-minor), #24 (mypy 2.0), #25 (types-pyyaml), #26 (eslint 10), #27 (@types/node 25), #28 (vitest 4), #30 (distiller dedup-vs-approved fix), #31 (TS 6 compat — `tsconfig.json` `"types": ["node"]`), #32 (security: pin fast-uri/hono/ip-address via pnpm overrides).
+2. **Closed PR #29** — superseded by #31 (raw TS 6.0.3 bump failed CI; #31 cherry-picks the bump + adds the required tsconfig fix).
+3. **Resolved Cursor Bugbot thread on #30** — already addressed by commit 60d8438 (`perf(llm): defer approved-corpus fetch inside persist branch`).
+4. **Security alerts: 8 → 0** — all transitive vulns from `@modelcontextprotocol/sdk@1.29.0` (fast-uri high×2, hono medium×4 + low, ip-address medium) pinned via `mcp/package.json > pnpm.overrides`.
+
+### Repo state at session end
+
+- 0 open PRs, 0 open issues, 0 open dependabot alerts
+- main is clean; CI green
+- Local stale branches still present: `feat/rollback-store-cleanup`, `fix/replay-drift-detection`, several `claude/*` worktrees under `.claude/worktrees/`
+
+### Remaining tasks for next session
+
+- **P1 — false-positive tuning**: re-run `bsela process --limit 200 --since-days 30`, adjust `config/thresholds.toml` (`judge_threshold`, `dedupe.similarity_threshold`); target rejection rate ≤25% (was 36%).
+- **P2 — replay drift watch**: drift was 87.5% (threshold 92%); run `bsela replay`, rollback drifted lessons, re-snapshot audit.
+- **P3 — CI/workflow hygiene**: audit `.github/workflows/{ci,claude}.yml`; add `pnpm audit --prod` step to MCP workflow so transitive CVEs surface in CI rather than via dependabot delay.
+- **P4 — TS6 follow-through**: drop unused MCP SDK transitive deps if possible, or wait for SDK release with patched transitives so `pnpm.overrides` block can shrink.
+- **P5 — worktree/branch cleanup**: `git worktree prune`, delete merged local branches (`feat/rollback-store-cleanup`, `fix/replay-drift-detection`, `claude/*`).
+- **P6 — issue sweep + docs alignment**: file issues for any P1–P5 follow-ups.
+
+Suggested order on resume: **P5 → P3 → P1+P2 (one dogfood cycle) → P4 → P6**.
+
+---
+
+## Previous session — 2026-05-03
 
 ### Completed
 
