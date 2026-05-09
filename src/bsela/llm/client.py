@@ -34,6 +34,14 @@ class LLMClient(Protocol):
 
 _JSON_OBJECT_RE = re.compile(r"\{.*\}", re.DOTALL)
 
+# Greedy decoding for replay reproducibility. The replay harness diffs new
+# output against stored lessons; non-zero temperature inflates drift_rate with
+# pure paraphrase noise (validated 2026-05-09 dogfood: 6/7 fresh replays
+# drifted on free-tier defaults). The OPENROUTER_SEED below pins the
+# server-side seed for providers that honour it.
+_DETERMINISTIC_TEMPERATURE = 0.0
+_DETERMINISTIC_SEED = 42
+
 
 def _extract_json_object(text: str) -> str:
     """Pull the first {...} block out of an LLM response, tolerating prose."""
@@ -82,6 +90,7 @@ class AnthropicClient:
             max_tokens=max_tokens,
             system=system,
             messages=[{"role": "user", "content": user}],
+            temperature=_DETERMINISTIC_TEMPERATURE,
         )
         chunks: list[str] = []
         for block in resp.content:
@@ -152,6 +161,8 @@ class OpenRouterClient:
             {
                 "model": model,
                 "max_tokens": max_tokens,
+                "temperature": _DETERMINISTIC_TEMPERATURE,
+                "seed": _DETERMINISTIC_SEED,
                 "messages": [
                     {"role": "user", "content": combined_user},
                 ],
