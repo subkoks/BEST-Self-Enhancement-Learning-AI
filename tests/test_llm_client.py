@@ -68,6 +68,31 @@ def test_open_router_complete_success() -> None:
     assert '"goal_achieved": true' in result
 
 
+def test_open_router_complete_sends_deterministic_temperature_and_seed() -> None:
+    """Replay reproducibility regression — see fix/llm-deterministic-distill.
+
+    Without temperature=0 + a fixed seed on the OpenRouter call path the same
+    session payload yields paraphrased lesson sets across runs and inflates
+    replay_drift_rate (validated 2026-05-09: 6/7 fresh replays drifted on
+    free-tier defaults).
+    """
+    client = _or_client()
+    response_body = _choice_response('{"ok": 1}')
+
+    captured: dict[str, Any] = {}
+
+    def _capture(req: Any, *_args: Any, **_kwargs: Any) -> Any:
+        captured["body"] = req.data
+        return _mock_response(response_body)
+
+    with patch("urllib.request.urlopen", side_effect=_capture):
+        client._complete(model="m", system="s", user="u", max_tokens=10)
+
+    payload = json.loads(captured["body"])
+    assert payload["temperature"] == 0.0
+    assert payload["seed"] == 42
+
+
 def test_open_router_complete_raises_without_api_key() -> None:
     client = OpenRouterClient(judge_model="m", distiller_model="m", api_key=None)
     with pytest.raises(RuntimeError, match="OPENROUTER_API_KEY"):
@@ -150,6 +175,22 @@ def test_json_retry_retries_on_prose_then_returns_json() -> None:
     with patch.object(client, "_complete", side_effect=responses), patch("time.sleep"):
         result = client._complete_with_json_retry(model="m", system="s", user="u", max_tokens=10)
     assert result == good_json
+
+
+def test_json_retry_increments_seed_on_each_retry() -> None:
+    client = _or_client()
+    seen_seeds: list[int] = []
+
+    def _side_effect(*_args: Any, **kwargs: Any) -> str:
+        seen_seeds.append(int(kwargs["seed"]))
+        if len(seen_seeds) < 3:
+            return "prose only"
+        return '{"goal_achieved": false, "confidence": 0.5}'
+
+    with patch.object(client, "_complete", side_effect=_side_effect), patch("time.sleep"):
+        client._complete_with_json_retry(model="m", system="s", user="u", max_tokens=10)
+
+    assert seen_seeds == [42, 43, 44]
 
 
 def test_json_retry_raises_after_all_prose() -> None:
@@ -285,6 +326,28 @@ def test_anthropic_client_caches_sdk_instance() -> None:
     # importlib.import_module called once; second call returns cached client
     assert mock_import.call_count == 1
     assert first is second
+
+
+def test_anthropic_client_complete_passes_deterministic_temperature() -> None:
+    """Replay reproducibility regression — see fix/llm-deterministic-distill."""
+    client = AnthropicClient(
+        judge_model="claude-haiku-4-5",
+        distiller_model="claude-opus-4-7",
+        api_key="sk-ant-test",
+    )
+    text_block = MagicMock()
+    text_block.text = '{"ok": 1}'
+    mock_resp = MagicMock()
+    mock_resp.content = [text_block]
+    mock_anthropic_module = MagicMock()
+    mock_create = mock_anthropic_module.Anthropic.return_value.messages.create
+    mock_create.return_value = mock_resp
+
+    with patch("importlib.import_module", return_value=mock_anthropic_module):
+        client._complete(model="m", system="s", user="u", max_tokens=10)
+
+    kwargs = mock_create.call_args.kwargs
+    assert kwargs["temperature"] == 0.0
 
 
 def test_anthropic_client_complete_skips_non_text_block() -> None:

@@ -34,6 +34,14 @@ class LLMClient(Protocol):
 
 _JSON_OBJECT_RE = re.compile(r"\{.*\}", re.DOTALL)
 
+# Greedy decoding for replay reproducibility. The replay harness diffs new
+# output against stored lessons; non-zero temperature inflates drift_rate with
+# pure paraphrase noise (validated 2026-05-09 dogfood: 6/7 fresh replays
+# drifted on free-tier defaults). The OPENROUTER_SEED below pins the
+# server-side seed for providers that honour it.
+_DETERMINISTIC_TEMPERATURE = 0.0
+_DETERMINISTIC_SEED = 42
+
 
 def _extract_json_object(text: str) -> str:
     """Pull the first {...} block out of an LLM response, tolerating prose."""
@@ -76,12 +84,20 @@ class AnthropicClient:
             self._client = module.Anthropic(api_key=self.api_key)
         return self._client
 
-    def _complete(self, *, model: str, system: str, user: str, max_tokens: int) -> str:
+    def _complete(
+        self,
+        *,
+        model: str,
+        system: str,
+        user: str,
+        max_tokens: int,
+    ) -> str:
         resp = self._anthropic().messages.create(
             model=model,
             max_tokens=max_tokens,
             system=system,
             messages=[{"role": "user", "content": user}],
+            temperature=_DETERMINISTIC_TEMPERATURE,
         )
         chunks: list[str] = []
         for block in resp.content:
@@ -139,7 +155,15 @@ class OpenRouterClient:
             api_key=api_key or os.environ.get("OPENROUTER_API_KEY"),
         )
 
-    def _complete(self, *, model: str, system: str, user: str, max_tokens: int) -> str:
+    def _complete(
+        self,
+        *,
+        model: str,
+        system: str,
+        user: str,
+        max_tokens: int,
+        seed: int = _DETERMINISTIC_SEED,
+    ) -> str:
         key = self.api_key
         if not key:
             raise RuntimeError(
@@ -152,6 +176,8 @@ class OpenRouterClient:
             {
                 "model": model,
                 "max_tokens": max_tokens,
+                "temperature": _DETERMINISTIC_TEMPERATURE,
+                "seed": seed,
                 "messages": [
                     {"role": "user", "content": combined_user},
                 ],
@@ -189,9 +215,19 @@ class OpenRouterClient:
     def _complete_with_json_retry(
         self, *, model: str, system: str, user: str, max_tokens: int
     ) -> str:
-        """Retry _complete up to 2x when the model returns prose instead of JSON."""
+        """Retry _complete up to 2x when the model returns prose instead of JSON.
+
+        First attempt keeps the deterministic baseline seed; each retry bumps
+        seed by +1 so providers that honor seed can escape repeated prose.
+        """
         for attempt in range(3):
-            raw = self._complete(model=model, system=system, user=user, max_tokens=max_tokens)
+            raw = self._complete(
+                model=model,
+                system=system,
+                user=user,
+                max_tokens=max_tokens,
+                seed=_DETERMINISTIC_SEED + attempt,
+            )
             try:
                 _extract_json_object(raw)
                 return raw
