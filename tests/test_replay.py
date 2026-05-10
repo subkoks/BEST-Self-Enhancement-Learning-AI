@@ -167,6 +167,7 @@ def test_replay_payload_omits_recent_lessons_context(
 
     payload = json.loads(client.last_distill_user)
     assert payload["recent_lessons"] == []
+    assert payload.get("replay_harness") is True
 
 
 def test_replay_no_stored_lessons_shows_all_added(

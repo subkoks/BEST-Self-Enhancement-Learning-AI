@@ -204,6 +204,7 @@ def replay_session(
         persist=False,
         force_distill=bool(stored),
         recent_lessons=[],
+        replay_harness=True,
     )
 
     replayed = list(result.persisted)

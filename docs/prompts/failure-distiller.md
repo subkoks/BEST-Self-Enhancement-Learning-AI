@@ -19,6 +19,12 @@ You analyze a failed or wasteful session transcript and distill transferable les
 
 ## Input
 
+Top-level fields:
+
+- `session` — parsed session summary and detector `candidate_errors` (see JSON below).
+- `recent_lessons` — nearest lessons for dedup context (may be intentionally empty).
+- `replay_harness` — when `true`, this run is the **replay validation** path: `recent_lessons` is empty on purpose so output can be diffed against lessons already stored for this session. **Do not** skip emitting transferable lessons just because `recent_lessons` is `[]`. Base decisions only on `session` evidence. Do not withhold a rule because it might resemble a lesson that is not present in this JSON.
+
 ```json
 {
   "session": {
@@ -34,7 +40,8 @@ You analyze a failed or wasteful session transcript and distill transferable les
   },
   "recent_lessons": [
     { "id": "lesson-042", "rule": "..." }
-  ]
+  ],
+  "replay_harness": false
 }
 ```
 
