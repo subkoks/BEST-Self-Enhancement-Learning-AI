@@ -186,6 +186,10 @@ def replay_session(
     to the ``replay_records`` table so ``bsela audit`` can compute a drift rate
     over a rolling window without re-invoking the LLM.
 
+    If the session already has stored lessons, replay forces distillation even
+    when the judge now marks the session as healthy. This keeps replay drift
+    focused on lesson stability instead of judge-gating variance.
+
     Raises ``LookupError`` if ``session_id`` is not in the store.
     """
     session = get_session(session_id)
@@ -198,6 +202,7 @@ def replay_session(
         session_id,
         client=client,
         persist=False,
+        force_distill=bool(stored),
     )
 
     replayed = list(result.persisted)
