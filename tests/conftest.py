@@ -22,10 +22,10 @@ def tmp_bsela_home(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[
     (home / "logs").mkdir()
     (home / "reports").mkdir()
     monkeypatch.setenv("BSELA_HOME", str(home))
-    memory_store._engine_for.cache_clear()
+    memory_store.reset_engine_cache()
     config_module.clear_cache()
     yield home
-    memory_store._engine_for.cache_clear()
+    memory_store.reset_engine_cache()
     config_module.clear_cache()
 
 

@@ -115,6 +115,32 @@ def test_replay_healthy_session_produces_no_diff(
     assert "healthy" in result.summary()
 
 
+def test_replay_with_stored_lessons_forces_distill_even_if_judge_is_healthy(
+    tmp_bsela_home: Path, sample_clean_session: Path
+) -> None:
+    ingest_file(sample_clean_session)
+    session_id = list_sessions(status="captured")[0].id
+    err = _seed_error(session_id)
+    rule = "Do not retry on the same error twice"
+    save_lesson(
+        Lesson(
+            source_error_id=err.id,
+            scope="project",
+            rule=rule,
+            why="loop detected",
+            how_to_apply="switch strategy",
+            confidence=0.88,
+            status="pending",
+        )
+    )
+
+    client = _fake_client(verdict=_healthy_verdict(), distill=_distill_response(rule))
+    result = replay_session(session_id, client=client)
+
+    assert result.distilled
+    assert any(d.kind == "unchanged" for d in result.diff), result.diff
+
+
 def test_replay_no_stored_lessons_shows_all_added(
     tmp_bsela_home: Path, sample_clean_session: Path
 ) -> None:
