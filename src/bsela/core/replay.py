@@ -203,6 +203,7 @@ def replay_session(
         client=client,
         persist=False,
         force_distill=bool(stored),
+        recent_lessons=[],
     )
 
     replayed = list(result.persisted)

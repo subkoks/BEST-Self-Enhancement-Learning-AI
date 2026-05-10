@@ -199,6 +199,7 @@ def distill_session(
     client: LLMClient,
     persist: bool = True,
     force_distill: bool = False,
+    recent_lessons: list[Lesson] | None = None,
     judge_threshold: float = 0.8,
     recent_lessons_limit: int = 10,
 ) -> DistillationResult:
@@ -212,7 +213,9 @@ def distill_session(
         raise LookupError(f"session not found: {session_id}")
 
     errors = list_errors(session_id=session_id, limit=50)
-    recent = list_lessons(limit=recent_lessons_limit)
+    recent = (
+        recent_lessons if recent_lessons is not None else list_lessons(limit=recent_lessons_limit)
+    )
     user_payload = _session_payload(session, errors, recent)
 
     verdict = client.judge(system=JUDGE_SYSTEM_PROMPT, user=user_payload)
