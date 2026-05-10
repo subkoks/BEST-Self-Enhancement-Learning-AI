@@ -107,3 +107,27 @@ Rules distilled from real session errors. Confidence ≥ 0.85 auto-approved; oth
 - **External CLI tools on PATH** (conf=0.85): Before running any external binary (`pnpm`, `uv`, `make`, `node`), verify it exists with `command -v <tool>` or equivalent. Fail fast with a clear message rather than letting a missing binary produce an opaque error mid-pipeline.
 - **No hard-coded dates in tests** (conf=0.70): Never embed absolute timestamps or date literals in test assertions. Use relative offsets from `datetime.now()` or freeze the clock with a time-mocking utility so tests remain valid as time advances.
 - **Import sanity before test suite** (conf=0.75): Before running the full pytest suite, perform a lightweight import check (`python -c "import <pkg>"`) for each top-level module. A `ModuleNotFoundError` at collection time wastes a full CI run; surface it at the pre-test stage instead.
+
+## Cursor Cloud specific instructions
+
+### Services overview
+
+| Service | What it does | How to run |
+|---------|-------------|------------|
+| Python CLI (`bsela`) | Core control plane — capture, detect, distill, audit | `uv run bsela <cmd>` or just `bsela <cmd>` after `uv tool install -e .` |
+| MCP server (`mcp/`) | Read-only MCP tools for editors | `cd mcp && node dist/server.js` (build first with `pnpm build`) |
+
+### Key commands
+
+- **Full Python gate:** `make check` (ruff lint + format-check + mypy + pytest 99% coverage)
+- **Quick test only:** `uv run pytest -q`
+- **MCP gate:** `make mcp-check` (prettier + eslint + tsc + vitest)
+- **Health check:** `uv run bsela doctor`
+
+### Gotchas
+
+- **MCP tests need `bsela` on PATH.** The MCP server shells out to the `bsela` CLI binary. Run `uv tool install --force -e .` before `pnpm check` in `mcp/`, or all CLI-dependent tests (`bsela-client.test.ts`, `parity.test.ts`) will fail with `spawn bsela ENOENT`.
+- **No external services needed.** SQLite is embedded (WAL mode, stored at `~/.bsela/bsela.db`). No Postgres, Redis, or Docker.
+- **LLM API keys are optional.** Only `distill`, `process`, and `replay` commands require `ANTHROPIC_API_KEY` or `OPENROUTER_API_KEY`. All other commands (status, ingest, detect, route, audit, doctor) work without them.
+- **Python 3.13 required.** The `pyproject.toml` specifies `requires-python = ">=3.13"`. Use `uv python install 3.13` if the system Python is older.
+- **pnpm esbuild warning is harmless.** The `Ignored build scripts: esbuild` warning during `pnpm install` is non-blocking — the MCP build uses `tsc`, not esbuild.

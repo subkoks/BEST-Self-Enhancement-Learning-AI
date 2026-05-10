@@ -141,6 +141,35 @@ def test_replay_with_stored_lessons_forces_distill_even_if_judge_is_healthy(
     assert any(d.kind == "unchanged" for d in result.diff), result.diff
 
 
+def test_replay_payload_omits_recent_lessons_context(
+    tmp_bsela_home: Path, sample_clean_session: Path
+) -> None:
+    ingest_file(sample_clean_session)
+    session_id = list_sessions(status="captured")[0].id
+    err = _seed_error(session_id)
+    save_lesson(
+        Lesson(
+            source_error_id=err.id,
+            scope="project",
+            rule="Do not retry on the same error twice",
+            why="loop detected",
+            how_to_apply="switch strategy",
+            confidence=0.88,
+            status="pending",
+        )
+    )
+
+    client = FakeLLMClient(
+        judge_response=_unhealthy_verdict(),
+        distill_response=_distill_response(),
+    )
+    replay_session(session_id, client=client)
+
+    payload = json.loads(client.last_distill_user)
+    assert payload["recent_lessons"] == []
+    assert payload.get("replay_harness") is True
+
+
 def test_replay_no_stored_lessons_shows_all_added(
     tmp_bsela_home: Path, sample_clean_session: Path
 ) -> None:
