@@ -157,8 +157,10 @@ def _session_payload(
     session: SessionRecord,
     errors: list[ErrorRecord],
     recent_lessons: list[Lesson],
+    *,
+    replay_harness: bool = False,
 ) -> str:
-    payload = {
+    payload: dict[str, object] = {
         "session": {
             "id": session.id,
             "source": session.source,
@@ -172,6 +174,8 @@ def _session_payload(
             for lesson in recent_lessons
         ],
     }
+    if replay_harness:
+        payload["replay_harness"] = True
     return json.dumps(payload, ensure_ascii=False, indent=2)
 
 
@@ -199,6 +203,8 @@ def distill_session(
     client: LLMClient,
     persist: bool = True,
     force_distill: bool = False,
+    recent_lessons: list[Lesson] | None = None,
+    replay_harness: bool = False,
     judge_threshold: float = 0.8,
     recent_lessons_limit: int = 10,
 ) -> DistillationResult:
@@ -206,14 +212,20 @@ def distill_session(
 
     When ``force_distill`` is true, the judge still runs for telemetry but a
     "healthy" verdict does not short-circuit the distiller call.
+
+    When ``replay_harness`` is true, the JSON payload includes ``replay_harness`` so
+    the distiller prompt can treat empty ``recent_lessons`` as intentional for
+    replay diffing, not as "no prior lesson context".
     """
     session = get_session(session_id)
     if session is None:
         raise LookupError(f"session not found: {session_id}")
 
     errors = list_errors(session_id=session_id, limit=50)
-    recent = list_lessons(limit=recent_lessons_limit)
-    user_payload = _session_payload(session, errors, recent)
+    recent = (
+        recent_lessons if recent_lessons is not None else list_lessons(limit=recent_lessons_limit)
+    )
+    user_payload = _session_payload(session, errors, recent, replay_harness=replay_harness)
 
     verdict = client.judge(system=JUDGE_SYSTEM_PROMPT, user=user_payload)
 

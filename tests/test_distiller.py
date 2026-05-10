@@ -118,6 +118,37 @@ def test_distill_without_persist_skips_writes(tmp_bsela_home: Path) -> None:
     assert count_lessons() == 0
 
 
+def test_distill_payload_omits_replay_harness_by_default(tmp_bsela_home: Path) -> None:
+    sid = ingest_file(FIXTURES / "looped-read.jsonl").session_id
+    detect_errors(sid)
+    client = FakeLLMClient(
+        judge_response=_unhealthy_verdict(),
+        distill_response=_sample_distill(),
+    )
+    distill_session(sid, client=client, persist=False)
+    payload = json.loads(client.last_distill_user)
+    assert "replay_harness" not in payload
+
+
+def test_distill_replay_harness_sets_json_flag(tmp_bsela_home: Path) -> None:
+    sid = ingest_file(FIXTURES / "looped-read.jsonl").session_id
+    detect_errors(sid)
+    client = FakeLLMClient(
+        judge_response=_unhealthy_verdict(),
+        distill_response=_sample_distill(),
+    )
+    distill_session(
+        sid,
+        client=client,
+        persist=False,
+        replay_harness=True,
+        recent_lessons=[],
+    )
+    payload = json.loads(client.last_distill_user)
+    assert payload.get("replay_harness") is True
+    assert payload["recent_lessons"] == []
+
+
 def test_distill_missing_session_raises(tmp_bsela_home: Path) -> None:
     client = FakeLLMClient(
         judge_response=_healthy_verdict(),
