@@ -17,7 +17,30 @@ For **Cursor** (MCP wiring), see [`adapters/cursor/README.md`](adapters/cursor/R
 
 For Codex CLI continuation from this repo, see [`CODEX.md`](CODEX.md).
 
-## Last session — 2026-05-10 (semantic replay-diff metric)
+## Last session — 2026-05-10 (PR #40 landed; replay drift still 100%)
+
+### Completed
+
+1. **PR #40 merged** — squash merge on `main`: `9b2217e` (*fix(core): isolate replay from mutable lesson context*). Isolates replay distillation from mutable lesson context (`recent_lessons=[]`, `replay_harness` in JSON, prompt copy in `docs/prompts/failure-distiller.md`). Merged while CI was green (Bugbot pattern unchanged).
+2. **Replay batch** — listed 15 drift-flagged sessions (`bsela replays list --drift-only --json`), ran `bsela replay` for each (short UUID prefixes where needed). One session needed a retry after HTTP read timeout.
+3. **Audit re-check** — `uv run bsela audit --weekly --json`: **`replay_drift` unchanged** — `sessions_replayed=15`, `sessions_with_drift=15`, `drift_rate=1.0`, `threshold=0.88`, alert **REPLAY DRIFT** still present.
+4. **Root cause (no code fix shipped)** — inspected replay CLI diffs (e.g. `d66099c6`, `7d0e9afa`, `3fc74662`): drift is dominated by **different lesson multisets** (new topics on replay), not sub-threshold paraphrases of the same rule. Lowering Jaccard pairing alone will not clear the alarm. Full write-up: [`docs/reports/replay-drift-2026-05-10.md`](docs/reports/replay-drift-2026-05-10.md).
+
+### Repo state at session end
+
+- **main (origin):** includes `9b2217e` from PR #40.
+- **Open PRs:** docs handoff from branch `docs/replay-drift-handoff-2026-05-10` (report + this file).
+- **Audit:** `REPLAY DRIFT` weekly alert **still firing** until policy/threshold or distiller stability work lands (see report “Recommended next steps”).
+
+### Next session — start here
+
+1. **Decide policy** — Either accept higher baseline drift on free-tier models (ADR + adjust `audit.replay_drift_threshold` or add a non-blocking mode), or invest in **structured distillation** / paid Haiku to shrink lesson churn.
+2. **Branch-protection** — still worth relaxing Bugbot from required SUCCESS to pass-or-neutral when friction recurs.
+3. **Optional:** max-weight bipartite pairing + replay-only pairing threshold — small win for paraphrase-only cases; will not address multiset churn evidenced in the report.
+
+---
+
+## Previous session — 2026-05-10 (semantic replay-diff metric)
 
 ### Completed
 
