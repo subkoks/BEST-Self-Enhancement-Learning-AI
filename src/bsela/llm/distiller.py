@@ -198,10 +198,15 @@ def distill_session(
     *,
     client: LLMClient,
     persist: bool = True,
+    force_distill: bool = False,
     judge_threshold: float = 0.8,
     recent_lessons_limit: int = 10,
 ) -> DistillationResult:
-    """Run judge→distill for one session. Returns the decision trail."""
+    """Run judge→distill for one session. Returns the decision trail.
+
+    When ``force_distill`` is true, the judge still runs for telemetry but a
+    "healthy" verdict does not short-circuit the distiller call.
+    """
     session = get_session(session_id)
     if session is None:
         raise LookupError(f"session not found: {session_id}")
@@ -218,7 +223,7 @@ def distill_session(
         and not verdict.looped
         and not verdict.wasted_tokens
     )
-    if healthy:
+    if healthy and not force_distill:
         return DistillationResult(
             session_id=session_id,
             verdict=verdict,

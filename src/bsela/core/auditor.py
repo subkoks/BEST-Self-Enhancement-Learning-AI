@@ -76,7 +76,12 @@ class DriftSnapshot:
 
 @dataclass(frozen=True)
 class ReplayDriftSnapshot:
-    """Drift rate computed from persisted ``bsela replay`` outcomes (P7)."""
+    """Drift rate computed from persisted ``bsela replay`` outcomes (P7).
+
+    One replay row is a point-in-time result. To avoid historical tuning noise
+    pinning the alert indefinitely, the audit uses only the latest replay row
+    per session within the selected window.
+    """
 
     sessions_replayed: int
     sessions_with_drift: int
@@ -218,6 +223,12 @@ def build_audit(
             ).all()
         )
 
+    latest_replay_by_session: dict[str, ReplayRecord] = {}
+    for record in replay_records:
+        current = latest_replay_by_session.get(record.session_id)
+        if current is None or record.replayed_at > current.replayed_at:
+            latest_replay_by_session[record.session_id] = record
+
     sessions_quarantined = sum(1 for sess in sessions if sess.status == "quarantined")
 
     cost_total = round(sum(m.cost_usd for m in metrics), 6)
@@ -236,8 +247,8 @@ def build_audit(
     )
 
     replay_drift_snapshot = ReplayDriftSnapshot(
-        sessions_replayed=len(replay_records),
-        sessions_with_drift=sum(1 for r in replay_records if r.had_drift),
+        sessions_replayed=len(latest_replay_by_session),
+        sessions_with_drift=sum(1 for r in latest_replay_by_session.values() if r.had_drift),
         threshold=cfg.audit.replay_drift_threshold,
     )
 
