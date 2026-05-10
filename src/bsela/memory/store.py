@@ -27,6 +27,8 @@ from bsela.memory.models import (
     SessionRecord,
 )
 
+_ENGINES: set[Engine] = set()
+
 
 def bsela_home() -> Path:
     """Resolve the BSELA home directory (``BSELA_HOME`` env or ``~/.bsela``)."""
@@ -57,6 +59,7 @@ def _engine_for(url: str) -> Engine:
         cursor.close()
 
     SQLModel.metadata.create_all(engine)
+    _ENGINES.add(engine)
     return engine
 
 
@@ -66,8 +69,9 @@ def get_engine() -> Engine:
 
 def reset_engine_cache() -> None:
     """Dispose every cached engine. Intended for tests."""
-    for engine in list(_engine_for.__wrapped__.__dict__.values()):
+    for engine in _ENGINES:
         engine.dispose()
+    _ENGINES.clear()
     _engine_for.cache_clear()
 
 
