@@ -44,6 +44,7 @@ dmypy.json
 *~
 .windsurf/
 .cursor/
+!.cursor/BUGBOT.md
 .claude/
 .codex/
 
