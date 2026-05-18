@@ -43,7 +43,7 @@ dmypy.json
 *.swo
 *~
 .windsurf/
-.cursor/
+.cursor/*
 !.cursor/BUGBOT.md
 .claude/
 .codex/
