@@ -41,9 +41,9 @@ dev = [
 bsela = "bsela.cli:app"
 
 [project.urls]
-Homepage = "https://github.com/subkoks/bsela"
-Repository = "https://github.com/subkoks/bsela"
-Issues = "https://github.com/subkoks/bsela/issues"
+Homepage = "https://github.com/subkoks/BEST-Self-Enhancement-Learning-AI"
+Repository = "https://github.com/subkoks/BEST-Self-Enhancement-Learning-AI"
+Issues = "https://github.com/subkoks/BEST-Self-Enhancement-Learning-AI/issues"
 
 [build-system]
 requires = ["hatchling"]
