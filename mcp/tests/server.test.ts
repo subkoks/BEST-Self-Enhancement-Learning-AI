@@ -28,7 +28,7 @@ describe("createServer", () => {
   it("advertises all six BSELA tools via list_tools", async () => {
     const decision: RouteDecision = {
       task_class: "planner",
-      model: "claude-opus-4-7",
+      model: "claude-opus-4-8",
       confidence: 1,
       reason: "matched keyword",
       matched_keywords: ["plan"],

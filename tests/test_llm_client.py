@@ -280,7 +280,7 @@ def test_make_llm_client_raises_when_no_keys(monkeypatch: pytest.MonkeyPatch) ->
 def test_anthropic_client_judge_calls_sdk() -> None:
     client = AnthropicClient(
         judge_model="claude-haiku-4-5",
-        distiller_model="claude-opus-4-7",
+        distiller_model="claude-opus-4-8",
         api_key="sk-ant-test",
     )
     verdict_payload = json.dumps(
@@ -316,7 +316,7 @@ def test_anthropic_client_caches_sdk_instance() -> None:
     """Cover line 74→77: _anthropic() returns the cached _client on second call."""
     client = AnthropicClient(
         judge_model="claude-haiku-4-5",
-        distiller_model="claude-opus-4-7",
+        distiller_model="claude-opus-4-8",
         api_key="sk-ant-test",
     )
     mock_anthropic_module = MagicMock()
@@ -332,7 +332,7 @@ def test_anthropic_client_complete_passes_deterministic_temperature() -> None:
     """Replay reproducibility regression — see fix/llm-deterministic-distill."""
     client = AnthropicClient(
         judge_model="claude-haiku-4-5",
-        distiller_model="claude-opus-4-7",
+        distiller_model="claude-opus-4-8",
         api_key="sk-ant-test",
     )
     text_block = MagicMock()
@@ -350,11 +350,33 @@ def test_anthropic_client_complete_passes_deterministic_temperature() -> None:
     assert kwargs["temperature"] == 0.0
 
 
+def test_anthropic_client_complete_omits_temperature_for_opus_47plus() -> None:
+    """Opus 4.7+ rejects a non-default temperature (HTTP 400); _complete omits it."""
+    client = AnthropicClient(
+        judge_model="claude-haiku-4-5",
+        distiller_model="claude-opus-4-8",
+        api_key="sk-ant-test",
+    )
+    text_block = MagicMock()
+    text_block.text = '{"ok": 1}'
+    mock_resp = MagicMock()
+    mock_resp.content = [text_block]
+    mock_anthropic_module = MagicMock()
+    mock_create = mock_anthropic_module.Anthropic.return_value.messages.create
+    mock_create.return_value = mock_resp
+
+    with patch("importlib.import_module", return_value=mock_anthropic_module):
+        client._complete(model="claude-opus-4-8", system="s", user="u", max_tokens=10)
+
+    kwargs = mock_create.call_args.kwargs
+    assert "temperature" not in kwargs
+
+
 def test_anthropic_client_complete_skips_non_text_block() -> None:
     """Cover line 89→87: block without .text attribute is skipped."""
     client = AnthropicClient(
         judge_model="claude-haiku-4-5",
-        distiller_model="claude-opus-4-7",
+        distiller_model="claude-opus-4-8",
         api_key="sk-ant-test",
     )
     text_block = MagicMock()
@@ -374,7 +396,7 @@ def test_anthropic_client_distill_parses_response() -> None:
     """Cover lines 103-109: AnthropicClient.distill() calls _complete and parses JSON."""
     client = AnthropicClient(
         judge_model="claude-haiku-4-5",
-        distiller_model="claude-opus-4-7",
+        distiller_model="claude-opus-4-8",
         api_key="sk-ant-test",
     )
     distill_payload = json.dumps(

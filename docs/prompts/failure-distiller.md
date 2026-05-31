@@ -1,6 +1,6 @@
 ---
 role: failure-distiller
-model: opus-4-7
+model: opus-4-8
 inputs:
   - session: parsed session transcript with candidate errors from the Detector
   - recent_lessons: top-K nearest lessons (for dedup context)

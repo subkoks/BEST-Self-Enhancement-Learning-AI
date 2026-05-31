@@ -18,7 +18,7 @@ def test_route_prints_class_model_and_reason() -> None:
     assert result.exit_code == 0
     assert "class:" in result.stdout
     assert "planner" in result.stdout
-    assert "claude-opus-4-7" in result.stdout
+    assert "claude-opus-4-8" in result.stdout
     assert "keywords:" in result.stdout
 
 

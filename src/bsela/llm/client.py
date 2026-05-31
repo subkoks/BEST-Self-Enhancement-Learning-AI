@@ -42,6 +42,13 @@ _JSON_OBJECT_RE = re.compile(r"\{.*\}", re.DOTALL)
 _DETERMINISTIC_TEMPERATURE = 0.0
 _DETERMINISTIC_SEED = 42
 
+# Anthropic returns HTTP 400 for a non-default ``temperature``/``top_p``/``top_k``
+# on Claude Opus 4.7 and later (incl. 4.8), so the kwarg must be omitted for those
+# models. Anthropic also ignores ``seed``, so determinism on Opus 4.7+ must come
+# from the prompt, not sampling params. Matches 4.7-4.99; a future Opus 5.x would
+# need adding here.
+_OMIT_SAMPLING = re.compile(r"claude-opus-4-(?:[7-9]|\d\d)")
+
 
 def _extract_json_object(text: str) -> str:
     """Pull the first {...} block out of an LLM response, tolerating prose."""
@@ -92,13 +99,17 @@ class AnthropicClient:
         user: str,
         max_tokens: int,
     ) -> str:
-        resp = self._anthropic().messages.create(
-            model=model,
-            max_tokens=max_tokens,
-            system=system,
-            messages=[{"role": "user", "content": user}],
-            temperature=_DETERMINISTIC_TEMPERATURE,
-        )
+        # Omit ``temperature`` for models that reject a non-default value
+        # (Opus 4.7+); send it everywhere else for replay reproducibility.
+        create_kwargs: dict[str, Any] = {
+            "model": model,
+            "max_tokens": max_tokens,
+            "system": system,
+            "messages": [{"role": "user", "content": user}],
+        }
+        if not _OMIT_SAMPLING.search(model):
+            create_kwargs["temperature"] = _DETERMINISTIC_TEMPERATURE
+        resp = self._anthropic().messages.create(**create_kwargs)
         chunks: list[str] = []
         for block in resp.content:
             text = getattr(block, "text", None)

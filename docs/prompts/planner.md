@@ -1,6 +1,6 @@
 ---
 role: planner
-model: opus-4-7
+model: opus-4-8
 inputs:
   - task: raw natural-language task
   - context: { repo_root, stack, recent_lessons }
