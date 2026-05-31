@@ -18,11 +18,11 @@ def test_decision_add_persists_row(tmp_bsela_home: Path) -> None:
         [
             "decision",
             "add",
-            "Pin judge to Haiku 3.5",
+            "Pin judge to Haiku 4.5",
             "--context",
             "Cost ceiling of ~$0.05/session per P4 budget.",
             "--decision",
-            "Use claude-3-5-haiku-20241022 for the judge pass.",
+            "Use claude-haiku-4-5 for the judge pass.",
             "--consequences",
             "Accept slightly higher false-positive rate; revisit at P5.",
         ],
@@ -33,7 +33,7 @@ def test_decision_add_persists_row(tmp_bsela_home: Path) -> None:
     rows = list_decisions()
     assert len(rows) == 1
     saved = rows[0]
-    assert saved.title == "Pin judge to Haiku 3.5"
+    assert saved.title == "Pin judge to Haiku 4.5"
     assert "Cost ceiling" in saved.context
     assert "haiku" in saved.decision.lower()
     assert "false-positive" in saved.consequences

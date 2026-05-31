@@ -28,13 +28,13 @@ temperature = 0.0
 
 # Full distillation when the judge flags low confidence or high impact.
 [distiller]
-model = "claude-opus-4-7"
+model = "claude-opus-4-8"
 max_tokens = 4096
 temperature = 0.2
 
 # Planning / architecture work. Long reasoning, trade-off thinking.
 [planner]
-model = "claude-opus-4-7"
+model = "claude-opus-4-8"
 max_tokens = 8192
 temperature = 0.3
 
@@ -58,13 +58,13 @@ temperature = 0.3
 
 # Large codebase audits. Needs 1M context window.
 [auditor]
-model = "claude-opus-4-7"
+model = "claude-opus-4-8"
 max_tokens = 8192
 temperature = 0.2
 
 # Root-cause triage on failures.
 [debugger]
-model = "claude-opus-4-7"
+model = "claude-opus-4-8"
 max_tokens = 4096
 temperature = 0.1
 

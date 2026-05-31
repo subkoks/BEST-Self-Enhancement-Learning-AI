@@ -1,6 +1,6 @@
 ---
 role: debugger
-model: opus-4-7
+model: opus-4-8
 inputs:
   - symptom: observed failure (error text, stack trace, unexpected output)
   - context: { recent_diffs, env, logs, repro_steps }
