@@ -2,8 +2,9 @@
 # Setup: https://github.com/anthropics/claude-code-action/blob/main/docs/setup.md
 # Security: https://github.com/anthropics/claude-code-action/blob/main/docs/security.md
 #
-# ANTHROPIC_API_KEY (repository secret): GitHub web UI → this repo → Settings →
-# Secrets and variables → Actions → New repository secret. Name: ANTHROPIC_API_KEY.
+# Auth: CLAUDE_CODE_OAUTH_TOKEN (repository secret) — uses a Claude Pro/Max
+# subscription instead of pay-as-you-go API credit. Generate locally with
+# `claude setup-token`, then set it: `gh secret set CLAUDE_CODE_OAUTH_TOKEN`.
 # (Org-wide: Organization Settings → Secrets and variables → Actions.) Details:
 # adapters/claude/README.md section 7.
 
@@ -44,7 +45,7 @@ jobs:
         id: claude
         uses: anthropics/claude-code-action@v1
         with:
-          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           claude_args: |
             --max-turns 15
           plugin_marketplaces: |
