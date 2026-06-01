@@ -85,18 +85,19 @@ Workflow: [`.github/workflows/claude.yml`](../../.github/workflows/claude.yml)
 1. Install the [Claude GitHub App](https://github.com/apps/claude) on this
    repository (or organization), per Anthropic’s
    [setup guide](https://github.com/anthropics/claude-code-action/blob/main/docs/setup.md).
-2. Add an Actions secret for the API key the workflow reads as
-   **`secrets.ANTHROPIC_API_KEY`**:
-   - **Repository secret:** open the GitHub repo in the browser → **Settings** (repo
-     settings, not your profile) → **Secrets and variables** → **Actions** →
-     **New repository secret** → Name **`ANTHROPIC_API_KEY`** → paste the key from
-     [Anthropic Console](https://console.anthropic.com/) → **Add secret**.
+2. Add an Actions secret for auth. The workflow reads
+   **`secrets.CLAUDE_CODE_OAUTH_TOKEN`** by default (Claude Pro/Max subscription —
+   no pay-as-you-go API credit needed):
+   - **OAuth (default):** run `claude setup-token` locally to mint a token, then
+     `gh secret set CLAUDE_CODE_OAUTH_TOKEN` (paste when prompted, or pipe via
+     stdin) — the token value never lands in the workflow file or git history.
+   - **Or (API key):** add **`ANTHROPIC_API_KEY`** (from
+     [Anthropic Console](https://console.anthropic.com/), pay-as-you-go credit) and
+     change the workflow step to pass
+     `anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}` instead of
+     `claude_code_oauth_token`.
    - **Organization secret (optional):** Organization **Settings** → **Secrets and
      variables** → **Actions** → new secret with the same name; grant this repo access.
-   - **Or (OAuth, Pro/Max):** add **`CLAUDE_CODE_OAUTH_TOKEN`** (from
-     `claude setup-token` locally) and change the workflow step to pass
-     `claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}` instead of
-     `anthropic_api_key`.
 3. Trigger by including **`@claude`** in an issue title/body, a PR review body,
    or a PR/issue comment (see the job `if:` filter in the workflow).
 
