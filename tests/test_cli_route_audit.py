@@ -9,8 +9,8 @@ from pathlib import Path
 from typer.testing import CliRunner
 
 from bsela.cli import app
-from bsela.memory.models import Metric
-from bsela.memory.store import save_metric
+from bsela.memory.models import Metric, ReplayRecord, SessionRecord
+from bsela.memory.store import save_metric, save_replay_record, save_session
 
 
 def test_route_prints_class_model_and_reason() -> None:
@@ -163,3 +163,34 @@ def test_audit_json_preserves_nonzero_exit_when_alerts_present(tmp_bsela_home: P
     payload = json.loads(result.stdout)
     assert payload["cost"]["over_budget"] is True
     assert len(payload["alerts"]) >= 1
+
+
+def test_audit_exits_zero_on_replay_drift_only(tmp_bsela_home: Path) -> None:
+    """Regression for #58/#60 (ADR 0010): replay drift is informational.
+
+    The weekly launchd run regressed by exiting non-zero on ~100% replay drift,
+    an intrinsic property of free-tier nondeterministic models. With replay drift
+    over threshold and no blocking alert, ``bsela audit`` must exit 0 while still
+    surfacing REPLAY DRIFT as a warning (not an alert). Pinned at the CLI seam —
+    the exit code is the behaviour that actually regressed in production.
+    """
+    recent = datetime.now(UTC) - timedelta(hours=2)
+    for idx in range(4):
+        sess = save_session(
+            SessionRecord(
+                source="claude_code",
+                transcript_path=f"/tmp/replay-drift-{idx}.jsonl",
+                content_hash=f"rd{idx}",
+                ingested_at=recent,
+            )
+        )
+        save_replay_record(ReplayRecord(session_id=sess.id, had_drift=True, replayed_at=recent))
+
+    result = CliRunner().invoke(app, ["audit", "--json"])
+    assert result.exit_code == 0, result.stdout
+    payload = json.loads(result.stdout)
+    # Drift is real and surfaced...
+    assert payload["replay_drift"]["over_threshold"] is True
+    assert any("REPLAY DRIFT" in w for w in payload["warnings"])
+    # ...but routed to warnings, never to the blocking alerts that gate the exit code.
+    assert not any("REPLAY DRIFT" in a for a in payload["alerts"])
