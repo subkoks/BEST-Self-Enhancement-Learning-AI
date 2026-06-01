@@ -200,6 +200,7 @@ _AUDIT_JSON_TOP_LEVEL = frozenset(
         "replay_drift",
         "adrs",
         "alerts",
+        "warnings",
     }
 )
 

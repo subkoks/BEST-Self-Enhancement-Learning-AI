@@ -85,6 +85,7 @@ export interface AuditPayload {
     scanned: boolean;
   };
   alerts: Array<string>;
+  warnings: Array<string>;
 }
 
 export interface LessonItem {
@@ -261,6 +262,8 @@ function isAuditPayload(value: unknown): value is AuditPayload {
     typeof v.errors_total === "number" &&
     Array.isArray(v.alerts) &&
     v.alerts.every((item) => typeof item === "string") &&
+    Array.isArray(v.warnings) &&
+    v.warnings.every((item) => typeof item === "string") &&
     typeof sessions === "object" &&
     sessions !== null &&
     typeof (sessions as Record<string, unknown>).total === "number" &&

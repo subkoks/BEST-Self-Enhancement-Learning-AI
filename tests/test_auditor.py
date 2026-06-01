@@ -282,7 +282,9 @@ def test_replay_drift_below_threshold_no_alert(tmp_bsela_home: Path) -> None:
     assert not any("REPLAY DRIFT" in a for a in report.alerts)
 
 
-def test_replay_drift_above_threshold_triggers_alert(tmp_bsela_home: Path) -> None:
+def test_replay_drift_above_threshold_warns_not_alerts(tmp_bsela_home: Path) -> None:
+    # Replay drift is informational (ADR 0010): it surfaces as a warning and must
+    # NOT enter the blocking ``alerts`` list (which gates the CLI exit code).
     sessions = [
         save_session(
             SessionRecord(
@@ -300,7 +302,31 @@ def test_replay_drift_above_threshold_triggers_alert(tmp_bsela_home: Path) -> No
     report = build_audit(window_days=30, now=NOW)
     assert report.replay_drift.drift_rate == pytest.approx(1.0)
     assert report.replay_drift.over_threshold
-    assert any("REPLAY DRIFT" in a for a in report.alerts)
+    assert any("REPLAY DRIFT" in w for w in report.warnings)
+    assert not any("REPLAY DRIFT" in a for a in report.alerts)
+
+
+def test_render_markdown_replay_drift_warning_section(tmp_bsela_home: Path) -> None:
+    # The non-empty ``## Warnings`` render branch + informational marker.
+    sessions = [
+        save_session(
+            SessionRecord(
+                source="claude_code",
+                transcript_path=f"/tmp/fake-warn-{idx}.jsonl",
+                content_hash=f"hw{idx}",
+                ingested_at=NOW - timedelta(hours=2),
+            )
+        )
+        for idx in range(4)
+    ]
+    for sess in sessions:
+        _replay_rec(sess.id, had_drift=True)
+
+    report = build_audit(window_days=30, now=NOW)
+    md = render_markdown(report)
+    assert "## Warnings" in md
+    assert "(informational)" in md
+    assert "REPLAY DRIFT" in md
 
 
 def test_replay_drift_uses_latest_record_per_session(tmp_bsela_home: Path) -> None:

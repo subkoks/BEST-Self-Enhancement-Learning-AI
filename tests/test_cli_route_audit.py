@@ -114,6 +114,7 @@ def test_audit_json_returns_machine_payload(tmp_bsela_home: Path) -> None:
         "generated_at",
         "replay_drift",
         "sessions",
+        "warnings",
         "window_days",
         "window_end",
         "window_start",

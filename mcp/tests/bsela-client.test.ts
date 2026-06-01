@@ -130,6 +130,7 @@ describe("BselaClient.audit", () => {
       "generated_at",
       "replay_drift",
       "sessions",
+      "warnings",
       "window_days",
       "window_end",
       "window_start",

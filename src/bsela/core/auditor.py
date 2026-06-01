@@ -15,9 +15,16 @@ Alerts are derived from ``config/thresholds.toml``:
 * ``cost.monthly_budget_usd``         — trip if prorated burn > budget.
 * ``audit.drift_alarm_threshold``     — trip if stale-lesson fraction
   exceeds threshold.
-* ``audit.replay_drift_threshold``    — trip if fraction of replayed
-  sessions that showed drift exceeds threshold (P7 replay drift alarm).
+* ``audit.replay_drift_threshold``    — replayed-session drift rate. Emitted
+  as an *informational warning*, not a blocking alert: on nondeterministic /
+  free-tier models the distiller selects a different lesson multiset per run,
+  so replay drift tracks model stability rather than a regression gate
+  (ADR 0010, supersedes the gate framing in ADR 0007 §3).
 * ADR status header — surface any ADR file missing ``**Status:**``.
+
+Two severities: ``alerts`` are blocking signals (cost, lesson staleness, ADR
+hygiene); ``warnings`` are informational (replay drift). Both render and are
+exposed in the ``bsela audit --json`` payload.
 """
 
 from __future__ import annotations
@@ -122,6 +129,7 @@ class AuditReport:
     replay_drift: ReplayDriftSnapshot
     adrs: AdrSnapshot
     alerts: tuple[str, ...] = field(default_factory=tuple)
+    warnings: tuple[str, ...] = field(default_factory=tuple)
 
     @property
     def quarantine_rate(self) -> float:
@@ -255,6 +263,7 @@ def build_audit(
     adrs = _scan_adrs()
 
     alerts: list[str] = []
+    warnings: list[str] = []
     if cost_snapshot.over_budget:
         alerts.append(
             f"COST: prorated monthly spend ${cost_snapshot.prorated_monthly_usd:.2f} "
@@ -269,12 +278,16 @@ def build_audit(
             f"{drift_snapshot.threshold:.1%} threshold)"
         )
     if replay_drift_snapshot.over_threshold:
-        alerts.append(
-            f"REPLAY DRIFT: {replay_drift_snapshot.sessions_with_drift}/"
-            f"{replay_drift_snapshot.sessions_replayed} replayed sessions showed drift "
+        # Informational, not blocking: on nondeterministic / free-tier models the
+        # distiller picks a different lesson multiset per run, so a high replay
+        # drift rate reflects model-selection variance rather than a regression.
+        # See ADR 0010 (supersedes the gate framing in ADR 0007 §3).
+        warnings.append(
+            f"REPLAY DRIFT (informational): {replay_drift_snapshot.sessions_with_drift}/"
+            f"{replay_drift_snapshot.sessions_replayed} replayed sessions changed lessons "
             f"({replay_drift_snapshot.drift_rate:.1%} > "
             f"{replay_drift_snapshot.threshold:.1%} threshold) — "
-            f"distillation output is diverging from stored lessons"
+            f"model-selection variance, not a release gate (ADR 0010)"
         )
     if adrs.missing_status:
         alerts.append(
@@ -295,11 +308,30 @@ def build_audit(
         replay_drift=replay_drift_snapshot,
         adrs=adrs,
         alerts=tuple(alerts),
+        warnings=tuple(warnings),
     )
 
 
 def _fmt_iso(ts: datetime) -> str:
     return ts.astimezone(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+def _render_list_section(
+    lines: list[str],
+    title: str,
+    items: tuple[str, ...],
+    *,
+    empty: str,
+    marker: str,
+) -> None:
+    """Append a ``## title`` section: bulleted ``items`` or an ``empty`` note."""
+    lines.append(f"## {title}")
+    lines.append("")
+    if items:
+        lines.extend(f"- {marker}{item}" for item in items)
+    else:
+        lines.append(empty)
+    lines.append("")
 
 
 def render_markdown(report: AuditReport) -> str:
@@ -314,14 +346,8 @@ def render_markdown(report: AuditReport) -> str:
     )
     lines.append("")
 
-    lines.append("## Alerts")
-    lines.append("")
-    if not report.alerts:
-        lines.append("_all clear._")
-    else:
-        for alert in report.alerts:
-            lines.append(f"- ⚠️ {alert}")
-    lines.append("")
+    _render_list_section(lines, "Alerts", report.alerts, empty="_all clear._", marker="⚠️ ")
+    _render_list_section(lines, "Warnings", report.warnings, empty="_none._", marker="")
 
     lines.append("## Capture")
     lines.append("")

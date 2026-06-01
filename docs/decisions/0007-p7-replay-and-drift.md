@@ -22,7 +22,7 @@ P7 per the roadmap:
 
 2. **Diff is normalized and rule-centric.** Comparison normalises whitespace + case, compares `(rule, scope, confidence)` tuples. Four diff kinds: `unchanged`, `added`, `removed`, `changed`. `changed` fires when the rule text matches but scope or confidence shifted beyond the precision of the stored float.
 
-3. **Drift alarm is threshold-based and auditor-integrated.** `bsela audit` counts `had_drift=True` replay records in the window. If the ratio exceeds `thresholds.toml → auditor.replay_drift_threshold` (default 0.25), the audit exits non-zero and prints a `REPLAY DRIFT` alert. The weekly launchd job therefore surfaces regressions automatically.
+3. **Drift alarm is threshold-based and auditor-integrated.** `bsela audit` counts `had_drift=True` replay records in the window. If the ratio exceeds `thresholds.toml → auditor.replay_drift_threshold` (default 0.25), the audit exits non-zero and prints a `REPLAY DRIFT` alert. The weekly launchd job therefore surfaces regressions automatically. **(Superseded by [ADR 0010](0010-replay-drift-informational.md): on nondeterministic / free-tier models replay drift is an _informational warning_, not a blocking alert, and no longer gates the `bsela audit` exit code.)**
 
 4. **`bsela rollback <lesson-id>` reverts a lesson to `rolled_back` status.** Rollback does not delete — it soft-marks so downstream aggregates (report, audit) exclude the lesson from the active corpus. Every change remains a commit; the `rolled_back` status is the undo token. Re-instating a rolled-back lesson is a manual `bsela review propose` → auto-merge cycle.
 

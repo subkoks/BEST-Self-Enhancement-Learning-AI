@@ -1070,6 +1070,7 @@ def _audit_json_payload(report_data: object) -> dict[str, object]:
             "scanned": report_data.adrs.scanned,
         },
         "alerts": list(report_data.alerts),
+        "warnings": list(report_data.warnings),
     }
 
 
@@ -1120,8 +1121,12 @@ def audit(
         typer.echo(render_audit_markdown(report_data))
     else:
         target = write_audit_report(report_data, output)
-        typer.echo(f"audit: wrote window={window}d, alerts={len(report_data.alerts)} to {target}")
-    # Non-zero exit on active alerts so the weekly launchd run surfaces in logs.
+        typer.echo(
+            f"audit: wrote window={window}d, alerts={len(report_data.alerts)} "
+            f"warnings={len(report_data.warnings)} to {target}"
+        )
+    # Non-zero exit on blocking alerts only; informational warnings (e.g. replay
+    # drift on nondeterministic models, ADR 0010) do not fail the run.
     raise typer.Exit(code=1 if report_data.alerts else 0)
 
 
