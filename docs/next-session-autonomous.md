@@ -133,15 +133,29 @@ Success criteria:
 - `git status` clean or intentionally dirty with known files.
 - `main` no longer ambiguous (`ahead/behind` resolved).
 
-## Phase 2 - Product Blockers (code + quality)
+## Phase 2 - Product Work (code + quality)
 
-Primary blocker is replay reliability/drift signal quality.
+**No open product blockers** (verified 2026-06-07: zero open issues, zero
+blocking audit alerts). The former blockers are closed: replay determinism
+(#44) and project-URL correctness (#45). Replay drift is now an **informational
+warning**, not a release gate — `bsela audit` exits `0` on replay-drift-only
+(ADR [0010](decisions/0010-replay-drift-informational.md)). Do **not** reopen
+the replay-determinism chase: on free-tier models the distiller emits a
+different lesson multiset per run by design (model-selection variance, not a
+regression).
 
-Work queue (in order):
+Steady-state work queue (in order):
 
-1. Fix replay determinism/drift reliability (issue `#44`).
-2. Fix metadata/public package URL correctness (issue `#45`).
-3. Add/adjust tests to guard both fixes.
+1. **Dogfood loop** — `bsela process --dry-run` to preview, then
+   `bsela process --limit N --since-days D` to distill the backlog (free tier,
+   $0). Triage with `bsela review`: propose AUTO / high-confidence Lessons,
+   reject false positives, leave ambiguous as pending. Nothing is written to
+   `agents-md` until a Lesson is explicitly proposed/applied.
+2. **Threshold tuning** — if the rejection rate stays high, tune
+   `config/thresholds.toml` (`gates.auto_merge_confidence`,
+   `dedupe.similarity_threshold`). Any gate / budget / retention override is a
+   Hard Stop and needs a matching ADR in `docs/decisions/`.
+3. **Add/adjust tests** to guard any code change.
 
 Minimum gate after each change set:
 
