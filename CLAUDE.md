@@ -52,29 +52,41 @@ No open issues, no open PRs, clean tree on `main`, and every gate green:
    ("Product Blockers") rewritten: the obsolete #44/#45 + replay-drift queue
    replaced with the real steady-state loop (dogfood → review → tune). This
    session log added.
-4. **Dogfood loop** — `bsela process --limit 15 --since-days 14`: considered 45,
-   processed 15, distilled 15 → **3 new Lessons** (free tier, $0). All three are
-   `[REVIEW]` / scope=project / conf 0.85–0.90 and genuine (deps-before-import,
-   no hard-coded paths, validate required tool params). **Left pending** — none
-   are AUTO (policy: propose AUTO only) and none are false positives; proposing
-   project-scope global rules into `agents-md` is the operator's call.
-5. **Released v0.1.1** — tag + GitHub release cut from the merged release PR.
+4. **Dogfood loop** — two `bsela process` batches (free tier, $0): recent
+   (`--limit 15 --since-days 14`) plus a bounded `--limit 30 --since-days 30`
+   (distilled=26, errors=0). A wider `--limit 374` run was stopped after it hit
+   an OpenRouter **429** (free-tier rate limit) — that 429 itself became a lesson.
+5. **Lesson triage** — **3 proposed** (local `agents-md` `bsela/lesson/*`
+   branches, not pushed): declare/install Python deps (809875ce, 0.90), never
+   hard-code absolute paths (6a6601cb, 0.85), retry+backoff on 429 (55adbcb3,
+   0.85). **4 rejected** as duplicate / low-confidence (validate-params,
+   stream-non-empty, validate-keys, optional-module-import — covered by existing
+   drafts or redundant). All were `[REVIEW]` (conf < the strict 0.93 auto-merge
+   bar); none AUTO.
+6. **Released v0.1.1** — tag + GitHub release cut from the merged release PR (#71).
 
 ### Repo state at session end
 
-- **main:** version 0.1.1; CHANGELOG + runbook + this log landed via the v0.1.1
-  release PR.
+- **main:** version 0.1.1 (release PR #71); this log's triage addendum landed via
+  a follow-up doc PR.
 - **Open PRs / issues:** none.
 - **Audit:** zero blocking alerts. Cost $0 / $50.
-- **Store:** 756 sessions (13 quarantined), 794 errors, 36 lessons (3 pending),
-  61 replays.
+- **Store:** 759 sessions (13 quarantined), 805 errors, 40 lessons (3 proposed,
+  0 pending), 61 replays.
+- **agents-md:** clean on `main`; 3 local `bsela/lesson/*` proposal branches
+  awaiting your merge decision (not pushed).
 
 ### Next session — start here
 
-1. **Triage the 3 pending Lessons** (`bsela review show <id>` → `review propose
-   <id>` to write an `agents-md` branch, or `review reject <id> -n "…"`).
-2. **Dogfood remainder** — ~30 older undistilled sessions remain
-   (`bsela process --dry-run --since-days 30`); distill for more signal if wanted.
+1. **Decide on the 3 proposed Lessons** — review the `bsela/lesson/*` branches in
+   `agents-md` and merge the ones you want (or `bsela review reject`). They are
+   local-only, not pushed.
+2. **Dogfood is steady-state, not a backlog to drain** — every Claude Code
+   session is captured, so the undistilled count (~370) is continuously
+   replenished by usage. Run periodic *small* batches
+   (`bsela process --limit 20 --since-days 14`); free-tier OpenRouter 429-limits
+   bulk runs, so don't attempt the whole corpus at once (use a paid key for a
+   one-off bulk pass if you ever need it).
 3. **Threshold tuning** — rejection-rate driven; tune `config/thresholds.toml`
    (any gate / budget / retention override is a Hard Stop + needs an ADR).
 
