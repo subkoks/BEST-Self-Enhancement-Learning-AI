@@ -153,6 +153,12 @@ def propose_lesson(
     drafts_dir = working / DRAFTS_SUBDIR
     file_path = drafts_dir / f"{lesson.id}.md"
 
+    # Containment: lesson.id is a server-side uuid4 today, but guard against a
+    # poisoned/crafted id (e.g. path traversal) escaping the drafts directory.
+    drafts_resolved = drafts_dir.resolve()
+    if not file_path.resolve().is_relative_to(drafts_resolved):
+        raise UpdaterError(f"refusing to write lesson outside drafts dir: {lesson.id!r}")
+
     _run_git(working, "checkout", base)
     try:
         _run_git(working, "checkout", "-b", branch)
