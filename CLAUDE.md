@@ -17,6 +17,69 @@ For **Cursor** (MCP wiring), see [`adapters/cursor/README.md`](adapters/cursor/R
 
 For Codex CLI continuation from this repo, see [`CODEX.md`](CODEX.md).
 
+## Last session — 2026-06-07 (release-readiness: v0.1.1; all gates green; replay-drift saga closed)
+
+> The replay-drift saga that dominates the older entries below is **closed**.
+> It was reclassified as an informational warning (ADR 0010, #58/#60), the
+> determinism work landed (#36/#38/#40), and issues #44/#45 are closed. The
+> weekly `REPLAY DRIFT` line is now a non-blocking warning by design. Do not
+> reopen the determinism chase.
+
+### State at session start
+
+No open issues, no open PRs, clean tree on `main`, and every gate green:
+
+- `bsela doctor`: 7/7. `make check`: **428 tests, 99.79% coverage**, ruff + mypy
+  + format clean. `make mcp-check`: **59 TS tests**, eslint + prettier + tsc
+  clean, build OK.
+- `bsela audit --weekly`: **zero blocking alerts** (only the informational
+  replay-drift warning). Cost **$0 / $50**. Quarantine rate 1.4%.
+- GitHub: CI / MCP / CodeQL green on HEAD; CodeQL covers actions/js/ts/**python**;
+  **0** Dependabot alerts; branch protection (required `lint-and-test`,
+  `enforce_admins`, linear history) intact.
+
+### Completed
+
+1. **Version reconcile** — `pyproject` (0.0.1), `src/bsela/__init__.py` (0.0.1),
+   `mcp/package.json` (0.1.0) and `mcp/src/server.ts` (0.1.0) disagreed with the
+   `v0.1.0` tag. Unified all four to **0.1.1**.
+2. **CHANGELOG** — replaced the stale `[Unreleased]` (only community-health
+   files) with a complete `[0.1.1]` section from git history since v0.1.0:
+   Opus 4.8 routing (#56), replay-drift reclassification (#58/#60/#61),
+   replay-determinism fixes (#36/#38/#40), CI hardening (#59/#69), deps. Added
+   semver compare links.
+3. **Plan docs refreshed** — `docs/next-session-autonomous.md` Phase 2
+   ("Product Blockers") rewritten: the obsolete #44/#45 + replay-drift queue
+   replaced with the real steady-state loop (dogfood → review → tune). This
+   session log added.
+4. **Dogfood loop** — `bsela process --limit 15 --since-days 14`: considered 45,
+   processed 15, distilled 15 → **3 new Lessons** (free tier, $0). All three are
+   `[REVIEW]` / scope=project / conf 0.85–0.90 and genuine (deps-before-import,
+   no hard-coded paths, validate required tool params). **Left pending** — none
+   are AUTO (policy: propose AUTO only) and none are false positives; proposing
+   project-scope global rules into `agents-md` is the operator's call.
+5. **Released v0.1.1** — tag + GitHub release cut from the merged release PR.
+
+### Repo state at session end
+
+- **main:** version 0.1.1; CHANGELOG + runbook + this log landed via the v0.1.1
+  release PR.
+- **Open PRs / issues:** none.
+- **Audit:** zero blocking alerts. Cost $0 / $50.
+- **Store:** 756 sessions (13 quarantined), 794 errors, 36 lessons (3 pending),
+  61 replays.
+
+### Next session — start here
+
+1. **Triage the 3 pending Lessons** (`bsela review show <id>` → `review propose
+   <id>` to write an `agents-md` branch, or `review reject <id> -n "…"`).
+2. **Dogfood remainder** — ~30 older undistilled sessions remain
+   (`bsela process --dry-run --since-days 30`); distill for more signal if wanted.
+3. **Threshold tuning** — rejection-rate driven; tune `config/thresholds.toml`
+   (any gate / budget / retention override is a Hard Stop + needs an ADR).
+
+---
+
 ## Last session — 2026-05-10 (PR #40 landed; replay drift still 100%)
 
 ### Completed
