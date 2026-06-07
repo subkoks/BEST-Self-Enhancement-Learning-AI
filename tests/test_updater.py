@@ -158,3 +158,11 @@ def test_detect_base_branch_raises_when_neither(fake_agents_md: Path) -> None:
     _run(fake_agents_md, "branch", "-m", "main", "trunk")
     with pytest.raises(UpdaterError, match="no main/master branch"):
         _detect_base_branch(fake_agents_md)
+
+
+def test_propose_lesson_rejects_traversal_id(fake_agents_md: Path) -> None:
+    """A crafted lesson.id must not escape the drafts directory."""
+    lesson = _lesson()
+    lesson.id = "../../escape"
+    with pytest.raises(UpdaterError, match="outside drafts dir"):
+        propose_lesson(lesson)
