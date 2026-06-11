@@ -212,3 +212,6 @@ Suggested order: **1 → 2 → 3 → 4 → 5**.
 - **Prompt 5** — Fix `.github/workflows/ci.yml` / `claude.yml` if any issues remain after today's CI run.
 - **Prompt 6** — Tune `config/thresholds.toml` based on false-positive rate (12 of 33 lessons rejected = 36% rejection rate, above the target ~25%).
 - **Prompt 7** — GitHub issue sweep: run `gh issue list` and triage open issues.
+## Cloud sessions (Claude Code on the web)
+
+This repo is cloud-ready. A `SessionStart` hook (`.claude/settings.json` -> `scripts/cloud-setup.sh`) bootstraps dependencies automatically in Anthropic cloud sessions (`claude --remote`, `claude.ai/code`). It is cloud-guarded (`CLAUDE_CODE_REMOTE=true`) and a no-op in local sessions.
