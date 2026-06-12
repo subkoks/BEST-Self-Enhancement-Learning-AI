@@ -44,7 +44,9 @@ dmypy.json
 *~
 .windsurf/
 .cursor/
-.claude/
+.claude/*
+# Keep the committed project SessionStart hook (cloud bootstrap); ignore the rest.
+!.claude/settings.json
 .codex/
 
 # macOS
