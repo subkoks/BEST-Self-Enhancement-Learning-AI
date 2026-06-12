@@ -10,9 +10,11 @@ from __future__ import annotations
 
 from bsela.utils.config import ModelRole, load_models
 
-# Active Anthropic model ids (checked 2026-05-31). Add ids here when adopting them.
+# Active Anthropic model ids (checked 2026-06-12). Add ids here when adopting them.
 CURRENT_ANTHROPIC_MODELS = frozenset(
     {
+        "claude-fable-5",
+        "claude-mythos-5",
         "claude-opus-4-8",
         "claude-opus-4-7",
         "claude-opus-4-6",
