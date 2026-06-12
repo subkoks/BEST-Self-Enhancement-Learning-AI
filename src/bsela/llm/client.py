@@ -43,11 +43,12 @@ _DETERMINISTIC_TEMPERATURE = 0.0
 _DETERMINISTIC_SEED = 42
 
 # Anthropic returns HTTP 400 for a non-default ``temperature``/``top_p``/``top_k``
-# on Claude Opus 4.7 and later (incl. 4.8), so the kwarg must be omitted for those
-# models. Anthropic also ignores ``seed``, so determinism on Opus 4.7+ must come
-# from the prompt, not sampling params. Matches 4.7-4.99; a future Opus 5.x would
+# on Claude Opus 4.7 and later (incl. 4.8) and on the Claude 5 family (Fable 5 /
+# Mythos 5), so the kwarg must be omitted for those models. Anthropic also ignores
+# ``seed``, so determinism on these models must come from the prompt, not sampling
+# params. Matches Opus 4.7-4.99 plus fable-5/mythos-5; a future Opus 5.x would
 # need adding here.
-_OMIT_SAMPLING = re.compile(r"claude-opus-4-(?:[7-9]|\d\d)")
+_OMIT_SAMPLING = re.compile(r"claude-(?:opus-4-(?:[7-9]|\d\d)|fable-5|mythos-5)")
 
 
 def _extract_json_object(text: str) -> str:
