@@ -24,16 +24,27 @@ if [ -f requirements.txt ]; then
 fi
 
 # --- Node ---
-if [ -f pnpm-lock.yaml ]; then
-  log "pnpm install"; corepack enable 2>/dev/null || true
-  pnpm install --frozen-lockfile 2>/dev/null || pnpm install 2>/dev/null || true
-elif [ -f yarn.lock ]; then
-  log "yarn install"
-  yarn install --frozen-lockfile 2>/dev/null || yarn install 2>/dev/null || true
-elif [ -f package-lock.json ]; then
-  log "npm ci"; npm ci 2>/dev/null || npm install 2>/dev/null || true
-elif [ -f package.json ]; then
-  log "npm install"; npm install 2>/dev/null || true
-fi
+# Install Node deps for a directory, picking the manager from its lockfile.
+node_install() {
+  dir="$1"
+  [ -f "$dir/package.json" ] || return 0
+  if [ -f "$dir/pnpm-lock.yaml" ]; then
+    log "$dir -> pnpm install"; corepack enable 2>/dev/null || true
+    (cd "$dir" && { pnpm install --frozen-lockfile 2>/dev/null || pnpm install 2>/dev/null; }) || true
+  elif [ -f "$dir/yarn.lock" ]; then
+    log "$dir -> yarn install"
+    (cd "$dir" && { yarn install --frozen-lockfile 2>/dev/null || yarn install 2>/dev/null; }) || true
+  elif [ -f "$dir/package-lock.json" ]; then
+    log "$dir -> npm ci"
+    (cd "$dir" && { npm ci 2>/dev/null || npm install 2>/dev/null; }) || true
+  else
+    log "$dir -> npm install"
+    (cd "$dir" && npm install 2>/dev/null) || true
+  fi
+}
+
+# Root, then known workspaces (BSELA's MCP server lives in mcp/).
+node_install .
+node_install mcp
 
 exit 0
