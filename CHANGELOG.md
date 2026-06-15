@@ -9,6 +9,36 @@ called out under a `Breaking` heading.
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-06-15
+
+Public-readiness hardening release. The default config now ships inside the
+installed package, transcript parsing tolerates malformed lines, and the MCP
+suite gained a coverage gate. No CLI or MCP contract changes.
+
+### Added
+
+- `RELEASING.md` documenting the version-bump locations and release steps.
+- MCP coverage gate: `pnpm check` now runs `vitest --coverage` with ratchet
+  thresholds; test files run serially to avoid races on the shared store.
+
+### Fixed
+
+- `pip install bsela` outside a source checkout no longer raises
+  `FileNotFoundError`: the default `config/{thresholds,models}.toml` are bundled
+  into the wheel (`bsela/_config`) and `find_config_dir()` falls back to the
+  packaged copy.
+- A single malformed JSONL line in a transcript no longer crashes ingest or
+  detection — the bad line is skipped and logged, and surrounding events are
+  still processed.
+
+### Changed
+
+- `AnthropicClient` now sends an explicit request `timeout` (default 120s),
+  matching the OpenRouter client, so a hung connection can't block a batch.
+- The hard-coded `agents-md` repo path lives in one place: `bsela doctor`
+  reuses `updater.DEFAULT_AGENTS_MD_REPO`, and the "repo not found" error now
+  points to the `BSELA_AGENTS_MD_REPO` override.
+
 ## [0.1.1] - 2026-06-07
 
 Maintenance and hardening release: model routing moved to Claude Opus 4.8,
@@ -53,6 +83,7 @@ changes.
   transitive `qs` ≥ 6.15.2 (moderate DoS) (#57), plus grouped Python and MCP
   dependency updates.
 
-[Unreleased]: https://github.com/subkoks/BEST-Self-Enhancement-Learning-AI/compare/v0.1.1...HEAD
+[Unreleased]: https://github.com/subkoks/BEST-Self-Enhancement-Learning-AI/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/subkoks/BEST-Self-Enhancement-Learning-AI/compare/v0.1.1...v0.2.0
 [0.1.1]: https://github.com/subkoks/BEST-Self-Enhancement-Learning-AI/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/subkoks/BEST-Self-Enhancement-Learning-AI/releases/tag/v0.1.0
