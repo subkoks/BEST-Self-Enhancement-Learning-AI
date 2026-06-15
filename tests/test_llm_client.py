@@ -348,6 +348,8 @@ def test_anthropic_client_complete_passes_deterministic_temperature() -> None:
 
     kwargs = mock_create.call_args.kwargs
     assert kwargs["temperature"] == 0.0
+    # Explicit request timeout is always threaded through (default 120s).
+    assert kwargs["timeout"] == 120.0
 
 
 def test_anthropic_client_complete_omits_temperature_for_opus_47plus() -> None:
