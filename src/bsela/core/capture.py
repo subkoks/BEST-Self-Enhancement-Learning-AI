@@ -83,11 +83,15 @@ def _sha256_file(path: Path) -> str:
 
 def _iter_jsonl(path: Path) -> Iterator[dict[str, Any]]:
     with path.open("r", encoding="utf-8") as fh:
-        for raw in fh:
+        for idx, raw in enumerate(fh, start=1):
             line = raw.strip()
             if not line:
                 continue
-            yield json.loads(line)
+            try:
+                yield json.loads(line)
+            except json.JSONDecodeError:
+                # A single corrupt line must not lose the whole session.
+                _log.warning("skipping malformed JSONL line %d in %s", idx, path)
 
 
 def _parse_ts(value: object) -> datetime | None:

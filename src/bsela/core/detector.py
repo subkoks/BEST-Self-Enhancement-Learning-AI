@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import logging
 import re
 from collections.abc import Iterable, Iterator
 from dataclasses import dataclass
@@ -23,6 +24,8 @@ from typing import Any
 from bsela.memory.models import ErrorRecord, SessionRecord
 from bsela.memory.store import get_session, save_error
 from bsela.utils.config import load_thresholds
+
+_log = logging.getLogger(__name__)
 
 _STACK_TRACE_PATTERNS: tuple[re.Pattern[str], ...] = (
     re.compile(r"Traceback \(most recent call last\):"),
@@ -46,7 +49,13 @@ def _iter_jsonl(path: Path) -> Iterator[tuple[int, dict[str, Any]]]:
             line = raw.strip()
             if not line:
                 continue
-            yield idx, json.loads(line)
+            try:
+                event = json.loads(line)
+            except json.JSONDecodeError:
+                # A single corrupt line must not abort detection for the session.
+                _log.warning("skipping malformed JSONL line %d in %s", idx, path)
+                continue
+            yield idx, event
 
 
 def _nested_content_blocks(event: dict[str, Any]) -> list[dict[str, Any]]:

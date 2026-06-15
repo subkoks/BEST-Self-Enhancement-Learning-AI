@@ -73,6 +73,9 @@ class AnthropicClient:
     judge_max_tokens: int = 512
     distiller_max_tokens: int = 4096
     api_key: str | None = None
+    # Explicit request timeout so a hung connection can't block a batch
+    # indefinitely (mirrors the OpenRouter client's 120s urlopen timeout).
+    timeout: float = 120.0
     _client: Anthropic | None = field(default=None, init=False, repr=False)
 
     @classmethod
@@ -107,6 +110,7 @@ class AnthropicClient:
             "max_tokens": max_tokens,
             "system": system,
             "messages": [{"role": "user", "content": user}],
+            "timeout": self.timeout,
         }
         if not _OMIT_SAMPLING.search(model):
             create_kwargs["temperature"] = _DETERMINISTIC_TEMPERATURE

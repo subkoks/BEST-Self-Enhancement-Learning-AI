@@ -104,6 +104,24 @@ def test_ingest_with_empty_jsonl_lines(tmp_bsela_home: Path, tmp_path: Path) -> 
     assert result.status in ("captured", "quarantined")
 
 
+def test_ingest_skips_malformed_jsonl_line(
+    tmp_bsela_home: Path, tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    """A corrupt line is skipped+logged; valid turns around it are still counted."""
+    jsonl = tmp_path / "corrupt.jsonl"
+    jsonl.write_text(
+        '{"type":"user","content":"hello"}\n'
+        "{ not valid json\n"
+        '{"type":"assistant","content":"hi"}\n',
+        encoding="utf-8",
+    )
+    with caplog.at_level("WARNING"):
+        result = ingest_file(jsonl)
+    assert result.status == "captured"
+    assert result.turn_count == 2
+    assert any("malformed JSONL line 2" in r.message for r in caplog.records)
+
+
 # ---- _parse_ts unit tests ----
 
 

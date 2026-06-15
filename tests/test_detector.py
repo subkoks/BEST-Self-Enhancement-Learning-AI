@@ -233,6 +233,32 @@ def test_iter_jsonl_skips_blank_lines(tmp_bsela_home: Path, tmp_path: Path) -> N
     assert result.errors == ()  # no errors in simple content
 
 
+def test_iter_jsonl_skips_malformed_line(
+    tmp_bsela_home: Path, tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    """A corrupt JSONL line is skipped+logged; valid events after it still parse."""
+    jsonl = tmp_path / "corrupt.jsonl"
+    jsonl.write_text(
+        '{"ts":"2026-01-15T10:00:00Z","type":"user","content":"go"}\n'
+        "{ this is not valid json\n"
+        '{"ts":"2026-01-15T10:00:09Z","type":"user","content":"no wait, that is wrong"}\n',
+        encoding="utf-8",
+    )
+    sess = save_session(
+        SessionRecord(
+            source="test",
+            transcript_path=str(jsonl),
+            content_hash="corrupt",
+            status="captured",
+        )
+    )
+    with caplog.at_level("WARNING"):
+        result = detect_errors(sess.id, persist=False)
+    # The correction on the line *after* the bad one was still detected.
+    assert "correction" in {e.category for e in result.errors}
+    assert any("malformed JSONL line 2" in r.message for r in caplog.records)
+
+
 def test_iter_tool_uses_skips_non_tool_blocks_in_assistant() -> None:
     """Cover line 187→186: nested block type is not tool_use → skip it."""
     events = [

@@ -26,6 +26,7 @@ from bsela.core.hook_install import (
     DEFAULT_HOOK_COMMAND,
     default_claude_settings_path,
 )
+from bsela.core.updater import DEFAULT_AGENTS_MD_REPO
 from bsela.memory.store import bsela_home, db_path
 
 PASS = "pass"
@@ -108,7 +109,7 @@ def _check_agents_md_repo() -> CheckResult:
         candidate = Path(override).expanduser()
         label = f"{candidate} (via BSELA_AGENTS_MD_REPO)"
     else:
-        candidate = Path.home() / "Projects" / "Current" / "Active" / "agents-md"
+        candidate = DEFAULT_AGENTS_MD_REPO
         label = str(candidate)
     if not candidate.exists():
         return CheckResult(

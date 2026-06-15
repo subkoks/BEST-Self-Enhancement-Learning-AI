@@ -1,6 +1,6 @@
 {
   "name": "@bsela/mcp",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "private": true,
   "description": "Model Context Protocol server for BSELA — exposes route, audit, status, and lessons to MCP-compatible editors.",
   "type": "module",
@@ -24,12 +24,13 @@
     "build": "tsc -p tsconfig.build.json && chmod +x dist/server.js",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run",
+    "coverage": "vitest run --coverage",
     "parity": "vitest run tests/parity.test.ts",
     "test:watch": "vitest",
     "lint": "eslint --max-warnings=0 \"src/**/*.ts\" \"tests/**/*.ts\"",
     "format": "prettier --write \"src/**/*.ts\" \"tests/**/*.ts\"",
     "format:check": "prettier --check \"src/**/*.ts\" \"tests/**/*.ts\"",
-    "check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test",
+    "check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm coverage",
     "start": "node dist/server.js"
   },
   "dependencies": {
@@ -40,6 +41,7 @@
     "@types/node": "^25.9.2",
     "@typescript-eslint/eslint-plugin": "^8.60.1",
     "@typescript-eslint/parser": "^8.60.1",
+    "@vitest/coverage-v8": "^4.1.9",
     "eslint": "^10.4.1",
     "prettier": "^3.4.2",
     "typescript": "^6.0.3",
