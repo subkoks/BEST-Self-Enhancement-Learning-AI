@@ -115,7 +115,10 @@ def _slug(text: str, *, limit: int = 40) -> str:
 
 def _ensure_repo(repo: Path) -> Path:
     if not repo.exists():
-        raise UpdaterError(f"agents-md repo not found: {repo}")
+        raise UpdaterError(
+            f"agents-md repo not found: {repo}. "
+            "Set BSELA_AGENTS_MD_REPO to your agents-md working copy."
+        )
     if not (repo / ".git").exists():
         raise UpdaterError(f"{repo} is not a git working copy")
     return repo
