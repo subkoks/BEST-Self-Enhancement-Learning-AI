@@ -2,7 +2,10 @@
 
 Discovery order:
     1. ``BSELA_CONFIG_DIR`` env var (explicit override).
-    2. Walk up from this module until a ``config/thresholds.toml`` is found.
+    2. Walk up from this module until a ``config/thresholds.toml`` is found
+       (the editable-install / source-checkout case).
+    3. Config bundled inside the installed package at ``bsela/_config``
+       (the ``pip install bsela`` wheel case — see ``[tool.hatch.build]``).
 """
 
 from __future__ import annotations
@@ -10,6 +13,7 @@ from __future__ import annotations
 import os
 import tomllib
 from functools import cache
+from importlib.resources import files
 from pathlib import Path
 from typing import Any
 
@@ -103,7 +107,24 @@ def find_config_dir() -> Path:
         candidate = parent / "config"
         if (candidate / "thresholds.toml").is_file():
             return candidate
+    bundled = _bundled_config_dir()
+    if bundled is not None:
+        return bundled
     raise FileNotFoundError("Could not locate config/thresholds.toml. Set BSELA_CONFIG_DIR.")
+
+
+def _bundled_config_dir() -> Path | None:
+    """Config shipped inside the installed wheel at ``bsela/_config``.
+
+    Returns ``None`` for editable installs / source checkouts, where the
+    source-tree walk already resolves the repo-root ``config/`` dir.
+    """
+    try:
+        res = files("bsela") / "_config"
+        candidate = Path(str(res))
+    except (ModuleNotFoundError, TypeError, NotADirectoryError):
+        return None
+    return candidate if (candidate / "thresholds.toml").is_file() else None
 
 
 def load_thresholds(config_dir: Path | None = None) -> Thresholds:

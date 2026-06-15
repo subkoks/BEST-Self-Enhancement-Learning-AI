@@ -52,6 +52,12 @@ build-backend = "hatchling.build"
 [tool.hatch.build.targets.wheel]
 packages = ["src/bsela"]
 
+# Ship the default config alongside the package so `pip install bsela` works
+# outside a source checkout. `find_config_dir()` falls back to `bsela/_config`.
+[tool.hatch.build.targets.wheel.force-include]
+"config/thresholds.toml" = "bsela/_config/thresholds.toml"
+"config/models.toml" = "bsela/_config/models.toml"
+
 [tool.ruff]
 line-length = 100
 target-version = "py313"

@@ -60,6 +60,44 @@ def test_find_config_dir_raises_when_not_found(
     config_module.clear_cache()
 
 
+def test_bundled_config_dir_none_in_source_checkout() -> None:
+    """No ``bsela/_config`` exists in an editable install / source checkout."""
+    assert config_module._bundled_config_dir() is None
+
+
+def test_bundled_config_dir_none_when_resource_lookup_raises(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Resource lookup failure (e.g. namespace package) degrades to None."""
+
+    def _boom(_pkg: str) -> Path:
+        raise ModuleNotFoundError("bsela not importable as a resource anchor")
+
+    monkeypatch.setattr(_cfg, "files", _boom)
+    assert config_module._bundled_config_dir() is None
+
+
+def test_find_config_dir_uses_bundled_fallback(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Wheel case: source-tree walk misses, packaged ``_config`` resolves."""
+    real_config = config_module.find_config_dir()
+    bundled = tmp_path / "_config"
+    bundled.mkdir()
+    shutil.copy(real_config / "thresholds.toml", bundled / "thresholds.toml")
+    shutil.copy(real_config / "models.toml", bundled / "models.toml")
+
+    monkeypatch.delenv("BSELA_CONFIG_DIR", raising=False)
+    # Make the source-tree walk miss (no config/ above tmp_path)...
+    monkeypatch.setattr(_cfg, "__file__", str(tmp_path / "pkg" / "fake.py"))
+    # ...and make the packaged-resource lookup point at our fake wheel layout.
+    monkeypatch.setattr(_cfg, "files", lambda _pkg: tmp_path)
+    config_module.clear_cache()
+
+    assert config_module.find_config_dir() == bundled
+    config_module.clear_cache()
+
+
 def test_cached_thresholds_and_models() -> None:
     """Cover lines 124 + 130: cached thresholds() and models() accessors."""
     config_module.clear_cache()
