@@ -44,9 +44,7 @@ dmypy.json
 *~
 .windsurf/
 .cursor/
-.claude/*
 # Keep the committed project SessionStart hook (cloud bootstrap); ignore the rest.
-!.claude/settings.json
 .codex/
 
 # macOS
@@ -91,3 +89,7 @@ logs/
 # Generated docs
 docs/_build/
 site/
+
+# Claude Code (commit shared settings; ignore machine-local perms + transcripts)
+.claude/*
+!.claude/settings.json
