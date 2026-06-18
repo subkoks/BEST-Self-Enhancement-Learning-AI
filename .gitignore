@@ -93,3 +93,5 @@ site/
 # Claude Code (commit shared settings; ignore machine-local perms + transcripts)
 .claude/*
 !.claude/settings.json
+!.claude/agents/
+!.claude/agents/*
