@@ -13,6 +13,6 @@ Rules:
 - Read AGENTS first, then target files.
 - Prefer edits over new files.
 - Keep one logical change at a time.
-- Run only necessary checks (`uv run pytest -q` for Python, `cd mcp && pnpm check` for MCP).
+- Run only necessary checks (`make cov` for Python, `make mcp-check` for MCP).
 - Never touch synced editor artifacts (`~/.claude/CLAUDE.md`, `~/.cursor/*`, etc.).
 - Output: changed files + why + commands run + result.
