@@ -73,3 +73,11 @@ patterns = [
     "xoxb-[0-9]+-[0-9]+-[A-Za-z0-9]+",       # Slack bot
     "-----BEGIN [A-Z ]+ PRIVATE KEY-----",   # PEM
 ]
+# Literal strings that are known-safe documentation/placeholder values.
+# A pattern is suppressed only when ALL its matches in the text are allowlisted.
+allowlist = [
+    "AKIAIOSFODNN7EXAMPLE",   # AWS docs canonical example key (20 chars)
+    "AKIA1234567890ABCDEF",   # sequential-digit placeholder (20 chars)
+    "AKIAABCDEFGHIJKLMNOP",   # alphabetic-run placeholder (20 chars)
+    "AKIAZZZZZZZZZZZZZZZZ",   # all-Z placeholder (20 chars)
+]

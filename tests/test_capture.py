@@ -10,7 +10,7 @@ import pytest
 
 from bsela.core import capture as capture_module
 from bsela.core.capture import Scrubber, _parse_ts, _stringify, ingest_file
-from bsela.memory.store import get_session, list_errors
+from bsela.memory.store import count_sessions, get_session, list_errors
 
 FIXTURES = Path(__file__).parent / "fixtures" / "sample-sessions"
 
@@ -203,6 +203,79 @@ def test_ingest_cursor_format_counts_turns_and_tools(
 
 
 # ---- long-session / hashing ----
+
+
+# ---- Dedup: same transcript ingested twice ----
+
+
+def test_ingest_quarantined_transcript_dedup(
+    tmp_bsela_home: Path, sample_leaked_session: Path
+) -> None:
+    """Re-ingesting a quarantined transcript returns the existing record, no new DB row."""
+    first = ingest_file(sample_leaked_session)
+    assert first.status == "quarantined"
+    assert count_sessions() == 1
+
+    second = ingest_file(sample_leaked_session)
+    assert second.session_id == first.session_id
+    assert second.status == "quarantined"
+    assert count_sessions() == 1  # no new row
+
+
+def test_ingest_captured_unchanged_content_hash_dedup(
+    tmp_bsela_home: Path, sample_clean_session: Path
+) -> None:
+    """Re-ingesting a captured transcript with identical content returns the existing record."""
+    first = ingest_file(sample_clean_session, auto_detect=False)
+    assert first.status == "captured"
+    assert count_sessions() == 1
+
+    second = ingest_file(sample_clean_session, auto_detect=False)
+    assert second.session_id == first.session_id
+    assert second.status == "captured"
+    assert count_sessions() == 1  # no new row
+
+
+def test_ingest_captured_new_content_hash_creates_new_record(
+    tmp_bsela_home: Path, tmp_path: Path
+) -> None:
+    """Re-ingesting a captured transcript with grown content creates a new record."""
+    jsonl = tmp_path / "growing.jsonl"
+    jsonl.write_text('{"type":"user","content":"hello"}\n', encoding="utf-8")
+    first = ingest_file(jsonl, auto_detect=False)
+    assert first.status == "captured"
+    assert count_sessions() == 1
+
+    # Append a new line to simulate the transcript growing between hook fires.
+    jsonl.write_text(
+        '{"type":"user","content":"hello"}\n{"type":"assistant","content":"hi"}\n',
+        encoding="utf-8",
+    )
+    second = ingest_file(jsonl, auto_detect=False)
+    assert second.session_id != first.session_id
+    assert count_sessions() == 2  # new row for the grown transcript
+
+
+# ---- Scrubber allowlist ----
+
+
+def test_scrubber_allowlist_suppresses_false_positive(tmp_bsela_home: Path) -> None:
+    """Text containing only an allowlisted placeholder key must not trigger quarantine."""
+    scrub = Scrubber.from_patterns(
+        [r"AKIA[0-9A-Z]{16}"],
+        allowlist=["AKIAIOSFODNN7EXAMPLE"],
+    )
+    assert scrub.scan("The example key is AKIAIOSFODNN7EXAMPLE in the docs.") == []
+
+
+def test_scrubber_allowlist_does_not_suppress_real_key(tmp_bsela_home: Path) -> None:
+    """A non-allowlisted AKIA string must still trigger the pattern."""
+    scrub = Scrubber.from_patterns(
+        [r"AKIA[0-9A-Z]{16}"],
+        allowlist=["AKIAIOSFODNN7EXAMPLE"],
+    )
+    # AKIAREALKEYABCD12345 = AKIA + 16 uppercase/digit chars, not in allowlist
+    assert scrub.scan("key=AKIAREALKEYABCD12345") == [r"AKIA[0-9A-Z]{16}"]
 
 
 def test_ingest_streaming_hash_matches_full_file_digest(
