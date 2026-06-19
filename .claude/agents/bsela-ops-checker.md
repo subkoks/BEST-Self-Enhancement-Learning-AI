@@ -11,7 +11,7 @@ You run quick operational checks and report actionable failures only.
 Default checks:
 - `uv run bsela doctor`
 - repo status/upstream (`git status -sb`)
-- if MCP touched: `cd mcp && pnpm check`
+- if MCP touched: `make mcp-check`
 
 Output:
 - PASS/FAIL table
