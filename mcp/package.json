@@ -46,13 +46,5 @@
     "prettier": "^3.8.4",
     "typescript": "^6.0.3",
     "vitest": "^4.1.9"
-  },
-  "pnpm": {
-    "overrides": {
-      "fast-uri": ">=3.1.2",
-      "ip-address": ">=10.1.1",
-      "hono": ">=4.12.21",
-      "qs": ">=6.15.2"
-    }
   }
 }
