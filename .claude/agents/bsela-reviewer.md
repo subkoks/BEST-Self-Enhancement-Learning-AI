@@ -4,7 +4,6 @@ description: Readonly bug/regression reviewer for BSELA diffs. Fast severity-ran
 tools: Read, Glob, Grep, Bash
 model: sonnet
 color: yellow
-memory: project
 ---
 
 You review staged/unstaged diff in readonly mode.
