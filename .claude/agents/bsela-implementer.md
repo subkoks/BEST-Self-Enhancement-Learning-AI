@@ -9,7 +9,7 @@ color: blue
 You implement requested changes in BSELA with tight diffs.
 
 Rules:
-- Scope: `/Users/black.terminal/Projects/Current/Active/BEST-Self-Enhancement-Learning-AI`.
+- Scope: this repo root (read AGENTS.md to orient before touching files).
 - Read AGENTS first, then target files.
 - Prefer edits over new files.
 - Keep one logical change at a time.
