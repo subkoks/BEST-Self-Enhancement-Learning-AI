@@ -17,6 +17,61 @@ For **Cursor** (MCP wiring), see [`adapters/cursor/README.md`](adapters/cursor/R
 
 For Codex CLI continuation from this repo, see [`CODEX.md`](CODEX.md).
 
+## Last session — 2026-06-20 (agent-def review + security pins + capture dedup; 3 lessons applied)
+
+### Completed
+
+1. **Agent definitions reviewed & fixed (PRs #91–#93)** — medium-effort code
+   review of the 4 `.claude/agents/*.md` files from #90 surfaced 7 findings, all
+   addressed: agent check commands now use `make cov` / `make mcp-check` (were
+   `uv run pytest -q` / `cd mcp && pnpm check`, which skipped the coverage gate
+   and left `dist/server.js` stale); removed unrecognized `memory:` frontmatter
+   (Claude Code silently ignores it); hard-coded absolute path → repo-relative;
+   `.gitignore` agent allowlist deepened to `**`.
+2. **Security pins (PRs #93, #96)** — pinned `vite 7.3.5` (exact; range syntax
+   didn't resolve) + `esbuild ≥0.28.1`, bumped `hono ≥4.12.25` (Dependabot
+   #19–#23). **Migrated all pnpm overrides** from `mcp/package.json` (pnpm 10
+   ignores `pnpm.overrides` there with a WARN) → new **`mcp/pnpm-workspace.yaml`**.
+   0 open Dependabot alerts.
+3. **Capture dedup + scrubber allowlist (PR #95, closes #94)** — root-caused an
+   inflated quarantine rate: the Stop hook re-ingested the same *growing*
+   transcript on every tool completion (~9.3× inflation; all unique quarantines
+   were false positives on placeholder AWS keys). Fixes: transcript-path dedup in
+   `ingest_file` (`find_session_by_transcript`, `transcript_path` indexed); a
+   scrubber `allowlist` in `config/thresholds.toml` for known-safe doc/placeholder
+   keys (`scan()` now uses `finditer` + per-match allowlist — pattern suppressed
+   only when ALL matches are allowlisted). Branch count kept under PLR0912 via
+   `_make_result` / `_dedup_check` helpers. New session captures land at ~2.1%.
+4. **Dogfood batch** — `bsela process --limit 20 --since-days 14`: distilled 20,
+   4 new lessons (deduped against corpus), $0 free tier, no 429.
+5. **3 proposed lessons → applied** — the v0.1.1 trio (`809875ce` declare/install
+   Python deps; `6a6601cb` no hard-coded absolute paths; `55adbcb3` retry+backoff
+   on 429). Their drafts were **already merged** into `agents-md` main on
+   2026-06-07 (PR #31, `drafts/bsela-lessons/`); only the BSELA store was stale.
+   Reconciled `proposed → applied` (note: "merged via PR #31"). Review queue now
+   has 0 proposed.
+
+### Repo state at session end
+
+- **main:** `52d35a9` (PR #96). Clean tree. `bsela doctor` 7/7; `bsela audit
+  --weekly` **0 blocking alerts** (only the informational REPLAY DRIFT warning,
+  ADR 0010). Cost $0 / $50.
+- **Store:** 944 sessions (67 quarantined — historical inflation pre-#95, ages out
+  over 90d retention), 1007 errors, 44 lessons (0 proposed, 4 pending), 61 replays.
+- **Open PRs / issues / Dependabot alerts:** none.
+
+### Next session — start here
+
+1. **Steady-state dogfood** — periodic small batches
+   (`bsela process --limit 20 --since-days 14`); free-tier OpenRouter 429-limits
+   bulk runs.
+2. **Quarantine rate** — the 20.x% audit figure is pre-#95 backlog, not a live
+   regression; confirm new captures sit at ~2.1% before chasing it.
+3. **Threshold tuning** — rejection-rate driven; any gate/budget/retention
+   override is a Hard Stop + needs an ADR.
+
+---
+
 ## Last session — 2026-06-07 (release-readiness: v0.1.1; all gates green; replay-drift saga closed)
 
 > The replay-drift saga that dominates the older entries below is **closed**.
