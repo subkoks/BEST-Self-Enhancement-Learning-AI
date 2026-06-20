@@ -119,6 +119,18 @@ def resolve_session(id_or_prefix: str) -> SessionRecord | None:
     return rows[0] if rows else None
 
 
+def find_session_by_transcript(transcript_path: str) -> SessionRecord | None:
+    """Return the most-recently ingested session for ``transcript_path``, or None."""
+    stmt = (
+        select(SessionRecord)
+        .where(SessionRecord.transcript_path == transcript_path)
+        .order_by(SessionRecord.ingested_at.desc())  # type: ignore[attr-defined]
+        .limit(1)
+    )
+    with session_scope() as s:
+        return s.exec(stmt).first()
+
+
 def list_sessions(
     *,
     status: str | None = None,
@@ -381,6 +393,7 @@ __all__ = [
     "count_lessons",
     "count_sessions",
     "db_path",
+    "find_session_by_transcript",
     "get_engine",
     "get_lesson",
     "get_session",

@@ -55,6 +55,7 @@ class AuditConfig(BaseModel):
 
 class ScrubberConfig(BaseModel):
     patterns: list[str]
+    allowlist: list[str] = Field(default_factory=list)
 
 
 class Thresholds(BaseModel):

@@ -160,9 +160,18 @@ def test_process_respects_since_days_window(tmp_bsela_home: Path) -> None:
     assert result_unbounded.processed == 1
 
 
-def test_process_honours_limit(tmp_bsela_home: Path) -> None:
-    for _ in range(3):
-        ingest_file(FIXTURES / "looped-read.jsonl")
+def test_process_honours_limit(tmp_bsela_home: Path, tmp_path: Path) -> None:
+    # Create 3 distinct transcript files with loop errors so process_sessions
+    # picks them up (it queries list_sessions_with_errors, not all sessions).
+    looped_content = (FIXTURES / "looped-read.jsonl").read_text(encoding="utf-8")
+    for i in range(3):
+        f = tmp_path / f"session-{i}.jsonl"
+        # Vary one field so each file has a unique content_hash.
+        f.write_text(
+            looped_content.replace("/tmp/missing.toml", f"/tmp/missing-{i}.toml"),
+            encoding="utf-8",
+        )
+        ingest_file(f)
     assert len(list_sessions(status="captured", limit=10)) == 3
 
     result = process_sessions(client=_client(), limit=2)

@@ -27,7 +27,7 @@ from typing import Any
 
 from bsela.core.detector import detect_errors
 from bsela.memory.models import SessionRecord
-from bsela.memory.store import save_session
+from bsela.memory.store import find_session_by_transcript, save_session
 from bsela.utils.config import load_thresholds
 
 _log = logging.getLogger(__name__)
@@ -45,18 +45,38 @@ class Scrubber:
     """Compiled secret-pattern scanner."""
 
     patterns: tuple[re.Pattern[str], ...]
+    allowlist: frozenset[str] = frozenset()
 
     @classmethod
-    def from_patterns(cls, patterns: Iterable[str]) -> Scrubber:
-        return cls(tuple(re.compile(p) for p in patterns))
+    def from_patterns(
+        cls,
+        patterns: Iterable[str],
+        *,
+        allowlist: Iterable[str] = (),
+    ) -> Scrubber:
+        return cls(tuple(re.compile(p) for p in patterns), frozenset(allowlist))
 
     @classmethod
     def from_config(cls) -> Scrubber:
-        return cls.from_patterns(load_thresholds().scrubber.patterns)
+        cfg = load_thresholds().scrubber
+        return cls.from_patterns(cfg.patterns, allowlist=cfg.allowlist)
 
     def scan(self, text: str) -> list[str]:
-        """Return the source patterns that matched ``text``."""
-        return [p.pattern for p in self.patterns if p.search(text)]
+        """Return the source patterns that matched ``text``.
+
+        A pattern is included only if at least one of its matches is NOT in
+        the allowlist (i.e. a literal known-safe placeholder). Patterns whose
+        every match is allowlisted are suppressed.
+        """
+        hits: list[str] = []
+        for p in self.patterns:
+            matches = [m.group(0) for m in p.finditer(text)]
+            if not matches:
+                continue
+            if all(m in self.allowlist for m in matches):
+                continue
+            hits.append(p.pattern)
+        return hits
 
 
 @dataclass(frozen=True)
@@ -118,6 +138,39 @@ def _scan_event(event: dict[str, Any], scrubber: Scrubber) -> list[str]:
     return scrubber.scan(" ".join(parts))
 
 
+def _make_result(record: SessionRecord, transcript: Path) -> CaptureResult:
+    return CaptureResult(
+        session_id=record.id,
+        status=record.status,
+        quarantine_reason=record.quarantine_reason,
+        turn_count=record.turn_count,
+        tool_call_count=record.tool_call_count,
+        transcript_path=transcript,
+        errors_detected=0,
+    )
+
+
+def _dedup_check(transcript: Path) -> tuple[CaptureResult | None, str | None]:
+    """Return (early_result, precomputed_hash).
+
+    early_result is non-None when this transcript was already ingested and the
+    caller should return immediately. precomputed_hash carries the SHA-256 when
+    it was computed here (captured + grown transcript), so the caller avoids a
+    second disk read; it is None when the hash is not yet known.
+    """
+    existing = find_session_by_transcript(str(transcript))
+    if existing is None:
+        return None, None
+    if existing.status == "quarantined":
+        _log.debug("skipping re-ingest of quarantined transcript %s", transcript)
+        return _make_result(existing, transcript), None
+    content_hash = _sha256_file(transcript)
+    if existing.content_hash == content_hash:
+        _log.debug("skipping re-ingest of unchanged captured transcript %s", transcript)
+        return _make_result(existing, transcript), None
+    return None, content_hash
+
+
 def ingest_file(
     path: str | Path,
     *,
@@ -136,8 +189,13 @@ def ingest_file(
     if not transcript.is_file():
         raise FileNotFoundError(transcript)
 
+    dedup, content_hash = _dedup_check(transcript)
+    if dedup is not None:
+        return dedup
+    if content_hash is None:
+        content_hash = _sha256_file(transcript)
+
     scan = scrubber or Scrubber.from_config()
-    content_hash = _sha256_file(transcript)
 
     turn_count = 0
     tool_call_count = 0

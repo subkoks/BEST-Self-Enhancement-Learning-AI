@@ -30,7 +30,7 @@ class SessionRecord(SQLModel, table=True):
 
     id: str = Field(default_factory=_new_id, primary_key=True)
     source: str = Field(index=True)
-    transcript_path: str
+    transcript_path: str = Field(index=True)
     content_hash: str = Field(index=True)
     started_at: datetime = Field(default_factory=_utcnow)
     ended_at: datetime | None = Field(default=None)
