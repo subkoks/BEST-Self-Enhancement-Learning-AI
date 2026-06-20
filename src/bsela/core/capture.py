@@ -138,6 +138,39 @@ def _scan_event(event: dict[str, Any], scrubber: Scrubber) -> list[str]:
     return scrubber.scan(" ".join(parts))
 
 
+def _make_result(record: SessionRecord, transcript: Path) -> CaptureResult:
+    return CaptureResult(
+        session_id=record.id,
+        status=record.status,
+        quarantine_reason=record.quarantine_reason,
+        turn_count=record.turn_count,
+        tool_call_count=record.tool_call_count,
+        transcript_path=transcript,
+        errors_detected=0,
+    )
+
+
+def _dedup_check(transcript: Path) -> tuple[CaptureResult | None, str | None]:
+    """Return (early_result, precomputed_hash).
+
+    early_result is non-None when this transcript was already ingested and the
+    caller should return immediately. precomputed_hash carries the SHA-256 when
+    it was computed here (captured + grown transcript), so the caller avoids a
+    second disk read; it is None when the hash is not yet known.
+    """
+    existing = find_session_by_transcript(str(transcript))
+    if existing is None:
+        return None, None
+    if existing.status == "quarantined":
+        _log.debug("skipping re-ingest of quarantined transcript %s", transcript)
+        return _make_result(existing, transcript), None
+    content_hash = _sha256_file(transcript)
+    if existing.content_hash == content_hash:
+        _log.debug("skipping re-ingest of unchanged captured transcript %s", transcript)
+        return _make_result(existing, transcript), None
+    return None, content_hash
+
+
 def ingest_file(
     path: str | Path,
     *,
@@ -156,35 +189,10 @@ def ingest_file(
     if not transcript.is_file():
         raise FileNotFoundError(transcript)
 
-    # --- Dedup: avoid re-ingesting the same transcript on repeated hook fires ---
-    existing = find_session_by_transcript(str(transcript))
-    if existing is not None:
-        if existing.status == "quarantined":
-            # Always skip re-parsing quarantined transcripts; the secret is still there.
-            _log.debug("skipping re-ingest of quarantined transcript %s", transcript)
-            return CaptureResult(
-                session_id=existing.id,
-                status=existing.status,
-                quarantine_reason=existing.quarantine_reason,
-                turn_count=existing.turn_count,
-                tool_call_count=existing.tool_call_count,
-                transcript_path=transcript,
-                errors_detected=0,
-            )
-        # For captured sessions, skip only when the file content hasn't changed.
-        content_hash = _sha256_file(transcript)
-        if existing.content_hash == content_hash:
-            _log.debug("skipping re-ingest of unchanged captured transcript %s", transcript)
-            return CaptureResult(
-                session_id=existing.id,
-                status=existing.status,
-                quarantine_reason=existing.quarantine_reason,
-                turn_count=existing.turn_count,
-                tool_call_count=existing.tool_call_count,
-                transcript_path=transcript,
-                errors_detected=0,
-            )
-    else:
+    dedup, content_hash = _dedup_check(transcript)
+    if dedup is not None:
+        return dedup
+    if content_hash is None:
         content_hash = _sha256_file(transcript)
 
     scan = scrubber or Scrubber.from_config()
