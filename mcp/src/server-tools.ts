@@ -39,7 +39,7 @@ export const statusInputSchema = {} as const;
 
 export const lessonsInputSchema = {
   status: z
-    .enum(["pending", "proposed", "rejected", "approved", "applied", "rolled_back"])
+    .enum(["pending", "proposed", "rejected", "approved", "applied", "rolled_back", "externalized"])
     .optional(),
   limit: z.number().int().positive().max(200).optional(),
 } as const;
@@ -189,7 +189,7 @@ export const toolDefinitions = {
   bsela_lessons: {
     title: "BSELA lessons",
     description:
-      "Return stored BSELA lessons as a JSON array plus structuredContent.lessons. Optionally filter by status (pending|proposed|rejected|approved|applied|rolled_back) and cap results with limit. Each item includes id, status, scope, confidence, rule, why, how_to_apply, hit_count, and created_at.",
+      "Return stored BSELA lessons as a JSON array plus structuredContent.lessons. Optionally filter by status (pending|proposed|rejected|approved|applied|rolled_back|externalized) and cap results with limit. Each item includes id, status, scope, confidence, rule, why, how_to_apply, hit_count, and created_at.",
     inputSchema: lessonsInputSchema,
   },
   bsela_sessions: {

@@ -66,6 +66,11 @@ class Lesson(SQLModel, table=True):
     why: str
     how_to_apply: str
     confidence: float = Field(default=0.0)
+    # Lifecycle: pending → proposed → approved → applied. Terminal states:
+    # ``rolled_back`` (reverted — leaves routing, dedup, and audit counts) and
+    # ``externalized`` (graduated into agents-md as a durable rule — leaves the
+    # drift gate but is KEPT in the distiller dedup corpus so it is never
+    # regenerated as a duplicate candidate). See ADR 0011.
     status: str = Field(default="pending", index=True)
     hit_count: int = Field(default=0)
     created_at: datetime = Field(default_factory=_utcnow, index=True)

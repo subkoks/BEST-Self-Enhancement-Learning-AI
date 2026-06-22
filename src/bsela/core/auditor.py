@@ -69,6 +69,9 @@ class DriftSnapshot:
     lessons_total: int
     lessons_stale: int
     threshold: float
+    # Lessons graduated into agents-md (status ``externalized``, ADR 0011). They
+    # are excluded from ``lessons_total`` by design — reported for transparency.
+    lessons_externalized: int = 0
 
     @property
     def drift_fraction(self) -> float:
@@ -218,6 +221,9 @@ def build_audit(
                 ).all()
             )
         )
+        externalized_count = len(
+            list(s.exec(select(Lesson).where(Lesson.status == "externalized")).all())
+        )
         metrics = list(
             s.exec(
                 select(Metric).where(Metric.created_at >= start).where(Metric.created_at <= end)
@@ -252,6 +258,7 @@ def build_audit(
         lessons_total=lessons_tracked_count,
         lessons_stale=stale_count,
         threshold=cfg.audit.drift_alarm_threshold,
+        lessons_externalized=externalized_count,
     )
 
     replay_drift_snapshot = ReplayDriftSnapshot(
@@ -376,6 +383,7 @@ def render_markdown(report: AuditReport) -> str:
         f"({report.drift.drift_fraction:.1%}, "
         f"threshold {report.drift.threshold:.1%})"
     )
+    lines.append(f"- Externalized (durable in agents-md): {report.drift.lessons_externalized}")
     lines.append("")
 
     lines.append("## Replay Drift")

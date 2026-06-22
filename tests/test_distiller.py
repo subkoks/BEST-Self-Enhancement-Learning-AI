@@ -291,6 +291,31 @@ def test_distill_dedup_blocks_approved_outside_recent_window(tmp_bsela_home: Pat
     assert count_lessons() == 6
 
 
+def test_distill_dedup_blocks_externalized_lesson(tmp_bsela_home: Path) -> None:
+    """An ``externalized`` lesson (ADR 0011) must still suppress duplicates.
+
+    Externalized rules leave the drift gate but remain live in agents-md, so the
+    distiller must keep them in the dedup corpus — otherwise a rule that was
+    graduated into AGENTS.md gets regenerated as a fresh candidate.
+    """
+    sid = ingest_file(FIXTURES / "looped-read.jsonl").session_id
+    detect_errors(sid)
+
+    rule = "Stop retrying Read on a missing path after the first ENOENT"
+    externalized = _make_lesson(rule)
+    externalized.status = "externalized"
+    save_lesson(externalized)
+
+    client = FakeLLMClient(
+        judge_response=_unhealthy_verdict(),
+        distill_response=_sample_distill(),  # returns the same rule
+    )
+    result = distill_session(sid, client=client, recent_lessons_limit=10)
+    assert result.distilled is True
+    assert result.persisted == (), "candidate duplicating an externalized rule must be deduped"
+    assert count_lessons(status="pending") == 0  # nothing new persisted
+
+
 def test_distill_dedup_within_batch(tmp_bsela_home: Path) -> None:
     """Two identical candidates in the same response — only one should persist."""
     sid = ingest_file(FIXTURES / "looped-read.jsonl").session_id
