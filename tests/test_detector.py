@@ -10,6 +10,7 @@ from bsela.core.capture import ingest_file
 from bsela.core.detector import (
     _extract_block_text,
     _fingerprint,
+    _is_bsela_error_dump,
     _iter_tool_uses,
     _text_of,
     _user_text_only,
@@ -97,6 +98,22 @@ def test_detects_stack_trace_in_nested_tool_result(tmp_bsela_home: Path) -> None
     assert "Traceback" in traces[0].snippet or "ValueError" in traces[0].snippet
 
 
+def test_bsela_error_dump_not_classified_as_stack_trace(tmp_bsela_home: Path) -> None:
+    """A session that prints bsela_errors output must not mint a fresh stack_trace.
+
+    The bsela_errors / MCP tool serialises ErrorRecord rows as JSON whose
+    ``snippet`` embeds a prior Traceback verbatim. Ingesting that transcript and
+    re-detecting on it would create a self-referential capture loop: every audit
+    that surfaces an error spawns a new one. The detector must recognise its own
+    serialised output and skip it.
+    """
+    sid = _ingest(FIXTURES / "bsela-self-dump.jsonl")
+    result = detect_errors(sid)
+    traces = [e for e in result.errors if e.category == "stack_trace"]
+    assert traces == [], f"self-referential bsela output re-detected: {traces}"
+    assert list_errors(session_id=sid) == []
+
+
 def test_detect_missing_transcript(tmp_bsela_home: Path, tmp_path: Path) -> None:
     """Cover _detect_for line 269: transcript file doesn't exist."""
     phantom = tmp_path / "ghost.jsonl"  # does not exist
@@ -119,6 +136,24 @@ def test_detect_missing_transcript(tmp_bsela_home: Path, tmp_path: Path) -> None
 
 
 # ---- internal function unit tests ----
+
+
+def test_is_bsela_error_dump_true_for_serialized_record() -> None:
+    """Serialized ErrorRecord JSON (detected_at + record field) is recognised."""
+    text = '{"category":"stack_trace","snippet":"Traceback...","detected_at":"2026-06-20T13:31:47"}'
+    assert _is_bsela_error_dump(text) is True
+
+
+def test_is_bsela_error_dump_false_for_real_traceback() -> None:
+    """A genuine user-code traceback has no detected_at envelope → not a dump."""
+    text = "Traceback (most recent call last):\n  File 'app.py', line 5\nValueError: nope"
+    assert _is_bsela_error_dump(text) is False
+
+
+def test_is_bsela_error_dump_false_when_timestamp_without_record_field() -> None:
+    """detected_at alone (no category/snippet/session_id) is not a bsela dump."""
+    text = '{"detected_at":"2026-06-20T10:00:00","note":"unrelated log line"}'
+    assert _is_bsela_error_dump(text) is False
 
 
 def test_extract_block_text_returns_text_block() -> None:
