@@ -171,6 +171,27 @@ def test_hit_lesson_does_not_count_as_stale(tmp_bsela_home: Path) -> None:
     assert report.drift.lessons_stale == 0
 
 
+def test_externalized_lesson_excluded_from_drift(tmp_bsela_home: Path) -> None:
+    """Externalized lessons (ADR 0011) leave the drift gate, even when old + unused.
+
+    They live as durable rules in agents-md and can never accrue a local
+    hit_count, so counting them as stale is a structural false-positive. They are
+    excluded from ``lessons_total`` and surfaced via ``lessons_externalized``.
+    """
+    old = NOW - timedelta(days=STALE_LESSON_AGE_DAYS + 5)
+    _lesson(status="externalized", hit_count=0, created_at=old)
+    _lesson(status="externalized", hit_count=0, created_at=old)
+    _lesson(status="externalized", hit_count=0, created_at=old)
+
+    report = build_audit(window_days=30, now=NOW)
+    assert report.drift.lessons_total == 0
+    assert report.drift.lessons_stale == 0
+    assert report.drift.lessons_externalized == 3
+    assert report.drift.drift_fraction == pytest.approx(0.0)
+    assert not report.drift.over_threshold
+    assert not any("DRIFT" in alert for alert in report.alerts)
+
+
 def test_adr_scan_via_env_override(
     tmp_bsela_home: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

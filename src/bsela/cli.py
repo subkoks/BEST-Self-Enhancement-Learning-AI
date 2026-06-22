@@ -553,6 +553,46 @@ def rollback(
 
 
 @app.command()
+def externalize(
+    lesson_id: Annotated[str, typer.Argument(help="Lesson identifier to externalize.")],
+    note: Annotated[
+        str | None, typer.Option("--note", "-n", help="Where it was externalized (e.g. PR link).")
+    ] = None,
+) -> None:
+    """Mark a lesson as externalized — graduated into agents-md as a durable rule.
+
+    Sets the status to ``externalized`` (ADR 0011). Such a lesson lives in your
+    AGENTS.md and is surfaced by the editor directly, so it can never accrue a
+    local ``hit_count``; it therefore LEAVES the drift gate (no longer counted as
+    a stale applied lesson) but is KEPT in the distiller dedup corpus so the same
+    rule is never regenerated as a duplicate candidate. This command only updates
+    the local BSELA store; it does not write to agents-md.
+
+    Exit code 0: externalized successfully or already externalized.
+    Exit code 1: lesson not found.
+    """
+    try:
+        lesson = resolve_lesson(lesson_id)
+    except LookupError as exc:
+        typer.secho(str(exc), fg=typer.colors.RED)
+        raise typer.Exit(code=1) from exc
+    if lesson is None:
+        typer.secho(f"externalize: lesson not found: {lesson_id}", fg=typer.colors.RED)
+        raise typer.Exit(code=1)
+
+    if lesson.status == "externalized":
+        typer.echo(f"externalize: {lesson.id} is already externalized — nothing to do.")
+        raise typer.Exit(code=0)
+
+    prev_status = lesson.status
+    update_lesson_status(lesson.id, status="externalized", note=note)
+    typer.secho(
+        f"externalized: [{prev_status}] {lesson.rule}",
+        fg=typer.colors.GREEN,
+    )
+
+
+@app.command()
 def replay(
     session_id: Annotated[str, typer.Argument(help="Session ID to replay.")],
     no_save: Annotated[
@@ -1053,6 +1093,7 @@ def _audit_json_payload(report_data: object) -> dict[str, object]:
         "drift": {
             "lessons_total": report_data.drift.lessons_total,
             "lessons_stale": report_data.drift.lessons_stale,
+            "lessons_externalized": report_data.drift.lessons_externalized,
             "threshold": report_data.drift.threshold,
             "drift_fraction": report_data.drift.drift_fraction,
             "over_threshold": report_data.drift.over_threshold,

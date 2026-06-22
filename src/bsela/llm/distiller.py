@@ -253,10 +253,15 @@ def distill_session(
         # lessons regardless of recency — otherwise a candidate that duplicates
         # an older approved rule slips through once newer pending rows push it
         # past ``recent_lessons_limit`` (root cause of the 2026-05-09 17/17 dup
-        # batch). Fetched lazily inside this branch to avoid two unbounded DB
-        # reads on healthy sessions and ``persist=False`` calls.
-        approved_corpus = list_lessons(status="approved", limit=None) + list_lessons(
-            status="applied", limit=None
+        # batch). ``externalized`` rules (graduated into agents-md, ADR 0011) are
+        # included too: they have left the drift gate but must still suppress
+        # regeneration of a rule that already lives as a durable AGENTS.md entry.
+        # Fetched lazily inside this branch to avoid two unbounded DB reads on
+        # healthy sessions and ``persist=False`` calls.
+        approved_corpus = (
+            list_lessons(status="approved", limit=None)
+            + list_lessons(status="applied", limit=None)
+            + list_lessons(status="externalized", limit=None)
         )
         saved_this_batch: list[Lesson] = list(recent) + list(approved_corpus)
         for candidate in response.lessons:

@@ -19,7 +19,13 @@ from bsela.core.process import ProcessResult
 from bsela.llm.distiller import DistillationResult
 from bsela.llm.types import DistillResponse, JudgeVerdict
 from bsela.memory.models import ErrorRecord, Lesson, SessionRecord
-from bsela.memory.store import list_sessions, save_error, save_lesson, update_lesson_status
+from bsela.memory.store import (
+    get_lesson,
+    list_sessions,
+    save_error,
+    save_lesson,
+    update_lesson_status,
+)
 
 
 def test_version_flag() -> None:
@@ -31,7 +37,7 @@ def test_version_flag() -> None:
 def test_help_lists_commands() -> None:
     result = CliRunner().invoke(app, ["--help"])
     assert result.exit_code == 0
-    for cmd in ("status", "ingest", "review", "lessons", "rollback"):
+    for cmd in ("status", "ingest", "review", "lessons", "rollback", "externalize"):
         assert cmd in result.stdout
 
 
@@ -211,6 +217,70 @@ def test_rollback_already_rolled_back_exits_0(
     result = CliRunner().invoke(app, ["rollback", lesson.id])
     assert result.exit_code == 0
     assert "already rolled back" in result.stdout
+
+
+def test_externalize_ambiguous_prefix_exits_1(tmp_bsela_home: Path) -> None:
+    with patch("bsela.cli.resolve_lesson", side_effect=LookupError("ambiguous")):
+        result = CliRunner().invoke(app, ["externalize", "abc"])
+    assert result.exit_code == 1
+    assert "ambiguous" in result.stdout
+
+
+def test_externalize_not_found_exits_1(tmp_bsela_home: Path) -> None:
+    result = CliRunner().invoke(app, ["externalize", "no-such-id"])
+    assert result.exit_code == 1
+    assert "not found" in result.stdout
+
+
+def test_externalize_applied_lesson_succeeds(
+    tmp_bsela_home: Path, sample_clean_session: Path
+) -> None:
+    ingest_file(sample_clean_session)
+    session_id = list_sessions()[0].id
+    err = save_error(
+        ErrorRecord(session_id=session_id, category="loop", severity="medium", snippet="test")
+    )
+    lesson = save_lesson(
+        Lesson(
+            source_error_id=err.id,
+            scope="project",
+            rule="Never do Z",
+            why="reason",
+            how_to_apply="action",
+            confidence=0.9,
+            status="applied",
+        )
+    )
+    result = CliRunner().invoke(app, ["externalize", lesson.id, "--note", "PR #31"])
+    assert result.exit_code == 0
+    assert "externalized" in result.stdout
+    refreshed = get_lesson(lesson.id)
+    assert refreshed is not None
+    assert refreshed.status == "externalized"
+
+
+def test_externalize_already_externalized_exits_0(
+    tmp_bsela_home: Path, sample_clean_session: Path
+) -> None:
+    ingest_file(sample_clean_session)
+    session_id = list_sessions()[0].id
+    err = save_error(
+        ErrorRecord(session_id=session_id, category="loop", severity="medium", snippet="test")
+    )
+    lesson = save_lesson(
+        Lesson(
+            source_error_id=err.id,
+            scope="project",
+            rule="Never do W",
+            why="reason",
+            how_to_apply="action",
+            confidence=0.9,
+            status="externalized",
+        )
+    )
+    result = CliRunner().invoke(app, ["externalize", lesson.id])
+    assert result.exit_code == 0
+    assert "already externalized" in result.stdout
 
 
 def test_doctor_exits_without_crash(tmp_bsela_home: Path) -> None:
