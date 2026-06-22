@@ -36,22 +36,29 @@ _STACK_TRACE_PATTERNS: tuple[re.Pattern[str], ...] = (
 _MAX_SNIPPET_CHARS = 240
 _MAX_RECORDS_PER_SESSION = 10
 
-# Markers identifying text as BSELA's OWN serialized error output (e.g. an
-# ``mcp__bsela__bsela_errors`` / ``bsela errors list`` result echoed inside a
-# later session transcript). Such text embeds prior tracebacks verbatim in its
-# ``snippet`` field, so re-classifying it as a fresh stack_trace creates a
-# self-referential capture loop: every audit that surfaces an error mints a new
-# one. The conjunction below is the serialized ``ErrorRecord`` JSON signature —
-# a ``detected_at`` ISO timestamp alongside an error-record field — which does
-# not appear in a genuine user-code traceback. Mirrors the ``_user_text_only``
-# exclusion the correction scanner already applies to tool output.
-_SELF_REF_DETECTED_AT = re.compile(r'"detected_at"\s*:\s*"\d{4}-\d{2}-\d{2}')
-_SELF_REF_RECORD_FIELD = re.compile(r'"(?:category|snippet|session_id)"\s*:')
+# Signatures identifying text as BSELA's OWN serialized MCP output echoed inside a
+# later session transcript. The bsela_errors / bsela_lessons / bsela_sessions
+# tools each return a JSON envelope keyed by record type, and the embedded
+# ``snippet``/``rule``/``why`` text can quote a prior traceback or ``*Error:``
+# token verbatim. Re-classifying that as a fresh stack_trace creates a
+# self-referential capture loop: every audit that surfaces a record mints a new
+# error. Each signature pairs the envelope key with a field unique to that
+# record type — a combination that does not occur in a genuine user-code
+# traceback. Mirrors the ``_user_text_only`` exclusion the correction scanner
+# already applies to tool output.
+_BSELA_ENVELOPE_SIGNATURES: tuple[tuple[re.Pattern[str], re.Pattern[str]], ...] = (
+    (re.compile(r'"errors"\s*:\s*\['), re.compile(r'"(?:detected_at|category|snippet)"\s*:')),
+    (re.compile(r'"lessons"\s*:\s*\['), re.compile(r'"(?:how_to_apply|hit_count|rule)"\s*:')),
+    (
+        re.compile(r'"sessions"\s*:\s*\['),
+        re.compile(r'"(?:turn_count|tool_call_count|ingested_at)"\s*:'),
+    ),
+)
 
 
-def _is_bsela_error_dump(text: str) -> bool:
-    """True when ``text`` is BSELA's own serialized error output, not a real error."""
-    return bool(_SELF_REF_DETECTED_AT.search(text) and _SELF_REF_RECORD_FIELD.search(text))
+def _is_bsela_envelope(text: str) -> bool:
+    """True when ``text`` is BSELA's own serialized MCP output, not a real error."""
+    return any(key.search(text) and field.search(text) for key, field in _BSELA_ENVELOPE_SIGNATURES)
 
 
 @dataclass(frozen=True)
@@ -265,9 +272,9 @@ def _scan_stack_trace(
         text = _text_of(event)
         if not text:
             continue
-        # Skip BSELA's own serialized error output echoed in the transcript —
-        # otherwise auditing errors would recursively mint new ones.
-        if _is_bsela_error_dump(text):
+        # Skip BSELA's own serialized MCP output echoed in the transcript —
+        # otherwise auditing records would recursively mint new errors.
+        if _is_bsela_envelope(text):
             continue
         for pattern in _STACK_TRACE_PATTERNS:
             if pattern.search(text):

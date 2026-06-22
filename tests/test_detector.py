@@ -10,7 +10,7 @@ from bsela.core.capture import ingest_file
 from bsela.core.detector import (
     _extract_block_text,
     _fingerprint,
-    _is_bsela_error_dump,
+    _is_bsela_envelope,
     _iter_tool_uses,
     _text_of,
     _user_text_only,
@@ -114,6 +114,20 @@ def test_bsela_error_dump_not_classified_as_stack_trace(tmp_bsela_home: Path) ->
     assert list_errors(session_id=sid) == []
 
 
+def test_bsela_lessons_dump_not_classified_as_stack_trace(tmp_bsela_home: Path) -> None:
+    """A session that prints bsela_lessons output must not mint a stack_trace either.
+
+    The errors-envelope guard (PR #103) missed the sibling ``{"lessons":[...]}``
+    envelope, whose ``rule``/``why`` text can quote a Traceback or ``*Error:``
+    token — same self-referential capture-loop class, different MCP envelope.
+    """
+    sid = _ingest(FIXTURES / "bsela-lessons-dump.jsonl")
+    result = detect_errors(sid)
+    traces = [e for e in result.errors if e.category == "stack_trace"]
+    assert traces == [], f"self-referential bsela lessons output re-detected: {traces}"
+    assert list_errors(session_id=sid) == []
+
+
 def test_detect_missing_transcript(tmp_bsela_home: Path, tmp_path: Path) -> None:
     """Cover _detect_for line 269: transcript file doesn't exist."""
     phantom = tmp_path / "ghost.jsonl"  # does not exist
@@ -138,22 +152,34 @@ def test_detect_missing_transcript(tmp_bsela_home: Path, tmp_path: Path) -> None
 # ---- internal function unit tests ----
 
 
-def test_is_bsela_error_dump_true_for_serialized_record() -> None:
-    """Serialized ErrorRecord JSON (detected_at + record field) is recognised."""
-    text = '{"category":"stack_trace","snippet":"Traceback...","detected_at":"2026-06-20T13:31:47"}'
-    assert _is_bsela_error_dump(text) is True
+def test_is_bsela_envelope_true_for_errors_dump() -> None:
+    """The bsela_errors envelope (errors key + ErrorRecord field) is recognised."""
+    text = '{"errors":[{"category":"stack_trace","snippet":"Traceback...","detected_at":"x"}]}'
+    assert _is_bsela_envelope(text) is True
 
 
-def test_is_bsela_error_dump_false_for_real_traceback() -> None:
-    """A genuine user-code traceback has no detected_at envelope → not a dump."""
+def test_is_bsela_envelope_true_for_lessons_dump() -> None:
+    """The bsela_lessons envelope (lessons key + LessonRecord field) is recognised."""
+    text = '{"lessons":[{"rule":"x","why":"ValueError happened","how_to_apply":"y","hit_count":0}]}'
+    assert _is_bsela_envelope(text) is True
+
+
+def test_is_bsela_envelope_true_for_sessions_dump() -> None:
+    """The bsela_sessions envelope (sessions key + SessionRecord field) is recognised."""
+    text = '{"sessions":[{"id":"s","status":"captured","turn_count":3,"tool_call_count":7}]}'
+    assert _is_bsela_envelope(text) is True
+
+
+def test_is_bsela_envelope_false_for_real_traceback() -> None:
+    """A genuine user-code traceback has no BSELA envelope → not skipped."""
     text = "Traceback (most recent call last):\n  File 'app.py', line 5\nValueError: nope"
-    assert _is_bsela_error_dump(text) is False
+    assert _is_bsela_envelope(text) is False
 
 
-def test_is_bsela_error_dump_false_when_timestamp_without_record_field() -> None:
-    """detected_at alone (no category/snippet/session_id) is not a bsela dump."""
-    text = '{"detected_at":"2026-06-20T10:00:00","note":"unrelated log line"}'
-    assert _is_bsela_error_dump(text) is False
+def test_is_bsela_envelope_false_for_envelope_key_without_record_field() -> None:
+    """An ``errors`` array with no ErrorRecord field is not a bsela dump."""
+    text = '{"errors":["a plain ValueError: string in a user list"]}'
+    assert _is_bsela_envelope(text) is False
 
 
 def test_extract_block_text_returns_text_block() -> None:
