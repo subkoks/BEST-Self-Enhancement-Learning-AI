@@ -36,6 +36,23 @@ _STACK_TRACE_PATTERNS: tuple[re.Pattern[str], ...] = (
 _MAX_SNIPPET_CHARS = 240
 _MAX_RECORDS_PER_SESSION = 10
 
+# Markers identifying text as BSELA's OWN serialized error output (e.g. an
+# ``mcp__bsela__bsela_errors`` / ``bsela errors list`` result echoed inside a
+# later session transcript). Such text embeds prior tracebacks verbatim in its
+# ``snippet`` field, so re-classifying it as a fresh stack_trace creates a
+# self-referential capture loop: every audit that surfaces an error mints a new
+# one. The conjunction below is the serialized ``ErrorRecord`` JSON signature —
+# a ``detected_at`` ISO timestamp alongside an error-record field — which does
+# not appear in a genuine user-code traceback. Mirrors the ``_user_text_only``
+# exclusion the correction scanner already applies to tool output.
+_SELF_REF_DETECTED_AT = re.compile(r'"detected_at"\s*:\s*"\d{4}-\d{2}-\d{2}')
+_SELF_REF_RECORD_FIELD = re.compile(r'"(?:category|snippet|session_id)"\s*:')
+
+
+def _is_bsela_error_dump(text: str) -> bool:
+    """True when ``text`` is BSELA's own serialized error output, not a real error."""
+    return bool(_SELF_REF_DETECTED_AT.search(text) and _SELF_REF_RECORD_FIELD.search(text))
+
 
 @dataclass(frozen=True)
 class DetectionResult:
@@ -247,6 +264,10 @@ def _scan_stack_trace(
             continue
         text = _text_of(event)
         if not text:
+            continue
+        # Skip BSELA's own serialized error output echoed in the transcript —
+        # otherwise auditing errors would recursively mint new ones.
+        if _is_bsela_error_dump(text):
             continue
         for pattern in _STACK_TRACE_PATTERNS:
             if pattern.search(text):
