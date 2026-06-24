@@ -13,13 +13,24 @@ permissions:
   contents: write
   pull-requests: write
 
+concurrency:
+  group: auto-merge-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
 jobs:
   auto-merge:
     runs-on: ubuntu-latest
-    # Only same-repo branches (owner/collaborator PRs + Dependabot); external forks are skipped.
+    # Gate on same-repo branch AND a trusted author: either an
+    # owner/member/collaborator (author-association allowlist) or Dependabot,
+    # whose same-repo dependency PRs are allowed to auto-merge.
+    # External forks and other bot/contributor PRs are skipped.
     if: >-
       github.event.pull_request.draft == false &&
-      github.event.pull_request.head.repo.full_name == github.repository
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      (
+        contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.pull_request.author_association) ||
+        github.event.pull_request.user.login == 'dependabot[bot]'
+      )
     steps:
       - name: Enable auto-merge
         run: gh pr merge --auto --squash "$PR_URL"
