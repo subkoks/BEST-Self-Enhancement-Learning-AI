@@ -9,6 +9,15 @@ called out under a `Breaking` heading.
 
 ## [Unreleased]
 
+### Added
+
+- Externalized lesson status (`externalized`): lessons promoted to production rules in `~/AGENTS.md` are now classified as `externalized` rather than cycling back through `pending` — prevents false-positive DRIFT alerts after a rules update.
+
+### Fixed
+
+- Self-referential guard now covers all BSELA MCP envelope keys, not only `BSELA_HOME` — prevents the session capture from re-ingesting its own running environment.
+- Stack-trace detector no longer fires on BSELA's own serialized error output in `stack_trace` fields — reduces false-positive error classification on recursive BSELA runs.
+
 ## [0.2.0] - 2026-06-15
 
 Public-readiness hardening release. The default config now ships inside the
