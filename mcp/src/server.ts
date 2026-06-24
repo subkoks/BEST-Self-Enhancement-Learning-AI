@@ -32,7 +32,7 @@ import {
 } from "./server-tools.js";
 
 const SERVER_NAME = "bsela";
-const SERVER_VERSION = "0.2.0";
+const SERVER_VERSION = "0.2.1";
 
 export interface CreateServerOptions {
   client?: BselaClient;
