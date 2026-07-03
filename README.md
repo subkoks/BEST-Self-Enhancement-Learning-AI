@@ -90,6 +90,10 @@ under [`docs/orchestrator/`](docs/orchestrator/README.md). Run
 `ANTHROPIC_API_KEY` (or OAuth token) to Actions secrets, then use `@claude` on
 PRs/issues. See [adapters/claude/README.md §7](adapters/claude/README.md).
 
+**Codex:** use the repo root `AGENTS.md` plus the tracked `.codex/config.toml`
+for Codex CLI workspace defaults. The companion `CODEX.md` has the direct
+handoff for this repo.
+
 **Cursor:** to avoid spurious workflow diagnostics, open [`bsela.code-workspace`](bsela.code-workspace) (see [adapters/cursor/README.md](adapters/cursor/README.md)).
 
 **Git:** if `~/.gitignore_global` ignores `.vscode/`, Git will refuse a plain `git add` on [`.vscode/settings.json`](.vscode/settings.json). Use `git add -f .vscode/settings.json` for that path, or drop `.vscode/` from your global ignore.
