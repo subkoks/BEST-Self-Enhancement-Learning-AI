@@ -1,6 +1,6 @@
 {
   "name": "@bsela/mcp",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "private": true,
   "description": "Model Context Protocol server for BSELA — exposes route, audit, status, and lessons to MCP-compatible editors.",
   "type": "module",
@@ -38,12 +38,12 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
-    "@types/node": "^25.9.3",
-    "@typescript-eslint/eslint-plugin": "^8.61.1",
-    "@typescript-eslint/parser": "^8.61.1",
+    "@types/node": "^26.0.1",
+    "@typescript-eslint/eslint-plugin": "^8.62.0",
+    "@typescript-eslint/parser": "^8.62.0",
     "@vitest/coverage-v8": "^4.1.9",
-    "eslint": "^10.5.0",
-    "prettier": "^3.8.4",
+    "eslint": "^10.6.0",
+    "prettier": "^3.9.1",
     "typescript": "^6.0.3",
     "vitest": "^4.1.9"
   }

@@ -1,6 +1,6 @@
 [project]
 name = "bsela"
-version = "0.2.0"
+version = "0.2.1"
 description = "Best Self-Enhancement Learning Agent — local continuous-learning control plane for coding AI agents."
 readme = "README.md"
 requires-python = ">=3.13"

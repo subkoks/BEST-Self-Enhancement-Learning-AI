@@ -9,6 +9,17 @@ called out under a `Breaking` heading.
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-06-25
+
+### Added
+
+- Externalized lesson status (`externalized`): lessons promoted to production rules in `~/AGENTS.md` are now classified as `externalized` rather than cycling back through `pending` — prevents false-positive DRIFT alerts after a rules update.
+
+### Fixed
+
+- Self-referential guard now covers all BSELA MCP envelope keys, not only `BSELA_HOME` — prevents the session capture from re-ingesting its own running environment.
+- Stack-trace detector no longer fires on BSELA's own serialized error output in `stack_trace` fields — reduces false-positive error classification on recursive BSELA runs.
+
 ## [0.2.0] - 2026-06-15
 
 Public-readiness hardening release. The default config now ships inside the
@@ -83,7 +94,8 @@ changes.
   transitive `qs` ≥ 6.15.2 (moderate DoS) (#57), plus grouped Python and MCP
   dependency updates.
 
-[Unreleased]: https://github.com/subkoks/BEST-Self-Enhancement-Learning-AI/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/subkoks/BEST-Self-Enhancement-Learning-AI/compare/v0.2.1...HEAD
+[0.2.1]: https://github.com/subkoks/BEST-Self-Enhancement-Learning-AI/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/subkoks/BEST-Self-Enhancement-Learning-AI/compare/v0.1.1...v0.2.0
 [0.1.1]: https://github.com/subkoks/BEST-Self-Enhancement-Learning-AI/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/subkoks/BEST-Self-Enhancement-Learning-AI/releases/tag/v0.1.0
