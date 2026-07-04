@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import importlib
 import json
+import logging
 import os
 import re
 import time
@@ -114,12 +115,31 @@ class AnthropicClient:
         }
         if not _OMIT_SAMPLING.search(model):
             create_kwargs["temperature"] = _DETERMINISTIC_TEMPERATURE
+        # First attempt: primary model. If the model returns a refusal, retry
+        # once with a safe Opus fallback to avoid breaking callers.
         resp = self._anthropic().messages.create(**create_kwargs)
+        # If the SDK surfaces a refusal via `stop_reason`, handle it here.
+        stop_reason = getattr(resp, "stop_reason", None)
         chunks: list[str] = []
         for block in resp.content:
             text = getattr(block, "text", None)
             if isinstance(text, str):
                 chunks.append(text)
+        if stop_reason == "refusal":
+            logging.warning("Anthropic model %s refused; retrying with opus fallback", model)
+            # Retry with a conservative fallback model that accepts sampling.
+            fallback_kwargs = dict(create_kwargs)
+            # server-side `fallbacks` param is supported in newer SDKs/APIs; add
+            # an explicit fallback chain so the request is retried on Opus.
+            fallback_kwargs["fallbacks"] = [{"model": "claude-opus-4-8"}]
+            resp2 = self._anthropic().messages.create(**fallback_kwargs)
+            chunks = []
+            for block in resp2.content:
+                text = getattr(block, "text", None)
+                if isinstance(text, str):
+                    chunks.append(text)
+            return "".join(chunks)
+
         return "".join(chunks)
 
     def judge(self, *, system: str, user: str) -> JudgeVerdict:
