@@ -26,6 +26,7 @@ live in [`mcp/`](../mcp/) — adapters never re-implement BSELA logic.
 | Claude Code    | [`claude/README.md`](claude/README.md) (hook + MCP + local permissions) | `~/.claude/settings.json` + optional repo `.claude/settings.local.json`           |
 | Claude Desktop | [`mcp/README.md`](../mcp/README.md#running-the-mcp-server)              | Desktop MCP config (same `mcpServers` shape as in `claude/settings.example.json`) |
 | Cursor         | [`cursor/mcp.json`](cursor/mcp.json)                                    | `~/.cursor/mcp.json`                                                              |
+| OpenCode       | [`opencode/README.md`](opencode/README.md) (session.idle → `opencode-stop`) | `~/.config/opencode/blackterminal-plugin.ts` + `bsela hook opencode-stop`     |
 
 The Codex, Windsurf, and Cursor adapters are formally tracked under
 P6. Claude Desktop and Claude Code are documented inline.
