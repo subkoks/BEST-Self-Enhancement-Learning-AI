@@ -18,6 +18,7 @@ from typing import Annotated
 import typer
 
 from bsela import __version__
+from bsela.adapters.opencode.export import default_export_path, export_session_to_jsonl
 from bsela.core.auditor import (
     DEFAULT_WINDOW_DAYS as AUDIT_DEFAULT_WINDOW_DAYS,
 )
@@ -1317,6 +1318,39 @@ def claude_stop() -> None:
     if not path.is_file():
         raise typer.Exit(code=0)
     ingest_file(path, source="claude_code")
+    raise typer.Exit(code=0)
+
+
+@hook_app.command("opencode-stop")
+def opencode_stop(
+    db: Annotated[
+        Path | None,
+        typer.Option(
+            "--db",
+            dir_okay=False,
+            file_okay=True,
+            help="OpenCode SQLite path (default: ~/.local/share/opencode/opencode.db).",
+        ),
+    ] = None,
+) -> None:
+    """Read an OpenCode session-id JSON payload on stdin, export, and ingest."""
+    raw = sys.stdin.read()
+    if not raw.strip():
+        raise typer.Exit(code=0)
+    try:
+        payload = json.loads(raw)
+    except json.JSONDecodeError:
+        raise typer.Exit(code=0) from None
+    session_id = payload.get("session_id") or payload.get("sessionID") or payload.get("sessionId")
+    if not isinstance(session_id, str) or not session_id.strip():
+        raise typer.Exit(code=0)
+    session_id = session_id.strip()
+    dest = default_export_path(session_id)
+    try:
+        export_session_to_jsonl(session_id, dest, db_path=db)
+    except (FileNotFoundError, LookupError, ValueError, OSError):
+        raise typer.Exit(code=0) from None
+    ingest_file(dest, source="opencode")
     raise typer.Exit(code=0)
 
 
