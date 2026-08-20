@@ -67,10 +67,22 @@ _MANUAL_SKILLS_UNCLOSED = re.compile(
     r"<manually_attached_skills\b[^>]*>[\s\S]*\Z",
     re.IGNORECASE,
 )
-# Cursor/Claude @-attach dumps: [/abs/path] then markdown body (rules files).
-_ATTACHED_RULES_FILE = re.compile(
-    r"\[[^\]]*(?:AGENTS\.md|CLAUDE\.md|\.mdc)[^\]]*\]\n[\s\S]*",
+# Cursor/Claude @-attach path chip for rules files (dump body handled separately).
+_ATTACHED_RULES_PATH = re.compile(
+    r"\[[^\]]*(?:AGENTS\.md|CLAUDE\.md|\.mdc)[^\]]*\]",
     re.IGNORECASE,
+)
+# Markdown structure lines typical of an attached AGENTS.md / CLAUDE.md / .mdc body.
+_ATTACHED_RULES_DUMP_LINE = re.compile(
+    r"^(?:"
+    r"\s*"
+    r"|#{1,6}\s+.*"
+    r"|[-*]\s+.*"
+    r"|\d+\.\s+.*"
+    r"|>\s+.*"
+    r"|---+\s*"
+    r"|\|.*\|"
+    r")$"
 )
 
 
@@ -79,11 +91,51 @@ def _is_bsela_envelope(text: str) -> bool:
     return any(key.search(text) and field.search(text) for key, field in _BSELA_ENVELOPE_SIGNATURES)
 
 
+def _strip_attached_rules_dumps(text: str) -> str:
+    """Strip path+markdown dumps of rules files; keep user prose after the dump.
+
+    Only treats ``[…AGENTS.md…]\\n# …`` (heading-led body) as a dump. A bare
+    mention without a following markdown document is left intact so a real
+    correction marker later in the same turn is still scanned.
+    """
+    out: list[str] = []
+    pos = 0
+    while True:
+        match = _ATTACHED_RULES_PATH.search(text, pos)
+        if match is None:
+            out.append(text[pos:])
+            break
+        out.append(text[pos : match.start()])
+        after = match.end()
+        if after >= len(text) or text[after] != "\n":
+            out.append(match.group(0))
+            pos = after
+            continue
+        body_start = after + 1
+        lines = text[body_start:].splitlines(keepends=True)
+        first_content = 0
+        while first_content < len(lines) and not lines[first_content].strip():
+            first_content += 1
+        if first_content >= len(lines) or not lines[first_content].lstrip().startswith("#"):
+            out.append(match.group(0))
+            pos = after
+            continue
+        end = 0
+        while end < len(lines):
+            if _ATTACHED_RULES_DUMP_LINE.match(lines[end].rstrip("\n")):
+                end += 1
+                continue
+            break
+        # Drop path + newline + dump lines; resume so later prose/dumps remain.
+        pos = body_start + sum(len(line) for line in lines[:end])
+    return "".join(out)
+
+
 def _strip_editor_attachments(text: str) -> str:
     """Remove harness-injected skill/file bodies from user text before correction scan."""
     cleaned = _MANUAL_SKILLS_BLOCK.sub("", text)
     cleaned = _MANUAL_SKILLS_UNCLOSED.sub("", cleaned)
-    cleaned = _ATTACHED_RULES_FILE.sub("", cleaned)
+    cleaned = _strip_attached_rules_dumps(cleaned)
     return cleaned.strip()
 
 
