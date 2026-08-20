@@ -393,6 +393,69 @@ def test_strip_editor_attachments_removes_agents_md_dump() -> None:
     assert _strip_editor_attachments(raw) == "First read"
 
 
+def test_strip_preserves_correction_after_rules_dump() -> None:
+    """Dump strip must not swallow a real correction later in the same turn."""
+    raw = (
+        "Please check [/Users/black.terminal/AGENTS.md]\n"
+        "# MAIN GLOBAL Rules\n\n"
+        "## Hard Stop — explicit approval required\n"
+        "- Destructive file ops\n"
+        "that's wrong — do not delete main\n"
+    )
+    cleaned = _strip_editor_attachments(raw)
+    assert "Hard Stop" not in cleaned
+    assert "that's wrong — do not delete main" in cleaned
+
+
+def test_strip_keeps_bare_rules_mention_without_dump() -> None:
+    """A path mention without a heading-led dump body must not eat following prose."""
+    raw = "See [/Users/black.terminal/AGENTS.md]\nthat's wrong\n"
+    cleaned = _strip_editor_attachments(raw)
+    assert "[/Users/black.terminal/AGENTS.md]" in cleaned
+    assert "that's wrong" in cleaned
+
+
+def test_correction_after_rules_dump_still_detected(tmp_bsela_home: Path, tmp_path: Path) -> None:
+    transcript = tmp_path / "correction-after-dump.jsonl"
+    transcript.write_text(
+        json.dumps(
+            {
+                "type": "user",
+                "message": {
+                    "content": [
+                        {
+                            "type": "text",
+                            "text": (
+                                "First read\n"
+                                "[/Users/black.terminal/AGENTS.md]\n"
+                                "# MAIN GLOBAL Rules\n\n"
+                                "## Hard Stop — explicit approval required\n"
+                                "that's wrong — revert that\n"
+                            ),
+                        }
+                    ]
+                },
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    sid = "correction-after-dump"
+    save_session(
+        SessionRecord(
+            id=sid,
+            source="test",
+            transcript_path=str(transcript),
+            content_hash="correction-after-dump",
+            turn_count=1,
+            tool_call_count=0,
+            status="captured",
+        )
+    )
+    result = detect_errors(sid, persist=False)
+    assert any(e.category == "correction" for e in result.errors)
+
+
 def test_harness_attachment_noise_does_not_mint_correction(
     tmp_bsela_home: Path, tmp_path: Path
 ) -> None:
