@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 import pytest
@@ -12,6 +13,7 @@ from bsela.core.detector import (
     _fingerprint,
     _is_bsela_envelope,
     _iter_tool_uses,
+    _strip_editor_attachments,
     _text_of,
     _user_text_only,
     detect_errors,
@@ -368,3 +370,85 @@ def test_detects_stack_trace_in_cursor_format(tmp_bsela_home: Path) -> None:
     traces = [e for e in result.errors if e.category == "stack_trace"]
     assert len(traces) >= 1
     assert "Traceback" in traces[0].snippet or "ValueError" in traces[0].snippet
+
+
+def test_strip_editor_attachments_removes_manual_skills_block() -> None:
+    raw = (
+        "<manually_attached_skills>\n"
+        "Follow this skill. Mentions Hard Stop in AGENTS.md.\n"
+        "</manually_attached_skills>\n"
+        "please continue"
+    )
+    assert _strip_editor_attachments(raw) == "please continue"
+
+
+def test_strip_editor_attachments_removes_agents_md_dump() -> None:
+    raw = (
+        "First read\n"
+        "[/Users/black.terminal/AGENTS.md]\n"
+        "# MAIN GLOBAL Rules\n\n"
+        "## Hard Stop — explicit approval required\n"
+        "- Destructive file ops\n"
+    )
+    assert _strip_editor_attachments(raw) == "First read"
+
+
+def test_harness_attachment_noise_does_not_mint_correction(
+    tmp_bsela_home: Path, tmp_path: Path
+) -> None:
+    """AGENTS.md / skill attaches quoting 'Hard Stop' must not become correction errors."""
+    transcript = tmp_path / "harness-noise.jsonl"
+    transcript.write_text(
+        json.dumps(
+            {
+                "type": "user",
+                "message": {
+                    "content": [
+                        {
+                            "type": "text",
+                            "text": (
+                                "<manually_attached_skills>\n"
+                                "Skill body with Hard Stop wording.\n"
+                                "</manually_attached_skills>"
+                            ),
+                        }
+                    ]
+                },
+            }
+        )
+        + "\n"
+        + json.dumps(
+            {
+                "type": "user",
+                "message": {
+                    "content": [
+                        {
+                            "type": "text",
+                            "text": (
+                                "First read\n"
+                                "[/Users/black.terminal/AGENTS.md]\n"
+                                "# MAIN GLOBAL Rules\n\n"
+                                "## Hard Stop — explicit approval required\n"
+                            ),
+                        }
+                    ]
+                },
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    sid = "harness-noise-session"
+    save_session(
+        SessionRecord(
+            id=sid,
+            source="test",
+            transcript_path=str(transcript),
+            content_hash="harness-noise",
+            turn_count=2,
+            tool_call_count=0,
+            status="captured",
+        )
+    )
+    result = detect_errors(sid, persist=False)
+    assert all(e.category != "correction" for e in result.errors)

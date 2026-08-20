@@ -55,10 +55,36 @@ _BSELA_ENVELOPE_SIGNATURES: tuple[tuple[re.Pattern[str], re.Pattern[str]], ...] 
     ),
 )
 
+# Editor harness wrappers that inject file/skill bodies into the user turn. Those
+# bodies often quote AGENTS.md "Hard Stop" (a configured correction marker) and
+# must not mint correction errors. Strip before scanning; leave the user's own
+# prose intact when present outside the wrappers.
+_MANUAL_SKILLS_BLOCK = re.compile(
+    r"<manually_attached_skills\b[^>]*>.*?</manually_attached_skills\s*>",
+    re.DOTALL | re.IGNORECASE,
+)
+_MANUAL_SKILLS_UNCLOSED = re.compile(
+    r"<manually_attached_skills\b[^>]*>[\s\S]*\Z",
+    re.IGNORECASE,
+)
+# Cursor/Claude @-attach dumps: [/abs/path] then markdown body (rules files).
+_ATTACHED_RULES_FILE = re.compile(
+    r"\[[^\]]*(?:AGENTS\.md|CLAUDE\.md|\.mdc)[^\]]*\]\n[\s\S]*",
+    re.IGNORECASE,
+)
+
 
 def _is_bsela_envelope(text: str) -> bool:
     """True when ``text`` is BSELA's own serialized MCP output, not a real error."""
     return any(key.search(text) and field.search(text) for key, field in _BSELA_ENVELOPE_SIGNATURES)
+
+
+def _strip_editor_attachments(text: str) -> str:
+    """Remove harness-injected skill/file bodies from user text before correction scan."""
+    cleaned = _MANUAL_SKILLS_BLOCK.sub("", text)
+    cleaned = _MANUAL_SKILLS_UNCLOSED.sub("", cleaned)
+    cleaned = _ATTACHED_RULES_FILE.sub("", cleaned)
+    return cleaned.strip()
 
 
 @dataclass(frozen=True)
@@ -190,7 +216,7 @@ def _scan_correction(
         if _event_type(event) != "user":
             continue
         # Only inspect the human-typed text — not tool_result file content
-        text = _user_text_only(event)
+        text = _strip_editor_attachments(_user_text_only(event))
         if not text:
             continue
         for pattern in markers:
