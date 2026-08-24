@@ -12,10 +12,13 @@ timeout_seconds = 120
 # OpenRouter free-tier fallback (set OPENROUTER_API_KEY to use)
 # Free models: https://openrouter.ai/models?q=free
 [openrouter]
-# openai/gpt-oss-20b:free — clean JSON output, no markdown fences
-# Alternatives: google/gemma-3-4b-it:free, liquid/lfm-2.5-1.2b-instruct:free
-judge_model = "openai/gpt-oss-20b:free"
-distiller_model = "openai/gpt-oss-20b:free"
+# nvidia/nemotron-3-super-120b-a12b:free — live, 120B-class free model (verified
+# 200 on 2026-08-24). The previous openai/gpt-oss-20b:free and gpt-oss-120b:free
+# slugs were both delisted from the free tier.
+# Alternatives (live free as of 2026-08): google/gemma-4-31b-it:free (sometimes
+# upstream-rate-limited), openrouter/free (router), z-ai/glm-5.2:free
+judge_model = "nvidia/nemotron-3-super-120b-a12b:free"
+distiller_model = "nvidia/nemotron-3-super-120b-a12b:free"
 judge_max_tokens = 512
 distiller_max_tokens = 8192
 base_url = "https://openrouter.ai/api/v1"
