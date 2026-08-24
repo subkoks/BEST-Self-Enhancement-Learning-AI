@@ -5,6 +5,17 @@
     <key>Label</key>
     <string>com.blackterminal.bsela.audit</string>
 
+    <!-- launchd does not source the user's shell PATH; bsela lives in
+         ~/.local/bin, so we must supply PATH (and HOME) explicitly or the
+         job dies with "command not found: bsela". -->
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>/Users/black.terminal/.local/bin:/Users/black.terminal/.agents:/usr/local/bin:/usr/bin:/bin</string>
+        <key>HOME</key>
+        <string>/Users/black.terminal</string>
+    </dict>
+
     <key>ProgramArguments</key>
     <array>
         <string>/bin/zsh</string>
