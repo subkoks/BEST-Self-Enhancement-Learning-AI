@@ -116,3 +116,4 @@ Architectural decision records live in [`docs/decisions/`](docs/decisions/).
 ## License
 
 MIT
+
