@@ -9,6 +9,24 @@ called out under a `Breaking` heading.
 
 ## [Unreleased]
 
+### Added
+
+- Codex rollout capture: `bsela scan` sweeps `~/.codex/sessions` and
+  `~/.codex/archived_sessions`, and `bsela hook codex-stop` ingests the
+  transcript named by a Codex `notify` payload (`thread-id`) or a
+  `SessionEnd`/`Stop` hooks.json payload (`session_id`, `transcript_path`).
+  The adapter canonicalizes rollout envelopes into BSELA's event shape and
+  skips Codex-internal guardian/subagent rollouts. Previously Codex sessions
+  were stored with `turn_count=0`, so the weekly reports showed no fresh data.
+- `bsela ingest --replace` / `bsela scan --replace` (default for the sweep)
+  refresh the existing row of a grown transcript in place and re-run the
+  detector; rows whose errors already produced a Lesson are left untouched.
+- `bsela doctor` gained a `codex capture` check that reports whether the most
+  recent Codex rollout reached the store with turns — a wired hook is not
+  proof that the transcript format is understood.
+- `config/launchd/com.blackterminal.bsela.scan.plist` — daily capture sweep
+  template, and `adapters/codex/hooks.json` for the SessionEnd hook.
+
 ## [0.2.1] - 2026-06-25
 
 ### Added

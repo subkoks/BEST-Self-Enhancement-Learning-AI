@@ -31,6 +31,32 @@ Unload:
 launchctl unload -w ~/Library/LaunchAgents/com.blackterminal.bsela.process.plist
 ```
 
+### `com.blackterminal.bsela.scan.plist` (P8, capture backstop)
+
+Runs `bsela scan --since-days 14 --limit 50` every day at 07:30 local
+time. The Codex capture hook fires at session end; this sweep picks up
+the sessions no hook observed — editor crashes, `codex exec` runs, or
+sessions recorded before the hook was wired. Runs before the Monday
+process/report/audit chain so the weekly digest sees fresh sessions.
+Writes stdout/stderr to `~/.bsela/logs/scan.*.log`.
+
+```bash
+cp config/launchd/com.blackterminal.bsela.scan.plist ~/Library/LaunchAgents/
+launchctl bootstrap gui/"$(id -u)" ~/Library/LaunchAgents/com.blackterminal.bsela.scan.plist
+```
+
+Verify it's queued (`launchctl print` shows the calendar interval):
+
+```bash
+launchctl print gui/"$(id -u)"/com.blackterminal.bsela.scan | grep -A4 -i interval
+```
+
+Unload:
+
+```bash
+launchctl bootout gui/"$(id -u)"/com.blackterminal.bsela.scan
+```
+
 ### `com.blackterminal.bsela.report.plist` (P4, active)
 
 Runs `bsela report` every Monday at 09:00 local time. Writes the

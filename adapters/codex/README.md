@@ -1,13 +1,78 @@
 # Codex CLI adapter
 
-Wires the [`bsela-mcp`](../../mcp/) stdio server into Codex CLI's MCP
-config. Read-only tools (`bsela_route`, `bsela_audit`, `bsela_status`,
-`bsela_lessons`) become callable inside any Codex session.
+Two independent wires:
+
+1. **Capture** — Codex rollout transcripts land in `~/.bsela/` so the
+   learning loop has current sessions to work from.
+2. **MCP** — the [`bsela-mcp`](../../mcp/) stdio server exposes read-only
+   tools (`bsela_route`, `bsela_audit`, `bsela_status`, `bsela_lessons`)
+   inside any Codex session.
 
 ## Prerequisites
 
 See [`adapters/README.md`](../README.md#prerequisites-shared-across-all-editors).
 `bsela` must be on `PATH` and `mcp/dist/server.js` must exist.
+
+## Capture — Codex rollouts → `~/.bsela/`
+
+Codex writes one JSONL **rollout** per session under
+`~/.codex/sessions/YYYY/MM/DD/rollout-<timestamp>-<session-id>.jsonl` and moves
+finished sessions to `~/.codex/archived_sessions/`. That layout is not the
+Claude-Code event shape BSELA counts turns in, so the adapter canonicalizes it
+(`src/bsela/adapters/codex/rollout.py`): `response_item` messages become
+user/assistant turns, `function_call` / `custom_tool_call` become tool calls,
+and Codex-internal rollouts (`thread_source: subagent` or `guardian_review`)
+are skipped. Harness context Codex prepends to user turns — the `AGENTS.md`
+instruction block, `<environment_context>`, `<skill>` bodies, IDE context — is
+stripped before the detector runs, so injected rules text never registers as a
+user correction.
+
+### Option A — `notify` (near-real-time, already trusted)
+
+Point Codex's `notify` at the capture wrapper (or append its call to an
+existing notify script). Codex passes one JSON argument with `thread-id`:
+
+```toml
+# ~/.codex/config.toml
+notify = ["/bin/bash", "<BSELA_REPO>/hooks/codex/session-end.sh"]
+```
+
+### Option B — `hooks.json` (`SessionEnd`)
+
+Copy [`hooks.json`](hooks.json) to `~/.codex/hooks.json` (or merge the block
+into an existing one). The `SessionEnd` payload carries `session_id` and
+`transcript_path`, so no `notify` wiring is needed. Codex asks once per hook
+file to trust it; hooks stay inert until that approval (or
+`--dangerously-bypass-hook-trust`) is given.
+
+### Option C — scheduled sweep (`bsela scan`)
+
+Backfills whatever no hook observed (crashed sessions, `codex exec` runs, or
+sessions from before the hook existed):
+
+```bash
+bsela scan --since-days 14 --limit 50 --dry-run   # preview the selection
+bsela scan --since-days 14 --limit 50             # ingest new/grown rollouts
+bsela scan --since-days 0 --json                  # machine-readable summary
+```
+
+`--replace` (default) keeps one row per rollout: re-ingesting a grown
+transcript refreshes the existing session in place and re-runs detection
+instead of inserting a snapshot. Rows whose errors already produced a Lesson
+are left alone. `config/launchd/com.blackterminal.bsela.scan.plist` schedules
+the sweep daily; load it per [`config/launchd/README.md`](../../config/launchd/README.md).
+
+### Verify capture
+
+```bash
+bsela scan --since-days 7 --dry-run          # are rollouts in range?
+bsela sessions list --source codex | head    # do they have turns/tool calls?
+bsela report --stdout                        # 7-day dogfood window
+```
+
+An empty Codex session (`turn_count=0`) means the transcript was ingested by a
+parser that did not understand the rollout envelope — re-run `bsela scan
+--replace` (default) to repair those rows in place.
 
 ## Option A — `codex mcp add` (quick)
 

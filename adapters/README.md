@@ -31,6 +31,16 @@ live in [`mcp/`](../mcp/) — adapters never re-implement BSELA logic.
 The Codex, Windsurf, and Cursor adapters are formally tracked under
 P6. Claude Desktop and Claude Code are documented inline.
 
+### Capture is a separate wire
+
+MCP wiring only exposes read tools. Session ingestion runs through the
+capture path for each editor — Claude Code `Stop` → `bsela hook
+claude-stop`, OpenCode `session.idle` → `bsela hook opencode-stop`,
+Codex `notify`/`SessionEnd` → `bsela hook codex-stop` (plus `bsela
+scan` as the backstop sweep). Do not assume an editor is captured
+because its MCP server answers: check `bsela doctor` (`codex capture`
+reports the stored turn count of the newest rollout).
+
 ## Tools exposed (read-only, P6)
 
 | Tool              | Inputs                                    | Returns                |

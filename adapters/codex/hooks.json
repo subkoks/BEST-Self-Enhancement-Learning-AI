@@ -1,0 +1,16 @@
+{
+  "hooks": {
+    "SessionEnd": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bsela hook codex-stop",
+            "timeoutSec": 30
+          }
+        ]
+      }
+    ]
+  }
+}

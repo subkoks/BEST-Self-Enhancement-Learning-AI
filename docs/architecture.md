@@ -43,7 +43,9 @@ BSELA is a **control plane**, not a runtime. It reads what other agents already 
 
 ### Capture
 
-Hook scripts (Claude Code `Stop`/`PostResponse`, Codex session-end) append raw transcripts + metadata to `~/.bsela/sessions/<uuid>.jsonl`. Pure I/O, zero LLM cost. Secret scrubber runs inline; quarantined sessions never reach the store.
+Hook scripts (Claude Code `Stop`/`PostResponse`, Codex `notify`/`SessionEnd`) hand a transcript path to `bsela ingest`, which stores the row plus its metadata in the SQLite store; `bsela scan` sweeps editor-owned transcripts (`~/.codex/sessions`, `~/.codex/archived_sessions`) for sessions no hook observed. Pure I/O, zero LLM cost. Secret scrubber runs inline; quarantined sessions never reach the store.
+
+Editor transcripts are not one format. The capture path canonicalizes a rollout into BSELA's event shape (Codex via `src/bsela/adapters/codex/rollout.py`) and strips harness-injected context — rules files, environment blocks, IDE state — so the detector only reads text the user or model actually produced. `replace` ingest keeps one row per transcript: a grown rollout refreshes its row and re-runs detection instead of inserting a snapshot.
 
 ### Detector
 
