@@ -10,6 +10,7 @@ import pytest
 from typer.testing import CliRunner
 
 from bsela.cli import app
+from bsela.core.capture import ingest_file
 from bsela.core.doctor import (
     FAIL,
     PASS,
@@ -19,12 +20,15 @@ from bsela.core.doctor import (
     _check_bsela_home,
     _check_bsela_on_path,
     _check_claude_hook,
+    _check_codex_capture,
     _check_llm_api_key,
     _check_python,
     _read_claude_settings,
     run_checks,
     worst_status,
 )
+from bsela.memory.models import SessionRecord
+from bsela.memory.store import save_session
 
 
 def test_check_python_passes_on_current_interpreter() -> None:
@@ -288,3 +292,73 @@ def test_read_claude_settings_returns_none_on_oserror() -> None:
     mock_path.read_text.side_effect = OSError("permission denied")
     result = _read_claude_settings(mock_path)
     assert result is None
+
+
+# ---- codex capture probe ---------------------------------------------------
+
+SESSION_ID = "019d1234-5678-7abc-8def-0123456789ab"
+
+
+def _seed_rollout(root: Path) -> Path:
+    day = root / "2026" / "01" / "16"
+    day.mkdir(parents=True, exist_ok=True)
+    path = day / f"rollout-2026-01-16T10-00-00-{SESSION_ID}.jsonl"
+    source = Path(__file__).parent / "fixtures" / "sample-sessions" / "codex-rollout.jsonl"
+    path.write_text(source.read_text(encoding="utf-8"), encoding="utf-8")
+    return path
+
+
+def test_check_codex_capture_passes_when_no_codex_tree(tmp_path: Path) -> None:
+    row = _check_codex_capture(roots=(tmp_path / "absent",))
+    assert row.status == PASS
+    assert "no ~/.codex" in row.detail
+
+
+def test_check_codex_capture_warns_without_rollouts(tmp_bsela_home: Path, tmp_path: Path) -> None:
+    empty = tmp_path / "sessions"
+    empty.mkdir()
+    row = _check_codex_capture(roots=(empty,))
+    assert row.status == WARN
+    assert "no user-thread rollouts" in row.detail
+
+
+def test_check_codex_capture_warns_when_unwired(tmp_bsela_home: Path, tmp_path: Path) -> None:
+    root = tmp_path / "sessions"
+    _seed_rollout(root)
+    row = _check_codex_capture(roots=(root,))
+    assert row.status == WARN
+    assert "not ingested" in row.detail
+
+
+def test_check_codex_capture_warns_when_row_has_no_turns(
+    tmp_bsela_home: Path, tmp_path: Path
+) -> None:
+    root = tmp_path / "sessions"
+    path = _seed_rollout(root)
+    save_session(
+        SessionRecord(
+            source="codex",
+            transcript_path=str(path.resolve()),
+            content_hash="stale",
+            turn_count=0,
+            status="captured",
+        )
+    )
+    row = _check_codex_capture(roots=(root,))
+    assert row.status == WARN
+    assert "0 turns" in row.detail
+
+
+def test_check_codex_capture_passes_after_ingest(tmp_bsela_home: Path, tmp_path: Path) -> None:
+    root = tmp_path / "sessions"
+    path = _seed_rollout(root)
+    ingest_file(path, source="codex")
+    row = _check_codex_capture(roots=(root,))
+    assert row.status == PASS
+    assert "turns=2" in row.detail
+
+
+def test_run_checks_includes_codex_capture(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr("bsela.core.doctor.default_session_roots", lambda: (tmp_path / "absent",))
+    names = [row.name for row in run_checks(settings_path=tmp_path / "settings.json")]
+    assert "codex capture" in names

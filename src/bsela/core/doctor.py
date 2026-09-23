@@ -21,13 +21,14 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from bsela.adapters.codex import default_session_roots, discover_rollouts
 from bsela.core.hook_install import (
     DEFAULT_EVENT,
     DEFAULT_HOOK_COMMAND,
     default_claude_settings_path,
 )
 from bsela.core.updater import DEFAULT_AGENTS_MD_REPO
-from bsela.memory.store import bsela_home, db_path
+from bsela.memory.store import bsela_home, db_path, find_session_by_transcript
 
 PASS = "pass"
 WARN = "warn"
@@ -184,6 +185,38 @@ def _check_claude_hook(settings_path: Path | None = None) -> CheckResult:
     )
 
 
+def _check_codex_capture(roots: tuple[Path, ...] | None = None) -> CheckResult:
+    """Report whether the newest Codex rollout actually reached the store.
+
+    A wired hook and a correct schedule still produce empty reports if the
+    rollout parser misses the transcript format, so this probe checks the
+    stored turn count of the most recent rollout rather than the wiring alone.
+    """
+    search = roots if roots is not None else default_session_roots()
+    if not any(Path(root).expanduser().is_dir() for root in search):
+        return CheckResult("codex capture", PASS, "no ~/.codex rollout tree on this machine")
+    rollouts = discover_rollouts(search, limit=1)
+    if not rollouts:
+        return CheckResult("codex capture", WARN, "no user-thread rollouts found under ~/.codex")
+    newest = rollouts[0]
+    # Never open the store here: a probe that creates an empty database would
+    # change what `bsela status` reports about a not-yet-initialized install.
+    stored = find_session_by_transcript(str(newest.resolve())) if db_path().exists() else None
+    if stored is None:
+        return CheckResult(
+            "codex capture",
+            WARN,
+            f"{newest.name} not ingested — wire the notify hook or run `bsela scan`",
+        )
+    if stored.turn_count <= 0:
+        return CheckResult(
+            "codex capture",
+            WARN,
+            f"{newest.name} stored with 0 turns — run `bsela scan` to repair the row",
+        )
+    return CheckResult("codex capture", PASS, f"{newest.name} captured (turns={stored.turn_count})")
+
+
 def run_checks(*, settings_path: Path | None = None) -> list[CheckResult]:
     """Run all probes and return the flat result list."""
     return [
@@ -194,6 +227,7 @@ def run_checks(*, settings_path: Path | None = None) -> list[CheckResult]:
         _check_db(),
         _check_agents_md_repo(),
         _check_claude_hook(settings_path),
+        _check_codex_capture(),
     ]
 
 
