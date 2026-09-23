@@ -55,13 +55,19 @@ def _check_python() -> CheckResult:
 
 
 def _check_llm_api_key() -> CheckResult:
-    """Accept either ANTHROPIC_API_KEY or OPENROUTER_API_KEY."""
+    """Report the provider ``make_llm_client`` will actually select.
+
+    Mirrors the precedence in ``bsela.llm.client``: ``OPENROUTER_API_KEY`` wins
+    over ``ANTHROPIC_API_KEY``. Reporting the losing key instead hides a broken
+    OpenRouter model slug behind a valid Anthropic key, so the job fails at
+    distillation time with a green doctor run.
+    """
     anthropic = os.environ.get("ANTHROPIC_API_KEY", "").strip()
     openrouter = os.environ.get("OPENROUTER_API_KEY", "").strip()
-    if anthropic:
-        return CheckResult("LLM API key", PASS, f"ANTHROPIC_API_KEY set ({len(anthropic)} chars)")
     if openrouter:
         return CheckResult("LLM API key", PASS, f"OPENROUTER_API_KEY set ({len(openrouter)} chars)")
+    if anthropic:
+        return CheckResult("LLM API key", PASS, f"ANTHROPIC_API_KEY set ({len(anthropic)} chars)")
     return CheckResult(
         "LLM API key",
         FAIL,

@@ -63,6 +63,17 @@ def test_check_api_key_pass_with_openrouter(monkeypatch: pytest.MonkeyPatch) -> 
     assert "chars" in row.detail
 
 
+def test_check_api_key_reports_openrouter_when_both_set(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Mirror make_llm_client precedence: OpenRouter wins over Anthropic."""
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-ant-deadbeef")
+    monkeypatch.setenv("OPENROUTER_API_KEY", "sk-or-deadbeef")
+    row = _check_llm_api_key()
+    assert row.status == PASS
+    assert "OPENROUTER_API_KEY" in row.detail
+
+
 def test_check_agents_md_repo_warns_when_missing(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
