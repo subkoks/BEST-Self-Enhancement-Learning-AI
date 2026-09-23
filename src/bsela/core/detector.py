@@ -21,6 +21,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from bsela.adapters.codex import SOURCE as CODEX_SOURCE
+from bsela.adapters.codex import normalize_event
 from bsela.memory.models import ErrorRecord, SessionRecord
 from bsela.memory.store import get_session, save_error
 from bsela.utils.config import load_thresholds
@@ -383,13 +385,30 @@ def detect_errors(
     return _detect_for(session, persist=persist)
 
 
+def _load_events(session: SessionRecord, transcript: Path) -> list[tuple[int, dict[str, Any]]]:
+    """Load a transcript's events, canonicalizing Codex rollouts for the scans.
+
+    Raw line numbers are preserved so error records still point at the line the
+    detector fired on.
+    """
+    events = list(_iter_jsonl(transcript))
+    if session.source != CODEX_SOURCE:
+        return events
+    canonical: list[tuple[int, dict[str, Any]]] = []
+    for line_no, event in events:
+        normalized = normalize_event(event)
+        if normalized is not None:
+            canonical.append((line_no, normalized))
+    return canonical
+
+
 def _detect_for(session: SessionRecord, *, persist: bool) -> DetectionResult:
     transcript = Path(session.transcript_path)
     if not transcript.is_file():
         return DetectionResult(session_id=session.id, errors=())
 
     cfg = load_thresholds().detector
-    events = list(_iter_jsonl(transcript))
+    events = _load_events(session, transcript)
     markers = _correction_markers(cfg.correction_markers)
 
     candidates: list[ErrorRecord] = []

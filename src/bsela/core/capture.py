@@ -25,9 +25,17 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+from bsela.adapters.codex import SOURCE as CODEX_SOURCE
+from bsela.adapters.codex import normalize_event
 from bsela.core.detector import detect_errors
 from bsela.memory.models import SessionRecord
-from bsela.memory.store import find_session_by_transcript, save_session
+from bsela.memory.store import (
+    delete_errors_for_session,
+    find_session_by_transcript,
+    save_session,
+    session_has_lessons,
+    upsert_session,
+)
 from bsela.utils.config import load_thresholds
 
 _log = logging.getLogger(__name__)
@@ -88,6 +96,12 @@ class CaptureResult:
     tool_call_count: int
     transcript_path: Path
     errors_detected: int = 0
+    #: True when the stored row already matched this transcript's content hash.
+    unchanged: bool = False
+    #: True when an existing row was refreshed in place instead of inserted.
+    updated: bool = False
+    #: Set when a ``replace`` ingest deliberately left an existing row alone.
+    skipped_reason: str | None = None
 
 
 def _sha256_file(path: Path) -> str:
@@ -114,6 +128,24 @@ def _iter_jsonl(path: Path) -> Iterator[dict[str, Any]]:
                 _log.warning("skipping malformed JSONL line %d in %s", idx, path)
 
 
+def _iter_canonical(
+    path: Path, source: str
+) -> Iterator[tuple[dict[str, Any], dict[str, Any] | None]]:
+    """Yield ``(raw_event, canonical_event)`` pairs from a transcript.
+
+    Claude Code transcripts are already canonical, so both entries are the same
+    object. Codex rollouts are translated by the Codex adapter; envelopes with
+    nothing to count (reasoning items, token counts, thread metadata) yield
+    ``None`` as their canonical form. The raw event is always returned so the
+    scrubber still inspects text that carries no turn.
+    """
+    for raw in _iter_jsonl(path):
+        if source == CODEX_SOURCE:
+            yield raw, normalize_event(raw)
+        else:
+            yield raw, raw
+
+
 def _parse_ts(value: object) -> datetime | None:
     if not isinstance(value, str) or not value:
         return None
@@ -138,7 +170,14 @@ def _scan_event(event: dict[str, Any], scrubber: Scrubber) -> list[str]:
     return scrubber.scan(" ".join(parts))
 
 
-def _make_result(record: SessionRecord, transcript: Path) -> CaptureResult:
+def _make_result(
+    record: SessionRecord,
+    transcript: Path,
+    *,
+    unchanged: bool = False,
+    updated: bool = False,
+    skipped_reason: str | None = None,
+) -> CaptureResult:
     return CaptureResult(
         session_id=record.id,
         status=record.status,
@@ -147,6 +186,9 @@ def _make_result(record: SessionRecord, transcript: Path) -> CaptureResult:
         tool_call_count=record.tool_call_count,
         transcript_path=transcript,
         errors_detected=0,
+        unchanged=unchanged,
+        updated=updated,
+        skipped_reason=skipped_reason,
     )
 
 
@@ -163,12 +205,84 @@ def _dedup_check(transcript: Path) -> tuple[CaptureResult | None, str | None]:
         return None, None
     if existing.status == "quarantined":
         _log.debug("skipping re-ingest of quarantined transcript %s", transcript)
-        return _make_result(existing, transcript), None
+        return _make_result(existing, transcript, unchanged=True), None
     content_hash = _sha256_file(transcript)
     if existing.content_hash == content_hash:
         _log.debug("skipping re-ingest of unchanged captured transcript %s", transcript)
-        return _make_result(existing, transcript), None
+        return _make_result(existing, transcript, unchanged=True), None
     return None, content_hash
+
+
+def _event_ts(event: dict[str, Any]) -> datetime | None:
+    """Timestamp of an event: Codex/canonical ``ts`` first, then ``timestamp``."""
+    return _parse_ts(event.get("ts") or event.get("timestamp"))
+
+
+def _replacement_target(transcript: Path, *, enabled: bool) -> SessionRecord | None:
+    """Existing row a ``replace`` ingest should update in place, if any.
+
+    Quarantined rows are never rewritten: their transcript body was withheld
+    from the store on purpose and re-ingest stays a no-op.
+    """
+    if not enabled:
+        return None
+    existing = find_session_by_transcript(str(transcript))
+    if existing is None or existing.status == "quarantined":
+        return None
+    return existing
+
+
+@dataclass(frozen=True)
+class _ScanStats:
+    """Turn/tool counters and secret hits gathered from one transcript pass."""
+
+    turn_count: int
+    tool_call_count: int
+    started_at: datetime | None
+    ended_at: datetime | None
+    scrub_hits: frozenset[str]
+
+
+def _scan_transcript(transcript: Path, source: str, scrubber: Scrubber) -> _ScanStats:
+    """Count turns and tool calls and collect secret-pattern hits."""
+    turn_count = 0
+    tool_call_count = 0
+    started_at: datetime | None = None
+    ended_at: datetime | None = None
+    scrub_hits: set[str] = set()
+
+    for raw, canonical in _iter_canonical(transcript, source):
+        scrub_hits.update(_scan_event(raw, scrubber))
+        if canonical is None:
+            continue
+        # Accept both `type` (native Claude Code) and `role` (Cursor-hosted Claude Code).
+        etype = canonical.get("type") or canonical.get("role")
+        if etype in _TURN_TYPES:
+            turn_count += 1
+        if etype in _TOOL_TYPES or canonical.get("tool_calls"):
+            tool_call_count += 1
+        elif etype in ("assistant", "message"):
+            # Nested format: tool_use blocks inside message.content[]
+            msg = canonical.get("message") or {}
+            nested = msg.get("content", []) if isinstance(msg, dict) else []
+            if isinstance(nested, list):
+                tool_call_count += sum(
+                    1 for b in nested if isinstance(b, dict) and b.get("type") in _TOOL_TYPES
+                )
+        ts = _event_ts(canonical)
+        if ts is not None:
+            if started_at is None or ts < started_at:
+                started_at = ts
+            if ended_at is None or ts > ended_at:
+                ended_at = ts
+
+    return _ScanStats(
+        turn_count=turn_count,
+        tool_call_count=tool_call_count,
+        started_at=started_at,
+        ended_at=ended_at,
+        scrub_hits=frozenset(scrub_hits),
+    )
 
 
 def ingest_file(
@@ -177,6 +291,7 @@ def ingest_file(
     source: str = "claude_code",
     scrubber: Scrubber | None = None,
     auto_detect: bool = True,
+    replace: bool = False,
 ) -> CaptureResult:
     """Ingest a JSONL transcript, scrub, persist, and run the detector.
 
@@ -184,6 +299,12 @@ def ingest_file(
     non-quarantined capture so the hook path produces ``ErrorRecord``
     rows without a second command. Detect errors are logged and swallowed
     — a failed detector pass must not roll back a successful capture.
+
+    ``replace`` keeps one row per transcript: when the file was ingested
+    before and has since grown, the existing row is updated in place and its
+    stale error rows are re-detected instead of a new snapshot being inserted.
+    Rows whose errors already produced a Lesson are left untouched, so
+    distillation history never loses the evidence it references.
     """
     transcript = Path(path).expanduser().resolve()
     if not transcript.is_file():
@@ -195,52 +316,32 @@ def ingest_file(
     if content_hash is None:
         content_hash = _sha256_file(transcript)
 
-    scan = scrubber or Scrubber.from_config()
+    target = _replacement_target(transcript, enabled=replace)
+    if target is not None and session_has_lessons(target.id):
+        _log.debug("leaving distilled session %s in place for %s", target.id, transcript)
+        return _make_result(target, transcript, skipped_reason="distilled")
 
-    turn_count = 0
-    tool_call_count = 0
-    started_at: datetime | None = None
-    ended_at: datetime | None = None
-    scrub_hits: set[str] = set()
-
-    for event in _iter_jsonl(transcript):
-        # Accept both `type` (native Claude Code) and `role` (Cursor-hosted Claude Code).
-        etype = event.get("type") or event.get("role")
-        if etype in _TURN_TYPES:
-            turn_count += 1
-        if etype in _TOOL_TYPES or event.get("tool_calls"):
-            tool_call_count += 1
-        elif etype in ("assistant", "message"):
-            # Nested format: tool_use blocks inside message.content[]
-            msg = event.get("message") or {}
-            nested = msg.get("content", []) if isinstance(msg, dict) else []
-            if isinstance(nested, list):
-                tool_call_count += sum(
-                    1 for b in nested if isinstance(b, dict) and b.get("type") in _TOOL_TYPES
-                )
-        scrub_hits.update(_scan_event(event, scan))
-        ts = _parse_ts(event.get("ts"))
-        if ts is not None:
-            if started_at is None or ts < started_at:
-                started_at = ts
-            if ended_at is None or ts > ended_at:
-                ended_at = ts
-
-    quarantined = bool(scrub_hits)
-    reason = f"secret patterns matched: {sorted(scrub_hits)}" if quarantined else None
+    stats = _scan_transcript(transcript, source, scrubber or Scrubber.from_config())
+    quarantined = bool(stats.scrub_hits)
+    reason = f"secret patterns matched: {sorted(stats.scrub_hits)}" if quarantined else None
 
     record = SessionRecord(
         source=source,
         transcript_path=str(transcript),
         content_hash=content_hash,
-        started_at=started_at or datetime.now(UTC),
-        ended_at=ended_at,
-        turn_count=turn_count,
-        tool_call_count=tool_call_count,
+        started_at=stats.started_at or datetime.now(UTC),
+        ended_at=stats.ended_at,
+        turn_count=stats.turn_count,
+        tool_call_count=stats.tool_call_count,
         status="quarantined" if quarantined else "captured",
         quarantine_reason=reason,
     )
-    saved = save_session(record)
+    if target is not None:
+        record.id = target.id
+        delete_errors_for_session(target.id)
+        saved = upsert_session(record)
+    else:
+        saved = save_session(record)
 
     errors_detected = 0
     if auto_detect and saved.status == "captured":
@@ -250,10 +351,11 @@ def ingest_file(
         session_id=saved.id,
         status=saved.status,
         quarantine_reason=saved.quarantine_reason,
-        turn_count=turn_count,
-        tool_call_count=tool_call_count,
+        turn_count=stats.turn_count,
+        tool_call_count=stats.tool_call_count,
         transcript_path=transcript,
         errors_detected=errors_detected,
+        updated=target is not None,
     )
 
 

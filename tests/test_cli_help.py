@@ -32,6 +32,7 @@ def test_root_help_lists_core_commands(runner: CliRunner) -> None:
         "report",
         "route",
         "audit",
+        "scan",
         "replay",
         "replays",
         "rollback",
@@ -58,6 +59,7 @@ def test_hook_subgroup_help(runner: CliRunner) -> None:
     result = runner.invoke(app, ["hook", "--help"])
     assert result.exit_code == 0, result.stdout
     assert "install" in result.stdout
+    assert "codex-stop" in result.stdout
 
 
 def test_route_json_contract_stable_keys(runner: CliRunner) -> None:

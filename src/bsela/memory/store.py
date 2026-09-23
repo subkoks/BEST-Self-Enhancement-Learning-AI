@@ -92,6 +92,53 @@ def save_session(record: SessionRecord) -> SessionRecord:
         return record
 
 
+# Session columns a re-ingest of a grown transcript refreshes in place.
+# Token/cost counters are omitted: they are written by later pipeline stages.
+_SESSION_REFRESH_FIELDS = (
+    "source",
+    "transcript_path",
+    "content_hash",
+    "started_at",
+    "ended_at",
+    "turn_count",
+    "tool_call_count",
+    "status",
+    "quarantine_reason",
+    "ingested_at",
+)
+
+
+def upsert_session(record: SessionRecord) -> SessionRecord:
+    """Insert ``record``, or refresh the stored row that shares its id."""
+    with session_scope() as s:
+        existing = s.get(SessionRecord, record.id)
+        if existing is None:
+            s.add(record)
+            s.commit()
+            s.refresh(record)
+            return record
+        for field in _SESSION_REFRESH_FIELDS:
+            setattr(existing, field, getattr(record, field))
+        s.add(existing)
+        s.commit()
+        s.refresh(existing)
+        return existing
+
+
+def delete_errors_for_session(session_id: str) -> int:
+    """Delete every ErrorRecord of ``session_id``; return the number removed.
+
+    Callers must be sure no Lesson references those rows — the store cascades
+    on session delete, not on error delete.
+    """
+    with session_scope() as s:
+        rows = list(s.exec(select(ErrorRecord).where(ErrorRecord.session_id == session_id)).all())
+        for row in rows:
+            s.delete(row)
+        s.commit()
+        return len(rows)
+
+
 def get_session(session_id: str) -> SessionRecord | None:
     with session_scope() as s:
         return s.get(SessionRecord, session_id)

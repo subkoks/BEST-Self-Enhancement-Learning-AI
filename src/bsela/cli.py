@@ -18,6 +18,8 @@ from typing import Annotated
 import typer
 
 from bsela import __version__
+from bsela.adapters.codex import SOURCE as CODEX_SOURCE
+from bsela.adapters.codex import find_rollout
 from bsela.adapters.opencode.export import default_export_path, export_session_to_jsonl
 from bsela.core.auditor import (
     DEFAULT_WINDOW_DAYS as AUDIT_DEFAULT_WINDOW_DAYS,
@@ -61,6 +63,16 @@ from bsela.core.report import (
 )
 from bsela.core.retention import sweep
 from bsela.core.router import classify as classify_task
+from bsela.core.scan import (
+    DEFAULT_LIMIT as SCAN_DEFAULT_LIMIT,
+)
+from bsela.core.scan import (
+    DEFAULT_SINCE_DAYS as SCAN_DEFAULT_SINCE_DAYS,
+)
+from bsela.core.scan import (
+    ScanResult,
+    scan_rollouts,
+)
 from bsela.core.updater import UpdaterError, propose_lesson
 from bsela.llm.client import make_llm_client
 from bsela.llm.distiller import distill_session
@@ -239,9 +251,17 @@ def ingest(
             help="Origin editor/agent of the transcript.",
         ),
     ] = "claude_code",
+    replace: Annotated[
+        bool,
+        typer.Option(
+            "--replace/--no-replace",
+            help="Refresh the stored row for this transcript in place instead of inserting a "
+            "new snapshot when the file has changed.",
+        ),
+    ] = False,
 ) -> None:
     """Ingest one session transcript into the BSELA store."""
-    result = ingest_file(path, source=source)
+    result = ingest_file(path, source=source, replace=replace)
     if result.status == "quarantined":
         typer.secho(
             f"quarantined {result.session_id}: {result.quarantine_reason}",
@@ -1301,6 +1321,105 @@ def process(
     raise typer.Exit(code=0)
 
 
+@app.command()
+def scan(
+    root: Annotated[
+        list[Path] | None,
+        typer.Option(
+            "--root",
+            help="Rollout root to sweep (repeatable). Defaults to ~/.codex/sessions + "
+            "~/.codex/archived_sessions.",
+        ),
+    ] = None,
+    since_days: Annotated[
+        int,
+        typer.Option(
+            "--since-days",
+            "-d",
+            min=0,
+            help="Only sweep rollouts modified within this window. 0 = no window.",
+        ),
+    ] = SCAN_DEFAULT_SINCE_DAYS,
+    limit: Annotated[
+        int,
+        typer.Option("--limit", "-n", min=1, help="Max rollouts to ingest, newest first."),
+    ] = SCAN_DEFAULT_LIMIT,
+    replace: Annotated[
+        bool,
+        typer.Option(
+            "--replace/--no-replace",
+            help="Refresh the existing row for a grown rollout instead of inserting a snapshot.",
+        ),
+    ] = True,
+    dry_run: Annotated[
+        bool,
+        typer.Option("--dry-run", help="List the selected rollouts without touching the store."),
+    ] = False,
+    as_json: Annotated[
+        bool,
+        typer.Option("--json", help="Emit the sweep summary as JSON."),
+    ] = False,
+) -> None:
+    """Capture new or grown Codex rollout transcripts (backfill and safety net)."""
+    result = scan_rollouts(
+        roots=root,
+        since_days=since_days,
+        limit=limit,
+        replace=replace,
+        dry_run=dry_run,
+    )
+    if as_json:
+        typer.echo(json.dumps(_scan_json_payload(result, dry_run=dry_run)))
+        raise typer.Exit(code=0)
+
+    window = f"{since_days}d" if since_days > 0 else "all"
+    verb = "scan (dry-run)" if dry_run else "scan"
+    typer.echo(f"{verb}: {result.considered} rollout(s) in window (limit={limit}, window={window})")
+    for outcome in result.outcomes:
+        counts = (
+            ""
+            if outcome.status == "pending"
+            else f"  turns={outcome.turn_count} tool_calls={outcome.tool_call_count}"
+        )
+        detail = f"  ({outcome.detail})" if outcome.detail else ""
+        typer.echo(f"  {outcome.status:12} {outcome.path.name}{counts}{detail}")
+    if dry_run:
+        typer.echo(f"would ingest {result.considered} rollout(s) (no store writes)")
+        raise typer.Exit(code=0)
+    typer.echo(
+        f"scan: captured={result.captured} updated={result.updated} "
+        f"unchanged={result.unchanged} quarantined={result.quarantined} "
+        f"skipped={result.skipped} failed={result.failed} "
+        f"errors_detected={result.errors_detected}"
+    )
+    raise typer.Exit(code=0)
+
+
+def _scan_json_payload(result: ScanResult, *, dry_run: bool) -> dict[str, object]:
+    return {
+        "dry_run": dry_run,
+        "considered": result.considered,
+        "captured": result.captured,
+        "updated": result.updated,
+        "unchanged": result.unchanged,
+        "quarantined": result.quarantined,
+        "skipped": result.skipped,
+        "failed": result.failed,
+        "errors_detected": result.errors_detected,
+        "rollouts": [
+            {
+                "path": str(outcome.path),
+                "status": outcome.status,
+                "session_id": outcome.session_id,
+                "turn_count": outcome.turn_count,
+                "tool_call_count": outcome.tool_call_count,
+                "errors_detected": outcome.errors_detected,
+            }
+            for outcome in result.outcomes
+        ],
+    }
+
+
 @hook_app.command("claude-stop")
 def claude_stop() -> None:
     """Read a Claude Code Stop JSON payload on stdin and ingest its transcript."""
@@ -1352,6 +1471,58 @@ def opencode_stop(
         raise typer.Exit(code=0) from None
     ingest_file(dest, source="opencode")
     raise typer.Exit(code=0)
+
+
+@hook_app.command("codex-stop")
+def codex_stop(
+    payload: Annotated[
+        str | None,
+        typer.Argument(
+            help="Codex notify payload as one JSON argument. When omitted, the payload is "
+            "read from stdin (hooks.json passes it there).",
+        ),
+    ] = None,
+) -> None:
+    """Ingest the Codex rollout named by a notify or hooks.json payload.
+
+    Codex ``notify`` hands over ``thread-id``; the ``SessionEnd``/``Stop`` hook
+    schema hands over ``session_id`` and ``transcript_path``. Either shape
+    resolves to the rollout on disk. Anything unexpected — missing id, unknown
+    session, unreadable file — exits 0 without output so a capture hook can
+    never block or slow the editor's shutdown path.
+    """
+    raw = payload if payload and payload.strip() else sys.stdin.read()
+    if not raw.strip():
+        raise typer.Exit(code=0)
+    try:
+        data = json.loads(raw)
+    except json.JSONDecodeError:
+        raise typer.Exit(code=0) from None
+    if not isinstance(data, dict):
+        raise typer.Exit(code=0)
+
+    path = _codex_transcript_path(data)
+    if path is None:
+        raise typer.Exit(code=0)
+    try:
+        ingest_file(path, source=CODEX_SOURCE, replace=True)
+    except (OSError, ValueError):
+        raise typer.Exit(code=0) from None
+    raise typer.Exit(code=0)
+
+
+def _codex_transcript_path(payload: dict[str, object]) -> Path | None:
+    """Resolve a Codex hook payload to a rollout transcript on disk."""
+    transcript = payload.get("transcript_path") or payload.get("transcriptPath")
+    if isinstance(transcript, str) and transcript:
+        candidate = Path(transcript).expanduser()
+        if candidate.is_file():
+            return candidate
+    for key in ("session_id", "thread-id", "thread_id", "sessionId"):
+        value = payload.get(key)
+        if isinstance(value, str) and value.strip():
+            return find_rollout(value.strip())
+    return None
 
 
 @hook_app.command("install")

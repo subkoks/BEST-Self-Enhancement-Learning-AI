@@ -80,6 +80,7 @@ select = [
 ]
 ignore = [
     "PLR0913", # too many arguments
+    "PLR0917", # too many positional arguments (Typer commands carry one per flag)
     "PLR2004", # magic value in comparison
 ]
 
