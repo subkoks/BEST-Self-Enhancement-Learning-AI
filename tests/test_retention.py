@@ -31,7 +31,7 @@ def _session(ingested_at: datetime) -> SessionRecord:
 
 
 def test_sweep_errors_drops_only_old(tmp_bsela_home: Path) -> None:
-    now = datetime.now(UTC).replace(tzinfo=None)
+    now = datetime.now(UTC)
     sess = _session(now)
     old = save_error(
         ErrorRecord(
@@ -57,7 +57,7 @@ def test_sweep_errors_drops_only_old(tmp_bsela_home: Path) -> None:
 
 
 def test_sweep_sessions_cascades_to_errors_and_metrics(tmp_bsela_home: Path) -> None:
-    now = datetime.now(UTC).replace(tzinfo=None)
+    now = datetime.now(UTC)
     old_sess = _session(now - timedelta(days=120))
     new_sess = _session(now - timedelta(days=5))
     save_error(
@@ -80,7 +80,7 @@ def test_sweep_sessions_cascades_to_errors_and_metrics(tmp_bsela_home: Path) -> 
 
 
 def test_sweep_sessions_cascades_to_replay_records(tmp_bsela_home: Path) -> None:
-    now = datetime.now(UTC).replace(tzinfo=None)
+    now = datetime.now(UTC)
     old_sess = _session(now - timedelta(days=120))
     new_sess = _session(now - timedelta(days=5))
     save_replay_record(
@@ -115,7 +115,7 @@ def test_sweep_sessions_cascades_to_replay_records(tmp_bsela_home: Path) -> None
 
 
 def test_sweep_reports_replay_records_deleted_count(tmp_bsela_home: Path) -> None:
-    now = datetime.now(UTC).replace(tzinfo=None)
+    now = datetime.now(UTC)
     old_sess = _session(now - timedelta(days=200))
     save_replay_record(
         ReplayRecord(
@@ -135,7 +135,7 @@ def test_sweep_reports_replay_records_deleted_count(tmp_bsela_home: Path) -> Non
 
 
 def test_sweep_uses_thresholds_config(tmp_bsela_home: Path) -> None:
-    now = datetime.now(UTC).replace(tzinfo=None)
+    now = datetime.now(UTC)
     sess = _session(now - timedelta(days=200))
     save_error(
         ErrorRecord(
