@@ -137,7 +137,6 @@ def test_detect_missing_transcript(tmp_bsela_home: Path, tmp_path: Path) -> None
         source="test",
         transcript_path=str(phantom),
         content_hash="abc",
-        started_at=None,
         ended_at=None,
         turn_count=0,
         tool_call_count=0,
