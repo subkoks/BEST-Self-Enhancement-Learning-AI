@@ -1,6 +1,15 @@
-# BSELA — Best Self-Enhancement Learning Agent
+<a id="bsela--best-self-enhancement-learning-agent"></a>
 
-A local control plane that makes existing coding agents (Claude Code, Codex, Windsurf, Cursor) measurably better over time.
+<h1>
+  <picture>
+    <source media="(max-width: 600px)" srcset="assets/readme/hero-mobile.svg">
+    <img src="assets/readme/hero.svg" width="100%" alt="BSELA — Best Self-Enhancement Learning Agent">
+  </picture>
+</h1>
+
+**BSELA — Best Self-Enhancement Learning Agent.** A local control plane that makes existing coding agents (Claude Code, Codex, Windsurf, Cursor) measurably better over time.
+
+[Quick start](#quickstart) · [Status](#status) · [Mission](#mission) · [Architecture](#architecture)
 
 BSELA captures every session, distills recurring failures into durable rules, proposes updates against the canonical `agents-md` repo, and routes new tasks to the right model. It is not a new model, not a new IDE — it is the **self-improving context + harness layer** the existing stack is missing.
 

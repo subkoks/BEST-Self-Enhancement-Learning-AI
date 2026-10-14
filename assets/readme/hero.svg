@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="300" viewBox="0 0 960 300" role="img" aria-labelledby="title">
+<title id="title">BSELA. Learn from work. — Agent learning</title>
+<rect width="960" height="300" rx="8" fill="#111110"/>
+<circle cx="48" cy="32" r="4" fill="#FF7F0E"/>
+<text x="62" y="37" fill="#B5B0A8" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="12" font-weight="400" letter-spacing="1.5">BLACK.TERMINAL</text>
+<text x="916" y="37" fill="#B5B0A8" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="12" font-weight="400" text-anchor="end" letter-spacing="1.2">AGENT LEARNING</text>
+<text x="44" y="130" fill="#F3F0EB" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, Helvetica, Arial, sans-serif" font-size="60" font-weight="600" letter-spacing="-1.5">BSELA.</text>
+<text x="44" y="196" fill="#F3F0EB" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, Helvetica, Arial, sans-serif" font-size="60" font-weight="600" letter-spacing="-1.5">Learn from work.</text>
+<path d="M44 249H916" stroke="#393632"/>
+<text x="44" y="275" fill="#B5B0A8" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="13" font-weight="400" letter-spacing="0.5">CAPTURE / LEARN / PROPOSE</text>
+<g transform="translate(802 145)" fill="none" stroke="#393632" stroke-width="1.5">
+<path d="M-66-42H-25V0H25V42H66M-66 42H-25V0H25V-42H66"/>
+<rect x="-18" y="-18" width="36" height="36" rx="4" stroke="#FF7F0E"/>
+<path d="m-6-7 8 7-8 7m10 0h5" stroke="#FF7F0E"/>
+<g fill="#111110" stroke="#B5B0A8"><circle cx="-66" cy="-42" r="5"/><circle cx="-66" cy="42" r="5"/><circle cx="66" cy="-42" r="5"/><circle cx="66" cy="42" r="5"/></g></g>
+</svg>
