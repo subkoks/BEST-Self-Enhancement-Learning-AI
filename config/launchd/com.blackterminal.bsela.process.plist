@@ -12,17 +12,19 @@
     <dict>
         <key>PATH</key>
         <string>/Users/black.terminal/.local/bin:/Users/black.terminal/.agents:/usr/local/bin:/usr/bin:/bin</string>
+        <key>BSELA_CONFIG_DIR</key>
+        <string>/Users/black.terminal/.bsela/config</string>
+        <key>TZ</key>
+        <string>Europe/London</string>
         <key>HOME</key>
         <string>/Users/black.terminal</string>
     </dict>
 
-    <!-- Run bsela process every Monday at 08:00 local time. -->
+    <!-- Run bsela process daily at 08:00 local time. -->
     <!-- Fires one hour before the audit job (09:00) so fresh lessons -->
     <!-- are available when the audit digest runs.                     -->
     <key>StartCalendarInterval</key>
     <dict>
-        <key>Weekday</key>
-        <integer>1</integer>
         <key>Hour</key>
         <integer>8</integer>
         <key>Minute</key>
@@ -31,9 +33,11 @@
 
     <key>ProgramArguments</key>
     <array>
-        <string>/bin/zsh</string>
-        <string>-lc</string>
-        <string>bsela process --limit 20</string>
+        <string>/Users/black.terminal/.local/bin/bsela</string>
+        <string>process</string>
+        <string>--scheduled</string>
+        <string>--provider</string>
+        <string>codex</string>
     </array>
 
     <key>StandardOutPath</key>

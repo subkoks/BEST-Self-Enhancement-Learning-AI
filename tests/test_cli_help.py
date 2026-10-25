@@ -70,6 +70,7 @@ def test_route_json_contract_stable_keys(runner: CliRunner) -> None:
     assert set(data.keys()) == {
         "task_class",
         "model",
+        "provider",
         "confidence",
         "reason",
         "matched_keywords",
@@ -192,6 +193,7 @@ def test_review_list_json_row_matches_mcp_lesson_item(
 _AUDIT_JSON_TOP_LEVEL = frozenset(
     {
         "generated_at",
+        "model_usage",
         "window_days",
         "window_start",
         "window_end",

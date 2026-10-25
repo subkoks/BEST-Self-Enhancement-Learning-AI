@@ -8,17 +8,11 @@ testable.
 
 The router is the single seam where "what kind of work is this?" gets
 answered. Adapters (Claude Code, Codex, Cursor, Windsurf, MCP) call it
-to pick a model before dispatching. The v2 upgrade path (Haiku-scored
+to pick a model before dispatching. The v2 upgrade path (model-scored
 classifier prompt) is documented in ADR 0005; no ADR is required to
 tune keyword buckets in this module.
 
-Design invariants (AGENTS.md "Haiku-first pipeline"):
-
-* Default to Haiku unless the task explicitly signals planning,
-  architecture, auditing, or a tricky root-cause debug.
-* Opus 4.7 is reserved for ``planner`` / ``auditor`` / ``debugger`` /
-  ``distiller`` classes — i.e. low-confidence or high-leverage work.
-* Sonnet 4.6 covers bulk builds and research.
+Routing uses explicit provider/model configuration. No credential inference.
 """
 
 from __future__ import annotations
@@ -38,6 +32,7 @@ class RouteDecision:
 
     task_class: str
     model: str
+    provider: str
     reason: str
     confidence: float
     matched_keywords: tuple[str, ...]
@@ -202,6 +197,7 @@ def classify(task: str, models: ModelsConfig | None = None) -> RouteDecision:
     return RouteDecision(
         task_class=winner,
         model=role.model,
+        provider=role.provider,
         reason=f"matched '{winner}' bucket via {', '.join(keywords)}",
         confidence=1.0,
         matched_keywords=keywords,
@@ -213,6 +209,7 @@ def _default(cfg: ModelsConfig, *, reason: str) -> RouteDecision:
     return RouteDecision(
         task_class=DEFAULT_CLASS,
         model=role.model,
+        provider=role.provider,
         reason=reason,
         confidence=0.5,
         matched_keywords=(),

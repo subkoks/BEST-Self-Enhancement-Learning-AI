@@ -7,7 +7,7 @@
 help:
 	@echo "BSELA make targets:"
 	@echo "  check         orchestrator-help + lint + format-check + type + cov (CI parity)"
-	@echo "  doctor        uv run bsela doctor (PATH, store, hook, agents-md)"
+	@echo "  doctor        uv run --frozen bsela doctor (PATH, store, hook, agents-md)"
 	@echo "  lint          ruff check ."
 	@echo "  format        ruff format . (writes)"
 	@echo "  format-check  ruff format --check ."
@@ -19,36 +19,36 @@ help:
 	@echo "  mcp-check     run pnpm check + pnpm build in mcp/ (gate + dist/server.js)"
 	@echo "  mcp-parity    run CLI↔MCP parity harness in mcp/"
 	@echo "  orchestrator-help  print docs/orchestrator quick reference"
-	@echo "  dogfood-report   uv run bsela report --stdout (P4 dogfood; uses BSELA_HOME)"
-	@echo "  dogfood-audit    uv run bsela audit --weekly --stdout (P5 digest; exit 1 if alerts)"
+	@echo "  dogfood-report   uv run --frozen bsela report --stdout (P4 dogfood; uses BSELA_HOME)"
+	@echo "  dogfood-audit    uv run --frozen bsela audit --weekly --stdout (P5 digest; exit 1 if alerts)"
 	@echo "  dogfood-process  print the batch-distill command (uses API; does not run it)"
 
 check: orchestrator-help lint format-check type cov
 
 doctor:
-	uv run bsela doctor
+	uv run --frozen bsela doctor
 
 lint:
-	uv run ruff check .
+	uv run --frozen ruff check .
 
 format:
-	uv run ruff format .
+	uv run --frozen ruff format .
 
 format-check:
-	uv run ruff format --check .
+	uv run --frozen ruff format --check .
 
 type:
-	uv run --extra dev mypy src tests
+	uv run --frozen --extra dev mypy src tests
 
 test:
-	uv run pytest -q
+	uv run --frozen pytest -q
 
 cov:
-	uv run pytest -q --cov=bsela --cov-report=term-missing --cov-fail-under=99
+	uv run --frozen pytest -q --cov=bsela --cov-report=term-missing --cov-fail-under=99
 
 fix:
-	uv run ruff check --fix .
-	uv run ruff format .
+	uv run --frozen ruff check --fix .
+	uv run --frozen ruff format .
 
 clean:
 	rm -rf .pytest_cache .mypy_cache .ruff_cache
@@ -60,20 +60,20 @@ mcp-parity:
 	cd mcp && pnpm parity
 
 dogfood-report:
-	uv run bsela report --stdout
+	uv run --frozen bsela report --stdout
 
 dogfood-audit:
-	uv run bsela audit --weekly --stdout
+	uv run --frozen bsela audit --weekly --stdout
 
 dogfood-process:
-	@echo "Batch distill (API spend):  uv run bsela process -n 10 -d 7"
-	@echo "Needs ANTHROPIC_API_KEY; skips quarantined, no-error, and already-distilled sessions."
+	@echo "Batch distill (Codex subscription):  uv run --frozen bsela process -n 10 -d 7"
+	@echo "Needs approved Codex ChatGPT login and live configuration; skips quarantined, no-error, and already-distilled sessions."
 
 orchestrator-help:
 	@echo "BSELA repo-local orchestrator (markdown roles):"
 	@echo "  Lead prompt:   docs/orchestrator/ORCHESTRATOR.md"
 	@echo "  Index + roles: docs/orchestrator/README.md"
 	@echo "  ADR:           docs/decisions/0008-developer-orchestrator-workflow.md"
-	@echo "Validation: make check | make mcp-check | uv run bsela doctor"
+	@echo "Validation: make check | make mcp-check | uv run --frozen bsela doctor"
 	@echo "---"
 	@sed -n '1,40p' docs/orchestrator/README.md

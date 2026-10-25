@@ -73,7 +73,8 @@ describe("BselaClient.route", () => {
     const decision = await client.route("plan the migration to P6");
     expect(decision.task_class).toBe("planner");
     expect(decision.confidence).toBe(1);
-    expect(decision.model).toMatch(/opus/);
+    expect(decision.model).toBe("gpt-6.1-sol");
+    expect(decision.provider).toBe("codex");
     expect(decision.matched_keywords).toContain("plan");
   });
 
@@ -96,6 +97,7 @@ describe("BselaClient.route", () => {
       "confidence",
       "matched_keywords",
       "model",
+      "provider",
       "reason",
       "task_class",
     ]);
@@ -128,6 +130,7 @@ describe("BselaClient.audit", () => {
       "drift",
       "errors_total",
       "generated_at",
+      "model_usage",
       "replay_drift",
       "sessions",
       "warnings",

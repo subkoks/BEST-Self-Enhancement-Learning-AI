@@ -405,6 +405,7 @@ def test_review_show_json_output(tmp_bsela_home: Path) -> None:
     assert sorted(data.keys()) == [
         "confidence",
         "created_at",
+        "evidence",
         "hit_count",
         "how_to_apply",
         "id",

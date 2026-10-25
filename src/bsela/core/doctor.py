@@ -16,6 +16,7 @@ from __future__ import annotations
 import json
 import os
 import shutil
+import subprocess
 import sys
 from dataclasses import dataclass
 from pathlib import Path
@@ -28,7 +29,10 @@ from bsela.core.hook_install import (
     default_claude_settings_path,
 )
 from bsela.core.updater import DEFAULT_AGENTS_MD_REPO
+from bsela.llm.client import codex_environment, keychain_credential, make_llm_client
+from bsela.llm.runtime import ProviderError, model_run
 from bsela.memory.store import bsela_home, db_path, find_session_by_transcript
+from bsela.utils.config import load_models
 
 PASS = "pass"
 WARN = "warn"
@@ -54,25 +58,52 @@ def _check_python() -> CheckResult:
     return CheckResult("python", PASS, version)
 
 
-def _check_llm_api_key() -> CheckResult:
-    """Report the provider ``make_llm_client`` will actually select.
-
-    Mirrors the precedence in ``bsela.llm.client``: ``OPENROUTER_API_KEY`` wins
-    over ``ANTHROPIC_API_KEY``. Reporting the losing key instead hides a broken
-    OpenRouter model slug behind a valid Anthropic key, so the job fails at
-    distillation time with a green doctor run.
-    """
-    anthropic = os.environ.get("ANTHROPIC_API_KEY", "").strip()
-    openrouter = os.environ.get("OPENROUTER_API_KEY", "").strip()
-    if openrouter:
-        return CheckResult("LLM API key", PASS, f"OPENROUTER_API_KEY set ({len(openrouter)} chars)")
-    if anthropic:
-        return CheckResult("LLM API key", PASS, f"ANTHROPIC_API_KEY set ({len(anthropic)} chars)")
+def _check_llm_provider(
+    provider: str = "codex", *, auth_check: bool = False, live: bool = False
+) -> CheckResult:
+    cfg = load_models()
+    if provider not in {"codex", "deepseek"}:
+        return CheckResult("model provider", FAIL, "unsupported provider")
+    if provider == "codex" and not shutil.which("codex"):
+        return CheckResult("model provider", FAIL, "codex executable not found")
+    if not auth_check and not live:
+        return CheckResult(
+            "model provider",
+            WARN,
+            f"{provider}: offline only; authentication/model access unverified; "
+            f"live_enabled={cfg.default.get('live_enabled', False)}",
+        )
+    try:
+        if provider == "deepseek":
+            keychain_credential(presence_only=True)
+        else:
+            status = subprocess.run(
+                ["codex", "-c", 'forced_login_method="chatgpt"', "login", "status"],
+                capture_output=True,
+                text=True,
+                timeout=10,
+                env=codex_environment(),
+                check=False,
+            )
+            if status.returncode or "chatgpt" not in (status.stdout + status.stderr).lower():
+                raise ProviderError("auth: Codex ChatGPT login unavailable")
+        if live:
+            with model_run():
+                make_llm_client(provider).judge(
+                    system="Return a JSON rubric verdict for a successful synthetic session.",
+                    user='{"candidate_errors": []}',
+                )
+    except (ProviderError, OSError, subprocess.TimeoutExpired):
+        return CheckResult(
+            "model provider",
+            FAIL,
+            f"{provider}: auth/live check failed; use approved provider diagnostics",
+        )
     return CheckResult(
-        "LLM API key",
-        FAIL,
-        "neither ANTHROPIC_API_KEY nor OPENROUTER_API_KEY is set"
-        " — bsela distill / process will fail",
+        "model provider",
+        PASS,
+        f"{provider}: "
+        f"{'live model verified' if live else 'credential present; model access unverified'}",
     )
 
 
@@ -223,12 +254,18 @@ def _check_codex_capture(roots: tuple[Path, ...] | None = None) -> CheckResult:
     return CheckResult("codex capture", PASS, f"{newest.name} captured (turns={stored.turn_count})")
 
 
-def run_checks(*, settings_path: Path | None = None) -> list[CheckResult]:
+def run_checks(
+    *,
+    settings_path: Path | None = None,
+    provider: str = "codex",
+    auth_check: bool = False,
+    live: bool = False,
+) -> list[CheckResult]:
     """Run all probes and return the flat result list."""
     return [
         _check_python(),
         _check_bsela_on_path(),
-        _check_llm_api_key(),
+        _check_llm_provider(provider, auth_check=auth_check, live=live),
         _check_bsela_home(),
         _check_db(),
         _check_agents_md_repo(),

@@ -171,7 +171,7 @@ export const toolDefinitions = {
   bsela_route: {
     title: "BSELA route",
     description:
-      "Classify a free-form task into one of BSELA's model roles (planner, builder, reviewer, judge, distiller, researcher, auditor, debugger, memory_updater) and return the recommended model.",
+      "Classify a free-form task into one of BSELA's model roles (planner, builder, reviewer, judge, distiller, researcher, auditor, debugger, memory_updater) and return the explicitly configured provider and model.",
     inputSchema: routeInputSchema,
   },
   bsela_audit: {

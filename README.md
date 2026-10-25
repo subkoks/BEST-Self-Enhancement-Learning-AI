@@ -30,8 +30,8 @@ Core commands:
 ```bash
 bsela ingest <transcript.jsonl>           # capture → scrub → auto-detect in one step
 bsela detect [--session-id <id>]          # re-run the deterministic detector manually
-bsela distill --session-id <id>           # judge + distill one session (needs ANTHROPIC_API_KEY)
-bsela process [-n 10] [-d 7]              # batch-distill recent captures (needs ANTHROPIC_API_KEY)
+bsela distill --session-id <id>           # judge + distill one session (Codex ChatGPT login; live gate required)
+bsela process [-n 10] [-d 7]              # batch-distill recent captures (Codex ChatGPT login; live gate required)
 bsela review                              # list pending lessons with AUTO/REVIEW/SAFETY tags
 bsela lessons [--json]                   # top-level alias for `bsela review list`
 bsela review show <lesson-id>           # display lesson details (rule, why, how_to_apply)
@@ -43,13 +43,13 @@ bsela sessions list [--status captured]   # list captured sessions, newest first
 bsela sessions show <session-id>          # metadata + detected errors for one session
 bsela errors list [--session-id <id>] [--json]  # list detected error records
 bsela prune                               # drop rows outside retention windows
-bsela doctor                              # environment health check (API key, hook, agents-md repo)
+bsela doctor                              # environment health check (provider readiness, hook, agents-md repo)
 bsela hook install [--apply]              # wire the Claude Code Stop hook (dry-run by default)
 bsela decision add "<title>" -c ... -d ... -x ...  # log a load-bearing autonomous decision
 bsela decision list [-n 20] [--json]      # show recent decisions (--json for machine consumption)
 bsela route "<task>" [--json]             # P5 router: classify task → model role
 bsela audit [--weekly|--window-days N] [--stdout|--json]  # P5 weekly audit digest (markdown or JSON)
-bsela replay <session-id> [--no-save]   # P7: re-distill vs stored lessons; exit 1 on drift (needs API key)
+bsela replay <session-id> [--no-save]   # P7: re-distill vs stored lessons; exit 1 on drift (selected provider; live gate required)
 bsela replays list [--drift-only] [--json] [-n N]  # P7: list replay records (drift history)
 bsela rollback <lesson-id> [-n "..."]     # P7: soft-mark lesson rolled_back (local store only)
 ```
@@ -61,11 +61,9 @@ two. `bsela process` batches judge+distill over recent captured
 sessions, skipping anything quarantined, error-free, or already
 distilled.
 
-Auto-ingestion: `bsela hook install` previews the merged
-`~/.claude/settings.json`; add `--apply` to write it (a timestamped
-`.bak` is left alongside). See [`docs/architecture.md`](docs/architecture.md)
-for the full pipeline and [`config/thresholds.toml`](config/thresholds.toml)
-for tunables.
+Codex capture and the daily scan feed the local deterministic pipeline.
+Existing legacy hook parsers are retained for historical data. See
+[provider maintenance](docs/provider-maintenance.md) for current setup.
 
 Developer gate: `make check` runs the full local gate
 (ruff check → ruff format --check → mypy → pytest). `make fix`
@@ -86,15 +84,10 @@ under [`docs/orchestrator/`](docs/orchestrator/README.md). Run
 `make orchestrator-help` for paths. See
 [ADR 0008](docs/decisions/0008-developer-orchestrator-workflow.md).
 
-**GitHub `@claude` (optional):** install the Claude GitHub App, add
-`ANTHROPIC_API_KEY` (or OAuth token) to Actions secrets, then use `@claude` on
-PRs/issues. See [adapters/claude/README.md §7](adapters/claude/README.md).
-
-**Codex:** use the repo root `AGENTS.md` plus the tracked `.codex/config.toml`
-for Codex CLI workspace defaults. The companion `CODEX.md` has the direct
-handoff for this repo.
-
-**Cursor:** to avoid spurious workflow diagnostics, open [`bsela.code-workspace`](bsela.code-workspace) (see [adapters/cursor/README.md](adapters/cursor/README.md)).
+**Codex + VS Code:** use AGENTS.md and CODEX.md. The model migration,
+manual DeepSeek selection and gated deployment are documented in
+[provider maintenance](docs/provider-maintenance.md). Existing retired-editor
+capture parsers and historical adapters remain available for stored data.
 
 **Git:** if `~/.gitignore_global` ignores `.vscode/`, Git will refuse a plain `git add` on [`.vscode/settings.json`](.vscode/settings.json). Use `git add -f .vscode/settings.json` for that path, or drop `.vscode/` from your global ignore.
 

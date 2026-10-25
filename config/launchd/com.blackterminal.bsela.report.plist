@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <!--
-  P4 dogfood report template. Runs `bsela report` every Monday at 09:00
+  P4 dogfood report template. Runs `bsela report` every Sunday at 09:00
   local time. Writes the rolling markdown to ~/.bsela/reports/dogfood.md
   and appends stdout/stderr to ~/.bsela/logs/report.*.log.
 
@@ -28,21 +28,24 @@
     <dict>
         <key>PATH</key>
         <string>/Users/black.terminal/.local/bin:/Users/black.terminal/.agents:/usr/local/bin:/usr/bin:/bin</string>
+        <key>BSELA_CONFIG_DIR</key>
+        <string>/Users/black.terminal/.bsela/config</string>
+        <key>TZ</key>
+        <string>Europe/London</string>
         <key>HOME</key>
         <string>/Users/black.terminal</string>
     </dict>
 
     <key>ProgramArguments</key>
     <array>
-        <string>/bin/zsh</string>
-        <string>-lc</string>
-        <string>bsela report</string>
+        <string>/Users/black.terminal/.local/bin/bsela</string>
+        <string>report</string>
     </array>
 
     <key>StartCalendarInterval</key>
     <dict>
         <key>Weekday</key>
-        <integer>1</integer>
+        <integer>0</integer>
         <key>Hour</key>
         <integer>9</integer>
         <key>Minute</key>

@@ -1,121 +1,38 @@
-# launchd templates
+# BSELA launchd jobs
 
-macOS launchd templates for periodic BSELA jobs. These plists are
-templates — they hard-code the author's `/Users/black.terminal/...`
-paths because launchd does not expand `${HOME}` inside `<string>`
-values. Fork and rewrite the paths before loading on another machine.
+Templates are workstation-specific. Processing uses Codex ChatGPT login;
+DeepSeek is manually selected and never used by scheduled fallback.
 
-## Available jobs
+| Job | Europe/London schedule | Behavior |
+|---|---|---|
+| scan | Daily 07:30 | Local capture backstop |
+| process | Daily 08:00 | `bsela process --scheduled --provider codex`: 3 sessions Mon–Sat, 10 Sun |
+| report | Sunday 09:00 | Write dogfood report |
+| audit | Sunday 09:00 | Write audit; nonzero on blocking alerts |
 
-### `com.blackterminal.bsela.process.plist` (P4+, active)
+Job environments contain only non-secret settings. Processing reads the
+reviewed deployed configuration in `~/.bsela/config`; no shell startup is
+needed for credentials. Self-enhance no longer performs model processing.
 
-Runs `bsela process --limit 20` every Monday at 08:00 local time —
-one hour before the audit job. Batch-distills recent sessions using
-`OPENROUTER_API_KEY` (or `ANTHROPIC_API_KEY`) sourced from the shell
-environment. Writes stdout/stderr to `~/.bsela/logs/process.*.log`.
+## Rollout
 
-```bash
-cp config/launchd/com.blackterminal.bsela.process.plist ~/Library/LaunchAgents/
-launchctl load -w ~/Library/LaunchAgents/com.blackterminal.bsela.process.plist
-```
+Complete the offline and approved live gates in `docs/provider-maintenance.md`.
+The installer requires `~/.bsela/reports/provider-canary.json` with matching
+models and all named checks true. It backs up affected files, creates the
+separate live configuration and bootstraps the four BSELA jobs. It does not
+kickstart model processing. Run `ops/install-launchd.sh` only for an authorized
+rollout. Check loaded jobs with `launchctl print gui/$(id -u)/<label>`.
 
-Verify it's queued:
+Calendar counters, log timestamps and actual outcomes establish execution;
+a fresh report produced manually does not prove the calendar fired. After
+09:10 on the first eligible Sunday, inspect all four labels, new process
+outcomes and fresh dogfood/audit artifacts. If a timer misses, query bounded
+launchd unified logs for the exact labels; do not infer a cause from empty logs.
 
-```bash
-launchctl list | grep bsela.process
-```
+## Rollback
 
-Unload:
-
-```bash
-launchctl unload -w ~/Library/LaunchAgents/com.blackterminal.bsela.process.plist
-```
-
-### `com.blackterminal.bsela.scan.plist` (P8, capture backstop)
-
-Runs `bsela scan --since-days 14 --limit 50` every day at 07:30 local
-time. The Codex capture hook fires at session end; this sweep picks up
-the sessions no hook observed — editor crashes, `codex exec` runs, or
-sessions recorded before the hook was wired. Runs before the Monday
-process/report/audit chain so the weekly digest sees fresh sessions.
-Writes stdout/stderr to `~/.bsela/logs/scan.*.log`.
-
-```bash
-cp config/launchd/com.blackterminal.bsela.scan.plist ~/Library/LaunchAgents/
-launchctl bootstrap gui/"$(id -u)" ~/Library/LaunchAgents/com.blackterminal.bsela.scan.plist
-```
-
-Verify it's queued (`launchctl print` shows the calendar interval):
-
-```bash
-launchctl print gui/"$(id -u)"/com.blackterminal.bsela.scan | grep -A4 -i interval
-```
-
-Unload:
-
-```bash
-launchctl bootout gui/"$(id -u)"/com.blackterminal.bsela.scan
-```
-
-### `com.blackterminal.bsela.report.plist` (P4, active)
-
-Runs `bsela report` every Monday at 09:00 local time. Writes the
-rolling dogfood markdown to `~/.bsela/reports/dogfood.md` and appends
-stdout/stderr to `~/.bsela/logs/report.*.log`.
-
-```bash
-cp config/launchd/com.blackterminal.bsela.report.plist ~/Library/LaunchAgents/
-launchctl load -w ~/Library/LaunchAgents/com.blackterminal.bsela.report.plist
-```
-
-Verify it's queued:
-
-```bash
-launchctl list | grep bsela.report
-```
-
-Unload:
-
-```bash
-launchctl unload -w ~/Library/LaunchAgents/com.blackterminal.bsela.report.plist
-```
-
-### `com.blackterminal.bsela.audit.plist` (P5, active)
-
-Runs `bsela audit --weekly` every Monday at 09:00 local time. Writes
-the 30-day digest to `~/.bsela/reports/audit.md` and appends
-stdout/stderr to `~/.bsela/logs/audit.*.log`. Exits non-zero on any
-active alert (cost burn, drift, ADR hygiene) so the stderr log
-surfaces the signal.
-
-```bash
-cp config/launchd/com.blackterminal.bsela.audit.plist ~/Library/LaunchAgents/
-launchctl load -w ~/Library/LaunchAgents/com.blackterminal.bsela.audit.plist
-```
-
-Verify it's queued:
-
-```bash
-launchctl list | grep bsela.audit
-```
-
-Unload:
-
-```bash
-launchctl unload -w ~/Library/LaunchAgents/com.blackterminal.bsela.audit.plist
-```
-
-## Notes
-
-* All plists use `/bin/zsh -lc` so `$PATH` from `~/.zprofile` /
-  `~/.zshrc` is available and `bsela` resolves the way it does in an
-  interactive terminal. `OPENROUTER_API_KEY` / `ANTHROPIC_API_KEY`
-  must be exported in `~/.zprofile` (not only `~/.zshrc`) so the
-  non-interactive login shell picks them up.
-* `RunAtLoad` and `KeepAlive` are both `false` — we only want the
-  scheduled firing, not a daemon-style process.
-* The logs directory must exist before the first run. Create it once:
-
-  ```bash
-  mkdir -p ~/.bsela/logs ~/.bsela/reports
-  ```
+Use the installer-reported backup directory. Boot out the four affected labels,
+restore their individually backed-up plists plus the previous self-enhance and
+configuration files, and bootstrap the previous definitions. Restore the
+previous application revision without discarding unrelated work. Keep ledger
+rows and existing data; never overwrite the live database automatically.

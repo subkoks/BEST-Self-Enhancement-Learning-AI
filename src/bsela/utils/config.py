@@ -15,7 +15,7 @@ import tomllib
 from functools import cache
 from importlib.resources import files
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
@@ -40,6 +40,7 @@ class DedupeConfig(BaseModel):
 class CostConfig(BaseModel):
     monthly_budget_usd: float
     per_session_budget_usd: float
+    per_run_budget_usd: float = 0.50
 
 
 class RetentionConfig(BaseModel):
@@ -72,14 +73,14 @@ class ModelRole(BaseModel):
     model: str
     max_tokens: int
     temperature: float = Field(default=0.0)
+    provider: Literal["codex", "deepseek"] = "codex"
+    reasoning_effort: Literal["low", "medium", "high"] = "medium"
 
 
-class OpenRouterConfig(BaseModel):
-    judge_model: str = "meta-llama/llama-3.3-70b-instruct:free"
-    distiller_model: str = "meta-llama/llama-3.3-70b-instruct:free"
+class DeepSeekConfig(BaseModel):
+    model: Literal["deepseek-flash"] = "deepseek-flash"
     judge_max_tokens: int = 512
     distiller_max_tokens: int = 4096
-    base_url: str = "https://openrouter.ai/api/v1"
 
 
 class ModelsConfig(BaseModel):
@@ -93,7 +94,7 @@ class ModelsConfig(BaseModel):
     auditor: ModelRole
     debugger: ModelRole
     memory_updater: ModelRole
-    openrouter: OpenRouterConfig = Field(default_factory=OpenRouterConfig)
+    deepseek: DeepSeekConfig = Field(default_factory=DeepSeekConfig)
 
 
 def find_config_dir() -> Path:
@@ -161,11 +162,11 @@ __all__ = [
     "AuditConfig",
     "CostConfig",
     "DedupeConfig",
+    "DeepSeekConfig",
     "DetectorConfig",
     "GatesConfig",
     "ModelRole",
     "ModelsConfig",
-    "OpenRouterConfig",
     "RetentionConfig",
     "ScrubberConfig",
     "Thresholds",

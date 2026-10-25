@@ -28,7 +28,8 @@ describe("createServer", () => {
   it("advertises all six BSELA tools via list_tools", async () => {
     const decision: RouteDecision = {
       task_class: "planner",
-      model: "claude-opus-4-8",
+      model: "gpt-6.1-sol",
+      provider: "codex",
       confidence: 1,
       reason: "matched keyword",
       matched_keywords: ["plan"],
@@ -102,7 +103,8 @@ describe("createServer", () => {
   it("dispatches bsela_route to the underlying BselaClient", async () => {
     const decision: RouteDecision = {
       task_class: "builder",
-      model: "claude-sonnet-4-6",
+      model: "gpt-6.1-sol",
+      provider: "codex",
       confidence: 1,
       reason: "matched keyword",
       matched_keywords: ["refactor"],

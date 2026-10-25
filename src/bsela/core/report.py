@@ -25,6 +25,7 @@ from pathlib import Path
 from sqlmodel import select
 
 from bsela.core.gate import evaluate as evaluate_gate
+from bsela.llm.ledger import render_usage, usage_summary
 from bsela.memory.models import ErrorRecord, Lesson, Metric, SessionRecord
 from bsela.memory.store import bsela_home, session_scope
 from bsela.utils.config import Thresholds, load_thresholds
@@ -64,6 +65,7 @@ class DogfoodReport:
     cost_median_per_session_usd: float
     useful_lesson_ratio: float
     recent_lessons: list[LessonSummary] = field(default_factory=list)
+    usage: dict[str, int | float] = field(default_factory=dict)
 
     @property
     def quarantine_rate(self) -> float:
@@ -136,7 +138,8 @@ def build_report(
     pending = [lesson for lesson in lessons if lesson.status == "pending"]
     gate_tag_counts: dict[str, int] = dict(Counter(_gate_tag(lesson, cfg) for lesson in pending))
 
-    cost_total = round(sum(m.cost_usd for m in metrics), 6)
+    usage = usage_summary(start, end)
+    cost_total = round(sum(m.cost_usd for m in metrics) + float(usage["api_cost_usd"]), 6)
     per_session_costs = [sess.cost_usd for sess in sessions if sess.cost_usd > 0.0]
     cost_median = round(statistics.median(per_session_costs), 6) if per_session_costs else 0.0
 
@@ -174,6 +177,7 @@ def build_report(
         cost_median_per_session_usd=cost_median,
         useful_lesson_ratio=useful_ratio,
         recent_lessons=recent_summaries,
+        usage=usage,
     )
 
 
@@ -225,9 +229,10 @@ def render_markdown(report: DogfoodReport) -> str:
     lines.append("")
     lines.append(f"- Tags: {_fmt_counts(report.gate_tag_counts)}")
     lines.append("")
+    lines.extend(render_usage(report.usage))
     lines.append("## Cost")
     lines.append("")
-    lines.append(f"- Total: ${report.cost_total_usd:.4f}")
+    lines.append(f"- API cost estimate (usage at peak rates): ${report.cost_total_usd:.4f}")
     lines.append(f"- Median per session: ${report.cost_median_per_session_usd:.4f}")
     lines.append("")
     lines.append("## Success Criteria")

@@ -1,6 +1,6 @@
 # ADR 0012 — OpenRouter free-model selection for judge/distiller
 
-- **Status:** Accepted
+- **Status:** Superseded by [ADR 0013](0013-provider-maintenance.md); retained as historical rationale
 - **Date:** 2026-08-24
 
 ## Context
