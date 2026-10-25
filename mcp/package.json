@@ -34,16 +34,16 @@
     "start": "node dist/server.js"
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.30.0",
-    "zod": "^4.6.5"
+    "@modelcontextprotocol/sdk": "^1.32.1",
+    "zod": "^4.6.7"
   },
   "devDependencies": {
-    "@types/node": "^26.6.1",
-    "@typescript-eslint/eslint-plugin": "^8.70.0",
-    "@typescript-eslint/parser": "^8.70.0",
+    "@types/node": "^26.6.5",
+    "@typescript-eslint/eslint-plugin": "^8.71.2",
+    "@typescript-eslint/parser": "^8.71.2",
     "@vitest/coverage-v8": "^4.1.11",
-    "eslint": "^10.10.0",
-    "prettier": "^3.9.8",
+    "eslint": "^10.12.0",
+    "prettier": "^3.9.10",
     "typescript": "^6.0.3",
     "vitest": "^4.1.11"
   }

@@ -1,4 +1,5 @@
 # Repo-local Codex defaults for this workspace.
 
+default_permissions = ":workspace"
 approval_policy = "on-request"
 allow_login_shell = true
