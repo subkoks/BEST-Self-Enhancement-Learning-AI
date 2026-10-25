@@ -149,8 +149,20 @@ def test_run_checks_returns_all_probes(monkeypatch: pytest.MonkeyPatch, tmp_path
     assert "claude-code hook" in names
 
 
+@pytest.fixture
+def codex_on_path(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Provide executable discovery without a real Codex install or model call."""
+    binary = tmp_path / "bin"
+    binary.mkdir()
+    for name in ("codex", "bsela"):
+        executable = binary / name
+        executable.write_text("#!/bin/sh\nexit 99\n", encoding="utf-8")
+        executable.chmod(0o700)
+    monkeypatch.setenv("PATH", str(binary))
+
+
 def test_cli_doctor_exit_zero_when_no_fail(
-    tmp_bsela_home: Path, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    tmp_bsela_home: Path, monkeypatch: pytest.MonkeyPatch, tmp_path: Path, codex_on_path: None
 ) -> None:
     monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-ant-ok")
     repo = tmp_path / "agents-md"
@@ -164,7 +176,7 @@ def test_cli_doctor_exit_zero_when_no_fail(
 
 
 def test_cli_doctor_offline_does_not_use_legacy_keys(
-    tmp_bsela_home: Path, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    tmp_bsela_home: Path, monkeypatch: pytest.MonkeyPatch, tmp_path: Path, codex_on_path: None
 ) -> None:
     monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
     monkeypatch.setenv("OPENROUTER_API_KEY", "sk-or-ok")
