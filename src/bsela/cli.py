@@ -12,12 +12,19 @@ from __future__ import annotations
 
 import json
 import sys
+from collections.abc import Callable
+from datetime import datetime
+from enum import StrEnum
+from functools import wraps
 from pathlib import Path
 from typing import Annotated
+from zoneinfo import ZoneInfo
 
 import typer
 
 from bsela import __version__
+from bsela.adapters.codex import SOURCE as CODEX_SOURCE
+from bsela.adapters.codex import find_rollout
 from bsela.adapters.opencode.export import default_export_path, export_session_to_jsonl
 from bsela.core.auditor import (
     DEFAULT_WINDOW_DAYS as AUDIT_DEFAULT_WINDOW_DAYS,
@@ -61,15 +68,27 @@ from bsela.core.report import (
 )
 from bsela.core.retention import sweep
 from bsela.core.router import classify as classify_task
+from bsela.core.scan import (
+    DEFAULT_LIMIT as SCAN_DEFAULT_LIMIT,
+)
+from bsela.core.scan import (
+    DEFAULT_SINCE_DAYS as SCAN_DEFAULT_SINCE_DAYS,
+)
+from bsela.core.scan import (
+    ScanResult,
+    scan_rollouts,
+)
 from bsela.core.updater import UpdaterError, propose_lesson
 from bsela.llm.client import make_llm_client
 from bsela.llm.distiller import distill_session
+from bsela.llm.runtime import ProviderError, model_run
 from bsela.memory.models import Decision, Lesson
 from bsela.memory.store import (
     bsela_home,
     count_lessons,
     count_sessions,
     db_path,
+    get_lesson_evidence,
     increment_hit_count,
     list_decisions,
     list_errors,
@@ -156,6 +175,26 @@ def main(
     """BSELA root callback."""
 
 
+class Provider(StrEnum):
+    codex = "codex"
+    deepseek = "deepseek"
+
+
+def model_command[**P, R](function: Callable[P, R]) -> Callable[P, R]:
+    @wraps(function)
+    def wrapped(*args: P.args, **kwargs: P.kwargs) -> R:
+        try:
+            if kwargs.get("dry_run"):
+                return function(*args, **kwargs)
+            with model_run():
+                return function(*args, **kwargs)
+        except ProviderError as exc:
+            typer.secho(str(exc), fg=typer.colors.RED)
+            raise typer.Exit(code=1) from None
+
+    return wrapped
+
+
 @app.command()
 def status(
     as_json: Annotated[
@@ -239,9 +278,17 @@ def ingest(
             help="Origin editor/agent of the transcript.",
         ),
     ] = "claude_code",
+    replace: Annotated[
+        bool,
+        typer.Option(
+            "--replace/--no-replace",
+            help="Refresh the stored row for this transcript in place instead of inserting a "
+            "new snapshot when the file has changed.",
+        ),
+    ] = False,
 ) -> None:
     """Ingest one session transcript into the BSELA store."""
-    result = ingest_file(path, source=source)
+    result = ingest_file(path, source=source, replace=replace)
     if result.status == "quarantined":
         typer.secho(
             f"quarantined {result.session_id}: {result.quarantine_reason}",
@@ -472,6 +519,7 @@ def review_show(
         typer.secho(f"review: lesson {lesson_id} not found.", fg=typer.colors.RED)
         raise typer.Exit(code=1)
 
+    evidence = get_lesson_evidence(row.id)
     if as_json:
         typer.echo(
             json.dumps(
@@ -485,6 +533,14 @@ def review_show(
                     "why": row.why,
                     "how_to_apply": row.how_to_apply,
                     "source_error_id": row.source_error_id,
+                    "evidence": (
+                        {
+                            "session_id": evidence.session_id,
+                            "line_range": [evidence.line_start, evidence.line_end],
+                        }
+                        if evidence is not None
+                        else None
+                    ),
                     "created_at": row.created_at.isoformat() if row.created_at else None,
                     "updated_at": row.updated_at.isoformat() if row.updated_at else None,
                 }
@@ -501,6 +557,13 @@ def review_show(
     typer.echo(f"updated_at:   {row.updated_at.isoformat()}")
     if row.source_error_id:
         typer.echo(f"source_error: {row.source_error_id}")
+    if evidence is not None:
+        typer.echo(
+            f"evidence:     session {evidence.session_id}, "
+            f"lines {evidence.line_start}-{evidence.line_end}"
+        )
+    else:
+        typer.echo("evidence:     legacy record; validated citation unavailable")
     typer.echo("")
     typer.echo("rule:")
     typer.echo(f"  {row.rule}")
@@ -594,6 +657,7 @@ def externalize(
 
 
 @app.command()
+@model_command
 def replay(
     session_id: Annotated[str, typer.Argument(help="Session ID to replay.")],
     no_save: Annotated[
@@ -603,10 +667,14 @@ def replay(
             help="Skip persisting the replay result (default: save to store for drift tracking).",
         ),
     ] = False,
+    provider: Annotated[
+        Provider, typer.Option("--provider", help="Explicit model provider; no fallback.")
+    ] = Provider.codex,
 ) -> None:
     """Re-distill a stored session and show a diff against its existing lessons.
 
-    Requires ANTHROPIC_API_KEY. Lessons are not persisted; by default the
+    Uses Codex ChatGPT login by default; DeepSeek is an explicit alternative.
+    Lessons are not persisted; by default the
     diff summary is saved to the store so ``bsela audit`` can track drift rate
     over time. Use --no-save to suppress this.
 
@@ -622,7 +690,7 @@ def replay(
         typer.secho(f"replay: session not found: {session_id}", fg=typer.colors.RED)
         raise typer.Exit(code=1)
     try:
-        llm = make_llm_client()
+        llm = make_llm_client() if provider == Provider.codex else make_llm_client(provider.value)
         result = replay_session(resolved.id, client=llm, persist_result=not no_save)
     except LookupError as exc:
         typer.secho(str(exc), fg=typer.colors.RED)
@@ -977,9 +1045,21 @@ def _format_doctor_line(result: CheckResult) -> tuple[str, str]:
 
 
 @app.command()
-def doctor() -> None:
+def doctor(
+    provider: Annotated[Provider, typer.Option("--provider")] = Provider.codex,
+    auth_check: Annotated[
+        bool,
+        typer.Option("--auth-check", help="Probe credential presence without printing values."),
+    ] = False,
+    live: Annotated[
+        bool,
+        typer.Option(
+            "--live", help="Explicit synthetic model call; may consume allowance or API credit."
+        ),
+    ] = False,
+) -> None:
     """Check environment health (API key, store, hook, agents-md repo)."""
-    results = run_checks()
+    results = run_checks(provider=provider.value, auth_check=auth_check, live=live)
     for row in results:
         line, color = _format_doctor_line(row)
         typer.secho(line, fg=color)
@@ -1053,6 +1133,7 @@ def route(
                 {
                     "task_class": decision.task_class,
                     "model": decision.model,
+                    "provider": decision.provider,
                     "confidence": decision.confidence,
                     "reason": decision.reason,
                     "matched_keywords": list(decision.matched_keywords),
@@ -1062,6 +1143,7 @@ def route(
     else:
         typer.echo(f"class:      {decision.task_class}")
         typer.echo(f"model:      {decision.model}")
+        typer.echo(f"provider:   {decision.provider}")
         typer.echo(f"confidence: {decision.confidence:.2f}")
         typer.echo(f"reason:     {decision.reason}")
         if decision.matched_keywords:
@@ -1075,6 +1157,7 @@ def _audit_json_payload(report_data: object) -> dict[str, object]:
         raise TypeError("report_data must be an AuditReport")
     return {
         "generated_at": report_data.generated_at.isoformat(),
+        "model_usage": report_data.usage,
         "window_days": report_data.window_days,
         "window_start": report_data.window_start.isoformat(),
         "window_end": report_data.window_end.isoformat(),
@@ -1173,6 +1256,7 @@ def audit(
 
 
 @app.command()
+@model_command
 def distill(
     session_id: Annotated[
         str,
@@ -1182,8 +1266,11 @@ def distill(
         bool,
         typer.Option("--persist/--no-persist", help="Write pending Lesson rows."),
     ] = True,
+    provider: Annotated[
+        Provider, typer.Option("--provider", help="Explicit model provider; no fallback.")
+    ] = Provider.codex,
 ) -> None:
-    """Run judge → distill over one session (requires ANTHROPIC_API_KEY)."""
+    """Run judge → distill using Codex or explicitly selected DeepSeek."""
     try:
         resolved = resolve_session(session_id)
     except LookupError as exc:
@@ -1192,13 +1279,16 @@ def distill(
     if resolved is None:
         typer.secho(f"distill: session not found: {session_id}", fg=typer.colors.RED)
         raise typer.Exit(code=1)
-    client = make_llm_client()
+    client = make_llm_client() if provider == Provider.codex else make_llm_client(provider.value)
     result = distill_session(resolved.id, client=client, persist=persist)
-    if not result.distilled:
-        typer.echo(
-            f"session {resolved.id}: judge says healthy "
-            f"(confidence={result.verdict.confidence:.2f}); no lessons distilled."
-        )
+    if result.outcome != "distilled":
+        descriptions = {
+            "judge_healthy": "judge says healthy",
+            "distiller_skipped": "distiller skipped this session",
+            "no_lessons": "distiller found no transferable lessons",
+            "duplicates_only": "all lesson candidates were duplicates",
+        }
+        typer.echo(f"session {resolved.id}: {descriptions[result.outcome]}; no new lessons.")
         raise typer.Exit(code=0)
     typer.echo(
         f"session {resolved.id}: {len(result.persisted)} lesson(s) "
@@ -1208,6 +1298,7 @@ def distill(
 
 
 @app.command()
+@model_command
 def process(
     limit: Annotated[
         int,
@@ -1226,7 +1317,7 @@ def process(
         bool,
         typer.Option(
             "--rerun/--skip-already-distilled",
-            help="Re-distill sessions even if a Lesson already references their errors.",
+            help="Re-evaluate completed sessions, including successful zero-lesson evaluations.",
         ),
     ] = False,
     persist: Annotated[
@@ -1241,13 +1332,21 @@ def process(
             "LLM calls or mutating store state.",
         ),
     ] = False,
+    provider: Annotated[
+        Provider, typer.Option("--provider", help="Explicit model provider; no fallback.")
+    ] = Provider.codex,
+    scheduled: Annotated[
+        bool, typer.Option("--scheduled", help="Use 3 sessions Mon-Sat, 10 Sun in Europe/London.")
+    ] = False,
 ) -> None:
     """Batch-distill recent captured sessions.
 
-    Live mode needs ANTHROPIC_API_KEY and may write pending lessons. Use
+    Live mode requires approved provider readiness and may write pending lessons. Use
     --dry-run to preview the same session selection with no API calls and no
     store mutations.
     """
+    if scheduled:
+        limit = 10 if datetime.now(ZoneInfo("Europe/London")).weekday() == 6 else 3
     if dry_run:
         result = process_sessions(
             client=None,
@@ -1256,6 +1355,7 @@ def process(
             skip_already_distilled=not rerun,
             persist=False,
             dry_run=True,
+            provider=provider.value,
         )
         window_label = f"{since_days}d" if since_days > 0 else "all"
         typer.echo(
@@ -1275,13 +1375,14 @@ def process(
         typer.echo("(no LLM calls made, no store writes)")
         raise typer.Exit(code=0)
 
-    client = make_llm_client()
+    client = make_llm_client() if provider == Provider.codex else make_llm_client(provider.value)
     result = process_sessions(
         client=client,
         limit=limit,
         since_days=since_days if since_days > 0 else None,
         skip_already_distilled=not rerun,
         persist=persist,
+        provider=provider.value,
     )
     typer.echo(
         f"process: considered={result.considered} processed={result.processed} "
@@ -1290,15 +1391,121 @@ def process(
     typer.echo(
         f"  skipped: no_errors={result.skipped_no_errors} "
         f"already_distilled={result.skipped_already_distilled} "
+        f"already_evaluated={result.skipped_already_evaluated} "
         f"judge_healthy={result.skipped_judge_healthy} errors={result.errors}"
     )
+    for outcome in result.outcomes:
+        detail = f" — {outcome.detail}" if outcome.detail else ""
+        typer.echo(
+            f"  {outcome.session_id[:8]}: {outcome.status} "
+            f"lessons={outcome.lessons_created}{detail}"
+        )
     if result.errors:
         typer.secho(
-            "  hint: check ANTHROPIC_API_KEY and credit balance "
-            "(run `bsela distill <session-id>` to see the full error)",
+            "  hint: check provider readiness, quota, and usage ledger "
+            "(use `bsela distill --session-id <session-id>` for a targeted check)",
             fg=typer.colors.YELLOW,
         )
+    raise typer.Exit(code=1 if result.errors else 0)
+
+
+@app.command()
+def scan(
+    root: Annotated[
+        list[Path] | None,
+        typer.Option(
+            "--root",
+            help="Rollout root to sweep (repeatable). Defaults to ~/.codex/sessions + "
+            "~/.codex/archived_sessions.",
+        ),
+    ] = None,
+    since_days: Annotated[
+        int,
+        typer.Option(
+            "--since-days",
+            "-d",
+            min=0,
+            help="Only sweep rollouts modified within this window. 0 = no window.",
+        ),
+    ] = SCAN_DEFAULT_SINCE_DAYS,
+    limit: Annotated[
+        int,
+        typer.Option("--limit", "-n", min=1, help="Max rollouts to ingest, newest first."),
+    ] = SCAN_DEFAULT_LIMIT,
+    replace: Annotated[
+        bool,
+        typer.Option(
+            "--replace/--no-replace",
+            help="Refresh the existing row for a grown rollout instead of inserting a snapshot.",
+        ),
+    ] = True,
+    dry_run: Annotated[
+        bool,
+        typer.Option("--dry-run", help="List the selected rollouts without touching the store."),
+    ] = False,
+    as_json: Annotated[
+        bool,
+        typer.Option("--json", help="Emit the sweep summary as JSON."),
+    ] = False,
+) -> None:
+    """Capture new or grown Codex rollout transcripts (backfill and safety net)."""
+    result = scan_rollouts(
+        roots=root,
+        since_days=since_days,
+        limit=limit,
+        replace=replace,
+        dry_run=dry_run,
+    )
+    if as_json:
+        typer.echo(json.dumps(_scan_json_payload(result, dry_run=dry_run)))
+        raise typer.Exit(code=0)
+
+    window = f"{since_days}d" if since_days > 0 else "all"
+    verb = "scan (dry-run)" if dry_run else "scan"
+    typer.echo(f"{verb}: {result.considered} rollout(s) in window (limit={limit}, window={window})")
+    for outcome in result.outcomes:
+        counts = (
+            ""
+            if outcome.status == "pending"
+            else f"  turns={outcome.turn_count} tool_calls={outcome.tool_call_count}"
+        )
+        detail = f"  ({outcome.detail})" if outcome.detail else ""
+        typer.echo(f"  {outcome.status:12} {outcome.path.name}{counts}{detail}")
+    if dry_run:
+        typer.echo(f"would ingest {result.considered} rollout(s) (no store writes)")
+        raise typer.Exit(code=0)
+    typer.echo(
+        f"scan: captured={result.captured} updated={result.updated} "
+        f"unchanged={result.unchanged} quarantined={result.quarantined} "
+        f"skipped={result.skipped} failed={result.failed} "
+        f"errors_detected={result.errors_detected}"
+    )
     raise typer.Exit(code=0)
+
+
+def _scan_json_payload(result: ScanResult, *, dry_run: bool) -> dict[str, object]:
+    return {
+        "dry_run": dry_run,
+        "considered": result.considered,
+        "captured": result.captured,
+        "updated": result.updated,
+        "unchanged": result.unchanged,
+        "quarantined": result.quarantined,
+        "skipped": result.skipped,
+        "failed": result.failed,
+        "errors_detected": result.errors_detected,
+        "rollouts": [
+            {
+                "path": str(outcome.path),
+                "status": outcome.status,
+                "session_id": outcome.session_id,
+                "turn_count": outcome.turn_count,
+                "tool_call_count": outcome.tool_call_count,
+                "errors_detected": outcome.errors_detected,
+            }
+            for outcome in result.outcomes
+        ],
+    }
 
 
 @hook_app.command("claude-stop")
@@ -1352,6 +1559,58 @@ def opencode_stop(
         raise typer.Exit(code=0) from None
     ingest_file(dest, source="opencode")
     raise typer.Exit(code=0)
+
+
+@hook_app.command("codex-stop")
+def codex_stop(
+    payload: Annotated[
+        str | None,
+        typer.Argument(
+            help="Codex notify payload as one JSON argument. When omitted, the payload is "
+            "read from stdin (hooks.json passes it there).",
+        ),
+    ] = None,
+) -> None:
+    """Ingest the Codex rollout named by a notify or hooks.json payload.
+
+    Codex ``notify`` hands over ``thread-id``; the ``SessionEnd``/``Stop`` hook
+    schema hands over ``session_id`` and ``transcript_path``. Either shape
+    resolves to the rollout on disk. Anything unexpected — missing id, unknown
+    session, unreadable file — exits 0 without output so a capture hook can
+    never block or slow the editor's shutdown path.
+    """
+    raw = payload if payload and payload.strip() else sys.stdin.read()
+    if not raw.strip():
+        raise typer.Exit(code=0)
+    try:
+        data = json.loads(raw)
+    except json.JSONDecodeError:
+        raise typer.Exit(code=0) from None
+    if not isinstance(data, dict):
+        raise typer.Exit(code=0)
+
+    path = _codex_transcript_path(data)
+    if path is None:
+        raise typer.Exit(code=0)
+    try:
+        ingest_file(path, source=CODEX_SOURCE, replace=True)
+    except (OSError, ValueError):
+        raise typer.Exit(code=0) from None
+    raise typer.Exit(code=0)
+
+
+def _codex_transcript_path(payload: dict[str, object]) -> Path | None:
+    """Resolve a Codex hook payload to a rollout transcript on disk."""
+    transcript = payload.get("transcript_path") or payload.get("transcriptPath")
+    if isinstance(transcript, str) and transcript:
+        candidate = Path(transcript).expanduser()
+        if candidate.is_file():
+            return candidate
+    for key in ("session_id", "thread-id", "thread_id", "sessionId"):
+        value = payload.get(key)
+        if isinstance(value, str) and value.strip():
+            return find_rollout(value.strip())
+    return None
 
 
 @hook_app.command("install")

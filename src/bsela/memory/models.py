@@ -44,6 +44,17 @@ class SessionRecord(SQLModel, table=True):
     ingested_at: datetime = Field(default_factory=_utcnow, index=True)
 
 
+class SessionEvaluation(SQLModel, table=True):
+    """Successful evaluation checkpoint; contains no prompt or transcript."""
+
+    __tablename__ = "session_evaluations"
+
+    input_hash: str = Field(primary_key=True)
+    session_id: str = Field(foreign_key="sessions.id", ondelete="CASCADE", index=True)
+    outcome: str
+    evaluated_at: datetime = Field(default_factory=_utcnow)
+
+
 class ErrorRecord(SQLModel, table=True):
     __tablename__ = "errors"
 
@@ -75,6 +86,17 @@ class Lesson(SQLModel, table=True):
     hit_count: int = Field(default=0)
     created_at: datetime = Field(default_factory=_utcnow, index=True)
     updated_at: datetime = Field(default_factory=_utcnow)
+
+
+class LessonEvidence(SQLModel, table=True):
+    """Validated citation for a new lesson; historical lessons remain untouched."""
+
+    __tablename__ = "lesson_evidence"
+
+    lesson_id: str = Field(primary_key=True, foreign_key="lessons.id", ondelete="CASCADE")
+    session_id: str = Field(foreign_key="sessions.id", ondelete="CASCADE", index=True)
+    line_start: int
+    line_end: int
 
 
 class Decision(SQLModel, table=True):
@@ -125,7 +147,9 @@ __all__ = [
     "Decision",
     "ErrorRecord",
     "Lesson",
+    "LessonEvidence",
     "Metric",
     "ReplayRecord",
+    "SessionEvaluation",
     "SessionRecord",
 ]

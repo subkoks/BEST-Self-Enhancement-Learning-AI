@@ -15,7 +15,7 @@
 - **Reuse `agents-md`, do not fork it.** Rule changes are proposals against `~/Projects/Current/Active/agents-md`. Never write rules directly into the synced artifacts (`~/.claude/CLAUDE.md`, `~/.cursor/rules/gotcha.md`, etc.) — always upstream to canonical.
 - **Single-agent V1.** No LangGraph / CrewAI / autogen. Reach for sub-agents only after V1 metrics justify it. Optional **developer-session** role prompts (not an in-process framework) live under `docs/orchestrator/`; see ADR 0008 in `docs/decisions/`.
 - **Local-first.** SQLite + filesystem. No Postgres/Redis unless the data shape truly demands it.
-- **Haiku-first pipeline.** Opus 4.7 only for low-confidence distillation, planning, and audits. Track per-session cost.
+- **Codex primary.** GPT-6.1 Sol with medium reasoning via ChatGPT login. DeepSeek Flash is explicit and manual; no automatic fallback. Enforce the call ledger and DeepSeek budgets (ADR 0013).
 
 ## Memory Taxonomy (canonical)
 
@@ -31,7 +31,7 @@ Five types, one SQLite DB, typed tables:
 
 - **Trigger** → session-end hook / error regex / cron / manual `bsela review`.
 - **Feedback source** → transcript + diff + tests + correction markers (`stop`, `no`, `don't`, undo) + retry counts.
-- **Evaluation** → Haiku 4.5 rubric; low scores promoted to Opus 4.7.
+- **Evaluation** → typed judge rubric using the selected provider; no provider promotion.
 - **Update** → proposal branch on `agents-md` → gate → merge → sync.
 - **Rollback** → every change is a commit; `bsela rollback <lesson-id>` reverts; replay harness validates.
 
@@ -69,7 +69,7 @@ Pause and surface even in Auto Mode when a change would:
 ## Tech Stack
 
 - Python 3.13 via pyenv; `uv` for deps.
-- `typer`, `sqlmodel`, `anthropic`, `pydantic`, `ruff`, `mypy`, `pytest`, `hypothesis`.
+- `typer`, `sqlmodel`, `pydantic`, `ruff`, `mypy`, `pytest`, `hypothesis`.
 - TypeScript in `mcp/` for the MCP server (P6; see ADR 0006).
 
 ## Commit Conventions
@@ -128,6 +128,6 @@ Rules distilled from real session errors. Confidence ≥ 0.85 auto-approved; oth
 
 - **MCP tests need `bsela` on PATH.** The MCP server shells out to the `bsela` CLI binary. Run `uv tool install --force -e .` before `pnpm check` in `mcp/`, or all CLI-dependent tests (`bsela-client.test.ts`, `parity.test.ts`) will fail with `spawn bsela ENOENT`.
 - **No external services needed.** SQLite is embedded (WAL mode, stored at `~/.bsela/bsela.db`). No Postgres, Redis, or Docker.
-- **LLM API keys are optional.** Only `distill`, `process`, and `replay` commands require `ANTHROPIC_API_KEY` or `OPENROUTER_API_KEY`. All other commands (status, ingest, detect, route, audit, doctor) work without them.
+- **Model calls are gated.** Only distill, process and replay use a provider. Default Codex uses existing ChatGPT login; explicit DeepSeek uses the approved Keychain entry. Offline doctor and all deterministic commands need no model credentials. See docs/provider-maintenance.md.
 - **Python 3.13 required.** The `pyproject.toml` specifies `requires-python = ">=3.13"`. Use `uv python install 3.13` if the system Python is older.
 - **pnpm esbuild warning is harmless.** The `Ignored build scripts: esbuild` warning during `pnpm install` is non-blocking — the MCP build uses `tsc`, not esbuild.

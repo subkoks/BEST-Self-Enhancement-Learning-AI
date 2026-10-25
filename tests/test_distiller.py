@@ -11,7 +11,7 @@ import pytest
 import bsela.llm.distiller as _distiller_mod
 from bsela.core.capture import ingest_file
 from bsela.core.detector import detect_errors
-from bsela.llm.client import FakeLLMClient, _extract_json_object
+from bsela.llm.client import FakeLLMClient
 from bsela.llm.distiller import (
     _find_distiller_prompt,
     _is_duplicate,
@@ -61,17 +61,6 @@ def _sample_distill() -> DistillResponse:
             )
         ],
     )
-
-
-def test_extract_json_object_tolerates_prose() -> None:
-    raw = 'Sure, here is the JSON: {"a": 1, "b": [1,2]} — done.'
-    payload = json.loads(_extract_json_object(raw))
-    assert payload == {"a": 1, "b": [1, 2]}
-
-
-def test_extract_json_object_raises_when_absent() -> None:
-    with pytest.raises(ValueError, match="no JSON object"):
-        _extract_json_object("nothing to parse here")
 
 
 def test_distill_skips_healthy_session(tmp_bsela_home: Path) -> None:
@@ -327,6 +316,7 @@ def test_distill_dedup_within_batch(tmp_bsela_home: Path) -> None:
         how_to_apply="change strategy",
         scope="project",
         confidence=0.9,
+        evidence={"line_range": [3, 9]},
     )
     double_response = DistillResponse(status="ok", confidence=0.9, lessons=[candidate, candidate])
     client = FakeLLMClient(

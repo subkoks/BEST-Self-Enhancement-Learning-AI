@@ -127,7 +127,7 @@ def test_build_audit_prorates_cost(tmp_bsela_home: Path) -> None:
     report = build_audit(window_days=15, now=NOW)
     assert report.cost.total_usd == pytest.approx(5.0)
     assert report.cost.prorated_monthly_usd == pytest.approx(10.0)
-    assert not report.cost.over_budget  # default budget is $50
+    assert report.cost.over_budget  # maintained default budget is $5
 
 
 def test_cost_over_budget_triggers_alert(tmp_bsela_home: Path) -> None:

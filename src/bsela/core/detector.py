@@ -21,6 +21,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from bsela.adapters.codex import SOURCE as CODEX_SOURCE
+from bsela.adapters.codex import normalize_event
 from bsela.memory.models import ErrorRecord, SessionRecord
 from bsela.memory.store import get_session, save_error
 from bsela.utils.config import load_thresholds
@@ -28,10 +30,10 @@ from bsela.utils.config import load_thresholds
 _log = logging.getLogger(__name__)
 
 _STACK_TRACE_PATTERNS: tuple[re.Pattern[str], ...] = (
-    re.compile(r"Traceback \(most recent call last\):"),
+    re.compile(r"^\s*Traceback \(most recent call last\):\s*$", re.MULTILINE),
     re.compile(r"^\s*at\s+\S+\s+\(.+:\d+:\d+\)\s*$", re.MULTILINE),
-    re.compile(r"\b[A-Z]\w*Error:\s"),
-    re.compile(r"\bpanic:\s"),
+    re.compile(r"^\s*[A-Z]\w*Error:\s", re.MULTILINE),
+    re.compile(r"^\s*panic:\s", re.MULTILINE),
 )
 _MAX_SNIPPET_CHARS = 240
 _MAX_RECORDS_PER_SESSION = 10
@@ -315,6 +317,14 @@ def _scan_loop(
     run_start_line = 0
     run_count = 0
     for line_no, event in calls:
+        name = str(event.get("name") or event.get("tool_name") or "")
+        args = event.get("input") or event.get("arguments") or {}
+        if (
+            name.rsplit(".", 1)[-1] == "write_stdin"
+            and isinstance(args, dict)
+            and args.get("chars", "") == ""
+        ):
+            continue  # Waiting for a running process is not a repeated write.
         fp = _fingerprint(event)
         if fp == run_fp:
             run_count += 1
@@ -337,6 +347,46 @@ def _scan_loop(
     return out
 
 
+def _runtime_text(text: str) -> str:
+    """Ignore fenced examples; retain unquoted diagnostics outside them."""
+    lines: list[str] = []
+    fence: str | None = None
+    for line in text.splitlines():
+        stripped = line.lstrip()
+        if stripped.startswith(("```", "~~~")):
+            marker = stripped[:3]
+            if fence is None:
+                fence = marker
+            elif fence == marker:
+                fence = None
+            continue
+        if fence is None:
+            lines.append(line)
+    return "\n".join(lines)
+
+
+def _structured_api_error(text: str) -> bool:
+    """An HTTP error body is a failure even when its shell wrapper exits zero."""
+    for line in text.splitlines():
+        if not line.lstrip().startswith("{"):
+            continue
+        try:
+            body = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if not isinstance(body, dict):
+            continue
+        code = body.get("code", body.get("status"))
+        if (
+            type(code) is int
+            and 400 <= code < 600
+            and isinstance(body.get("name"), str)
+            and body["name"].endswith("Error")
+        ):
+            return True
+    return False
+
+
 def _scan_stack_trace(
     events: list[tuple[int, dict[str, Any]]],
     session_id: str,
@@ -354,18 +404,17 @@ def _scan_stack_trace(
         # otherwise auditing records would recursively mint new errors.
         if _is_bsela_envelope(text):
             continue
-        for pattern in _STACK_TRACE_PATTERNS:
-            if pattern.search(text):
-                out.append(
-                    ErrorRecord(
-                        session_id=session_id,
-                        category="stack_trace",
-                        severity="high",
-                        snippet=_truncate(text),
-                        line_number=line_no,
-                    )
+        runtime = _runtime_text(text)
+        if _structured_api_error(runtime) or any(p.search(runtime) for p in _STACK_TRACE_PATTERNS):
+            out.append(
+                ErrorRecord(
+                    session_id=session_id,
+                    category="stack_trace",
+                    severity="high",
+                    snippet=_truncate(text),
+                    line_number=line_no,
                 )
-                break
+            )
     return out
 
 
@@ -383,13 +432,30 @@ def detect_errors(
     return _detect_for(session, persist=persist)
 
 
+def _load_events(session: SessionRecord, transcript: Path) -> list[tuple[int, dict[str, Any]]]:
+    """Load a transcript's events, canonicalizing Codex rollouts for the scans.
+
+    Raw line numbers are preserved so error records still point at the line the
+    detector fired on.
+    """
+    events = list(_iter_jsonl(transcript))
+    if session.source != CODEX_SOURCE:
+        return events
+    canonical: list[tuple[int, dict[str, Any]]] = []
+    for line_no, event in events:
+        normalized = normalize_event(event)
+        if normalized is not None:
+            canonical.append((line_no, normalized))
+    return canonical
+
+
 def _detect_for(session: SessionRecord, *, persist: bool) -> DetectionResult:
     transcript = Path(session.transcript_path)
     if not transcript.is_file():
         return DetectionResult(session_id=session.id, errors=())
 
     cfg = load_thresholds().detector
-    events = list(_iter_jsonl(transcript))
+    events = _load_events(session, transcript)
     markers = _correction_markers(cfg.correction_markers)
 
     candidates: list[ErrorRecord] = []

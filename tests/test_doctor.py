@@ -10,6 +10,7 @@ import pytest
 from typer.testing import CliRunner
 
 from bsela.cli import app
+from bsela.core.capture import ingest_file
 from bsela.core.doctor import (
     FAIL,
     PASS,
@@ -19,12 +20,15 @@ from bsela.core.doctor import (
     _check_bsela_home,
     _check_bsela_on_path,
     _check_claude_hook,
-    _check_llm_api_key,
+    _check_codex_capture,
+    _check_llm_provider,
     _check_python,
     _read_claude_settings,
     run_checks,
     worst_status,
 )
+from bsela.memory.models import SessionRecord
+from bsela.memory.store import save_session
 
 
 def test_check_python_passes_on_current_interpreter() -> None:
@@ -33,30 +37,12 @@ def test_check_python_passes_on_current_interpreter() -> None:
     assert row.name == "python"
 
 
-def test_check_api_key_fail_when_both_missing(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
-    monkeypatch.delenv("OPENROUTER_API_KEY", raising=False)
-    row = _check_llm_api_key()
-    assert row.status == FAIL
-    assert "neither" in row.detail
-
-
-def test_check_api_key_pass_with_anthropic(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-ant-deadbeef")
-    monkeypatch.delenv("OPENROUTER_API_KEY", raising=False)
-    row = _check_llm_api_key()
-    assert row.status == PASS
-    assert "ANTHROPIC_API_KEY" in row.detail
-    assert "chars" in row.detail
-
-
-def test_check_api_key_pass_with_openrouter(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
-    monkeypatch.setenv("OPENROUTER_API_KEY", "sk-or-deadbeef")
-    row = _check_llm_api_key()
-    assert row.status == PASS
-    assert "OPENROUTER_API_KEY" in row.detail
-    assert "chars" in row.detail
+def test_offline_provider_check_never_reads_auth(monkeypatch):
+    monkeypatch.setattr("bsela.core.doctor.shutil.which", lambda _: "/bin/codex")
+    row = _check_llm_provider()
+    assert row.status == WARN
+    assert "unverified" in row.detail
+    assert "chars" not in row.detail
 
 
 def test_check_agents_md_repo_warns_when_missing(
@@ -156,15 +142,27 @@ def test_run_checks_returns_all_probes(monkeypatch: pytest.MonkeyPatch, tmp_path
     rows = run_checks(settings_path=tmp_path / "settings.json")
     names = [r.name for r in rows]
     assert "python" in names
-    assert "LLM API key" in names
+    assert "model provider" in names
     assert "bsela_home" in names
     assert "store" in names
     assert "agents-md repo" in names
     assert "claude-code hook" in names
 
 
+@pytest.fixture
+def codex_on_path(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Provide executable discovery without a real Codex install or model call."""
+    binary = tmp_path / "bin"
+    binary.mkdir()
+    for name in ("codex", "bsela"):
+        executable = binary / name
+        executable.write_text("#!/bin/sh\nexit 99\n", encoding="utf-8")
+        executable.chmod(0o700)
+    monkeypatch.setenv("PATH", str(binary))
+
+
 def test_cli_doctor_exit_zero_when_no_fail(
-    tmp_bsela_home: Path, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    tmp_bsela_home: Path, monkeypatch: pytest.MonkeyPatch, tmp_path: Path, codex_on_path: None
 ) -> None:
     monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-ant-ok")
     repo = tmp_path / "agents-md"
@@ -174,11 +172,11 @@ def test_cli_doctor_exit_zero_when_no_fail(
     result = CliRunner().invoke(app, ["doctor"])
     assert result.exit_code == 0, result.stdout
     assert "doctor:" in result.stdout
-    assert "LLM API key" in result.stdout
+    assert "model provider" in result.stdout
 
 
-def test_cli_doctor_exit_zero_with_openrouter(
-    tmp_bsela_home: Path, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+def test_cli_doctor_offline_does_not_use_legacy_keys(
+    tmp_bsela_home: Path, monkeypatch: pytest.MonkeyPatch, tmp_path: Path, codex_on_path: None
 ) -> None:
     monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
     monkeypatch.setenv("OPENROUTER_API_KEY", "sk-or-ok")
@@ -188,7 +186,8 @@ def test_cli_doctor_exit_zero_with_openrouter(
 
     result = CliRunner().invoke(app, ["doctor"])
     assert result.exit_code == 0, result.stdout
-    assert "OPENROUTER_API_KEY" in result.stdout
+    assert "OPENROUTER_API_KEY" not in result.stdout
+    assert "authentication/model access unverified" in result.stdout
 
 
 def test_cli_doctor_exit_one_when_any_fail(
@@ -196,6 +195,7 @@ def test_cli_doctor_exit_one_when_any_fail(
 ) -> None:
     monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
     monkeypatch.delenv("OPENROUTER_API_KEY", raising=False)
+    monkeypatch.setattr("bsela.core.doctor.shutil.which", lambda _: None)
     result = CliRunner().invoke(app, ["doctor"])
     assert result.exit_code == 1
     assert "FAIL" in result.stdout
@@ -288,3 +288,73 @@ def test_read_claude_settings_returns_none_on_oserror() -> None:
     mock_path.read_text.side_effect = OSError("permission denied")
     result = _read_claude_settings(mock_path)
     assert result is None
+
+
+# ---- codex capture probe ---------------------------------------------------
+
+SESSION_ID = "019d1234-5678-7abc-8def-0123456789ab"
+
+
+def _seed_rollout(root: Path) -> Path:
+    day = root / "2026" / "01" / "16"
+    day.mkdir(parents=True, exist_ok=True)
+    path = day / f"rollout-2026-01-16T10-00-00-{SESSION_ID}.jsonl"
+    source = Path(__file__).parent / "fixtures" / "sample-sessions" / "codex-rollout.jsonl"
+    path.write_text(source.read_text(encoding="utf-8"), encoding="utf-8")
+    return path
+
+
+def test_check_codex_capture_passes_when_no_codex_tree(tmp_path: Path) -> None:
+    row = _check_codex_capture(roots=(tmp_path / "absent",))
+    assert row.status == PASS
+    assert "no ~/.codex" in row.detail
+
+
+def test_check_codex_capture_warns_without_rollouts(tmp_bsela_home: Path, tmp_path: Path) -> None:
+    empty = tmp_path / "sessions"
+    empty.mkdir()
+    row = _check_codex_capture(roots=(empty,))
+    assert row.status == WARN
+    assert "no user-thread rollouts" in row.detail
+
+
+def test_check_codex_capture_warns_when_unwired(tmp_bsela_home: Path, tmp_path: Path) -> None:
+    root = tmp_path / "sessions"
+    _seed_rollout(root)
+    row = _check_codex_capture(roots=(root,))
+    assert row.status == WARN
+    assert "not ingested" in row.detail
+
+
+def test_check_codex_capture_warns_when_row_has_no_turns(
+    tmp_bsela_home: Path, tmp_path: Path
+) -> None:
+    root = tmp_path / "sessions"
+    path = _seed_rollout(root)
+    save_session(
+        SessionRecord(
+            source="codex",
+            transcript_path=str(path.resolve()),
+            content_hash="stale",
+            turn_count=0,
+            status="captured",
+        )
+    )
+    row = _check_codex_capture(roots=(root,))
+    assert row.status == WARN
+    assert "0 turns" in row.detail
+
+
+def test_check_codex_capture_passes_after_ingest(tmp_bsela_home: Path, tmp_path: Path) -> None:
+    root = tmp_path / "sessions"
+    path = _seed_rollout(root)
+    ingest_file(path, source="codex")
+    row = _check_codex_capture(roots=(root,))
+    assert row.status == PASS
+    assert "turns=2" in row.detail
+
+
+def test_run_checks_includes_codex_capture(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr("bsela.core.doctor.default_session_roots", lambda: (tmp_path / "absent",))
+    names = [row.name for row in run_checks(settings_path=tmp_path / "settings.json")]
+    assert "codex capture" in names

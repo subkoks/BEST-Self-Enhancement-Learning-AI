@@ -21,8 +21,8 @@ def test_load_thresholds_defaults() -> None:
 
 def test_load_models_defaults() -> None:
     m = config_module.load_models()
-    assert m.judge.model.startswith("claude-")
-    assert m.distiller.model.startswith("claude-")
+    assert m.judge.model == "gpt-6.1-sol"
+    assert m.distiller.model == "gpt-6.1-sol"
 
 
 def test_env_override_missing_file(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

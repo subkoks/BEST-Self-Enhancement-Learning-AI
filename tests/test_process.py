@@ -56,6 +56,7 @@ def _one_lesson_distill() -> DistillResponse:
                 how_to_apply="When Read returns ENOENT twice, change strategy",
                 scope="project",
                 confidence=0.9,
+                evidence={"line_range": [1, 3]},
             )
         ],
     )
@@ -110,7 +111,7 @@ def test_process_idempotent_on_rerun(tmp_bsela_home: Path) -> None:
     second_client = _client()
     second = process_sessions(client=second_client)
     assert second.distilled == 0
-    assert second.skipped_already_distilled == 1
+    assert second.skipped_already_evaluated == 1
     assert second_client.judge_calls == 0
 
 
@@ -314,7 +315,7 @@ def test_process_dry_run_skips_already_distilled(tmp_bsela_home: Path) -> None:
     # Dry-run now sees it as already distilled.
     result = process_sessions(client=None, dry_run=True)
     assert count_lessons() == 1  # still no new writes
-    assert any(o.status == "would_skip_already_distilled" for o in result.outcomes)
+    assert any(o.status == "would_skip_already_evaluated" for o in result.outcomes)
 
 
 def test_process_dry_run_cli_exits_zero_no_api_key(tmp_bsela_home: Path) -> None:
@@ -351,6 +352,7 @@ def test_process_help_mentions_dry_run_without_api_key(tmp_bsela_home: Path) -> 
     )
     assert result.exit_code == 0, result.stdout
     lowered = result.stdout.lower()
-    assert "anthropic_api_key" in lowered
+    assert "provider" in lowered
+    assert "anthropic_api_key" not in lowered
     assert "--dry-run" in lowered
     assert "no api calls" in lowered

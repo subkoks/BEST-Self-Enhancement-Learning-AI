@@ -12,21 +12,25 @@
     <dict>
         <key>PATH</key>
         <string>/Users/black.terminal/.local/bin:/Users/black.terminal/.agents:/usr/local/bin:/usr/bin:/bin</string>
+        <key>BSELA_CONFIG_DIR</key>
+        <string>/Users/black.terminal/.bsela/config</string>
+        <key>TZ</key>
+        <string>Europe/London</string>
         <key>HOME</key>
         <string>/Users/black.terminal</string>
     </dict>
 
     <key>ProgramArguments</key>
     <array>
-        <string>/bin/zsh</string>
-        <string>-lc</string>
-        <string>bsela audit --weekly</string>
+        <string>/Users/black.terminal/.local/bin/bsela</string>
+        <string>audit</string>
+        <string>--weekly</string>
     </array>
 
     <key>StartCalendarInterval</key>
     <dict>
         <key>Weekday</key>
-        <integer>1</integer>
+        <integer>0</integer>
         <key>Hour</key>
         <integer>9</integer>
         <key>Minute</key>

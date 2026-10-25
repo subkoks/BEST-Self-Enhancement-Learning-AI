@@ -16,18 +16,23 @@ from __future__ import annotations
 import json
 import os
 import shutil
+import subprocess
 import sys
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from bsela.adapters.codex import default_session_roots, discover_rollouts
 from bsela.core.hook_install import (
     DEFAULT_EVENT,
     DEFAULT_HOOK_COMMAND,
     default_claude_settings_path,
 )
 from bsela.core.updater import DEFAULT_AGENTS_MD_REPO
-from bsela.memory.store import bsela_home, db_path
+from bsela.llm.client import codex_environment, keychain_credential, make_llm_client
+from bsela.llm.runtime import ProviderError, model_run
+from bsela.memory.store import bsela_home, db_path, find_session_by_transcript
+from bsela.utils.config import load_models
 
 PASS = "pass"
 WARN = "warn"
@@ -53,19 +58,52 @@ def _check_python() -> CheckResult:
     return CheckResult("python", PASS, version)
 
 
-def _check_llm_api_key() -> CheckResult:
-    """Accept either ANTHROPIC_API_KEY or OPENROUTER_API_KEY."""
-    anthropic = os.environ.get("ANTHROPIC_API_KEY", "").strip()
-    openrouter = os.environ.get("OPENROUTER_API_KEY", "").strip()
-    if anthropic:
-        return CheckResult("LLM API key", PASS, f"ANTHROPIC_API_KEY set ({len(anthropic)} chars)")
-    if openrouter:
-        return CheckResult("LLM API key", PASS, f"OPENROUTER_API_KEY set ({len(openrouter)} chars)")
+def _check_llm_provider(
+    provider: str = "codex", *, auth_check: bool = False, live: bool = False
+) -> CheckResult:
+    cfg = load_models()
+    if provider not in {"codex", "deepseek"}:
+        return CheckResult("model provider", FAIL, "unsupported provider")
+    if provider == "codex" and not shutil.which("codex"):
+        return CheckResult("model provider", FAIL, "codex executable not found")
+    if not auth_check and not live:
+        return CheckResult(
+            "model provider",
+            WARN,
+            f"{provider}: offline only; authentication/model access unverified; "
+            f"live_enabled={cfg.default.get('live_enabled', False)}",
+        )
+    try:
+        if provider == "deepseek":
+            keychain_credential(presence_only=True)
+        else:
+            status = subprocess.run(
+                ["codex", "-c", 'forced_login_method="chatgpt"', "login", "status"],
+                capture_output=True,
+                text=True,
+                timeout=10,
+                env=codex_environment(),
+                check=False,
+            )
+            if status.returncode or "chatgpt" not in (status.stdout + status.stderr).lower():
+                raise ProviderError("auth: Codex ChatGPT login unavailable")
+        if live:
+            with model_run():
+                make_llm_client(provider).judge(
+                    system="Return a JSON rubric verdict for a successful synthetic session.",
+                    user='{"candidate_errors": []}',
+                )
+    except (ProviderError, OSError, subprocess.TimeoutExpired):
+        return CheckResult(
+            "model provider",
+            FAIL,
+            f"{provider}: auth/live check failed; use approved provider diagnostics",
+        )
     return CheckResult(
-        "LLM API key",
-        FAIL,
-        "neither ANTHROPIC_API_KEY nor OPENROUTER_API_KEY is set"
-        " — bsela distill / process will fail",
+        "model provider",
+        PASS,
+        f"{provider}: "
+        f"{'live model verified' if live else 'credential present; model access unverified'}",
     )
 
 
@@ -184,16 +222,55 @@ def _check_claude_hook(settings_path: Path | None = None) -> CheckResult:
     )
 
 
-def run_checks(*, settings_path: Path | None = None) -> list[CheckResult]:
+def _check_codex_capture(roots: tuple[Path, ...] | None = None) -> CheckResult:
+    """Report whether the newest Codex rollout actually reached the store.
+
+    A wired hook and a correct schedule still produce empty reports if the
+    rollout parser misses the transcript format, so this probe checks the
+    stored turn count of the most recent rollout rather than the wiring alone.
+    """
+    search = roots if roots is not None else default_session_roots()
+    if not any(Path(root).expanduser().is_dir() for root in search):
+        return CheckResult("codex capture", PASS, "no ~/.codex rollout tree on this machine")
+    rollouts = discover_rollouts(search, limit=1)
+    if not rollouts:
+        return CheckResult("codex capture", WARN, "no user-thread rollouts found under ~/.codex")
+    newest = rollouts[0]
+    # Never open the store here: a probe that creates an empty database would
+    # change what `bsela status` reports about a not-yet-initialized install.
+    stored = find_session_by_transcript(str(newest.resolve())) if db_path().exists() else None
+    if stored is None:
+        return CheckResult(
+            "codex capture",
+            WARN,
+            f"{newest.name} not ingested — wire the notify hook or run `bsela scan`",
+        )
+    if stored.turn_count <= 0:
+        return CheckResult(
+            "codex capture",
+            WARN,
+            f"{newest.name} stored with 0 turns — run `bsela scan` to repair the row",
+        )
+    return CheckResult("codex capture", PASS, f"{newest.name} captured (turns={stored.turn_count})")
+
+
+def run_checks(
+    *,
+    settings_path: Path | None = None,
+    provider: str = "codex",
+    auth_check: bool = False,
+    live: bool = False,
+) -> list[CheckResult]:
     """Run all probes and return the flat result list."""
     return [
         _check_python(),
         _check_bsela_on_path(),
-        _check_llm_api_key(),
+        _check_llm_provider(provider, auth_check=auth_check, live=live),
         _check_bsela_home(),
         _check_db(),
         _check_agents_md_repo(),
         _check_claude_hook(settings_path),
+        _check_codex_capture(),
     ]
 
 

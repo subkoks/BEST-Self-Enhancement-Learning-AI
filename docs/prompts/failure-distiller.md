@@ -28,19 +28,14 @@ Top-level fields:
 ```json
 {
   "session": {
-    "id": "<uuid>",
-    "transcript": [
-      { "role": "user", "content": "...", "ts": "..." },
-      { "role": "assistant", "content": "...", "tool_calls": [...] },
-      { "role": "tool", "name": "...", "result": "...", "ts": "..." }
-    ],
+    "id": "<uuid>", "source": "codex", "status": "captured",
+    "turn_count": 10, "tool_call_count": 3,
     "candidate_errors": [
-      { "id": 1, "fingerprint": "<hash>", "evidence_range": [14, 22], "signal": "repeated_identical_tool_call" }
+      {"id": "<error-uuid>", "category": "stack_trace", "severity": "high",
+       "snippet": "<captured diagnostic>", "line_number": 14}
     ]
   },
-  "recent_lessons": [
-    { "id": "lesson-042", "rule": "..." }
-  ],
+  "recent_lessons": [{"id": "lesson-042", "rule": "...", "scope": "project"}],
   "replay_harness": false
 }
 ```
@@ -80,3 +75,10 @@ Top-level fields:
 - Never attribute intent to the user. Describe behavior, not motive.
 - Never propose training/weights changes.
 - If no transferable lesson emerges, emit `"lessons": []` — that is a valid outcome.
+
+## Evidence contract
+
+- Only the session summary and candidate error snippets above are supplied. Do not invent unseen transcript turns or claim access to a full transcript.
+- Cite this session's id and an inclusive two-integer `line_range` containing a supplied candidate error's `line_number`. Missing, out-of-bounds, foreign-session, and unmatched citations cannot be persisted.
+- A detector candidate is a signal to investigate, not proof of misconduct. A user prohibition does not prove it was violated; a failing test does not prove its output was ignored; source listings and quoted examples are not runtime failures.
+- If the supplied evidence cannot establish the proposed behavior and cause, emit no lesson. Do not infer an unobserved failure, automatic fallback, or permission to access credentials.
