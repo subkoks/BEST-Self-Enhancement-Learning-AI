@@ -8,7 +8,7 @@ from pydantic import BaseModel, Field
 
 
 class JudgeVerdict(BaseModel):
-    """Haiku-tier rubric score for one session."""
+    """Typed rubric score for one session."""
 
     goal_achieved: bool
     efficiency: float = Field(ge=0.0, le=1.0)
@@ -26,11 +26,21 @@ class LessonCandidate(BaseModel):
     how_to_apply: str
     scope: Literal["project", "global"]
     confidence: float = Field(ge=0.0, le=1.0)
-    evidence: dict[str, Any] = Field(default_factory=dict)
+    # Keep the dictionary interface for stored/replayed candidates, but give
+    # strict-output providers the concrete evidence shape used by our prompt.
+    evidence: dict[str, Any] = Field(
+        default_factory=dict,
+        json_schema_extra={
+            "properties": {
+                "session_id": {"type": "string"},
+                "line_range": {"type": "array", "items": {"type": "integer"}},
+            },
+        },
+    )
 
 
 class DistillResponse(BaseModel):
-    """Opus-tier distiller response envelope."""
+    """Typed distiller response envelope."""
 
     status: Literal["ok", "skip", "error"] = "ok"
     confidence: float = Field(default=0.0, ge=0.0, le=1.0)

@@ -1,4 +1,4 @@
-"""Distiller orchestration: Haiku judge → Opus distill → Lesson rows.
+"""Distiller orchestration: Provider-neutral judge → distill → Lesson rows.
 
 The judge scores a session's overall health. When the session looks clean
 (goal achieved + high judge confidence), no distillation happens. Otherwise
@@ -9,16 +9,24 @@ rows with ``status='pending'`` for the P3 updater to consume.
 
 from __future__ import annotations
 
+import hashlib
 import json
 import re
 from dataclasses import dataclass
 from pathlib import Path
 
 from bsela.llm.client import LLMClient
+from bsela.llm.runtime import ProviderError
 from bsela.llm.types import DistillResponse, JudgeVerdict, LessonCandidate
-from bsela.memory.models import ErrorRecord, Lesson, SessionRecord
-from bsela.memory.store import get_session, list_errors, list_lessons, save_lesson
-from bsela.utils.config import load_thresholds
+from bsela.memory.models import (
+    ErrorRecord,
+    Lesson,
+    LessonEvidence,
+    SessionEvaluation,
+    SessionRecord,
+)
+from bsela.memory.store import get_session, list_errors, list_lessons, save_evaluation, save_lesson
+from bsela.utils.config import load_models, load_thresholds
 
 _STOP_WORDS = frozenset(
     [
@@ -130,6 +138,19 @@ class DistillationResult:
     distilled: bool
     response: DistillResponse
     persisted: tuple[Lesson, ...]
+    judge_healthy: bool = False
+
+    @property
+    def outcome(self) -> str:
+        if self.judge_healthy:
+            return "judge_healthy"
+        if self.persisted:
+            return "distilled"
+        if self.response.status == "skip":
+            return "distiller_skipped"
+        if not self.response.lessons:
+            return "no_lessons"
+        return "duplicates_only"
 
 
 def _find_distiller_prompt() -> str:
@@ -184,8 +205,6 @@ def _candidate_to_lesson(
     source_error_id: str | None,
     candidate: LessonCandidate,
 ) -> Lesson:
-    evidence = dict(candidate.evidence)
-    evidence.setdefault("session_id", session_id)
     return Lesson(
         source_error_id=source_error_id,
         scope=candidate.scope,
@@ -195,6 +214,78 @@ def _candidate_to_lesson(
         confidence=candidate.confidence,
         status="pending",
     )
+
+
+def _validated_evidence(
+    session: SessionRecord, errors: list[ErrorRecord], candidate: LessonCandidate, line_count: int
+) -> tuple[ErrorRecord, tuple[int, int]]:
+    """Bind a citation to an actual supplied error, never the first error by default."""
+    evidence = candidate.evidence
+    span = evidence.get("line_range")
+    # An omitted session id inherits the trusted request context for old clients.
+    if evidence.get("session_id", session.id) != session.id or not (
+        isinstance(span, list)
+        and len(span) == 2
+        and all(type(n) is int for n in span)
+        and 1 <= span[0] <= span[1] <= line_count
+    ):
+        raise ProviderError("invalid response evidence; no lessons persisted")
+    start, end = span
+    matches = [
+        e
+        for e in errors
+        if e.session_id == session.id
+        and e.line_number is not None
+        and start <= e.line_number <= end
+    ]
+    if not matches:
+        raise ProviderError("invalid response evidence: no matching error; no lessons persisted")
+    error = min(matches, key=lambda e: (e.line_number or 0, e.id))
+    return error, (start, end)
+
+
+def evaluation_fingerprint(
+    session: SessionRecord,
+    errors: list[ErrorRecord],
+    *,
+    client: LLMClient | None = None,
+    provider: str = "codex",
+    judge_threshold: float = 0.8,
+    force_distill: bool = False,
+) -> str:
+    """Invalidate on content, detector evidence, model, prompt or policy changes.
+
+    Recent lessons are deliberately excluded: new lessons must not cause an
+    endless reevaluation cycle. Use --rerun for deliberate reconsideration.
+    """
+    cfg = load_models()
+    payload = {
+        "version": 1,
+        "session_id": session.id,
+        "content_hash": session.content_hash,
+        "errors": sorted(
+            (_error_payload(error) for error in errors), key=lambda error: str(error["id"])
+        ),
+        "provider": getattr(client, "provider", provider),
+        "model": getattr(client, "model", None),
+        "reasoning_effort": getattr(client, "reasoning_effort", None),
+        "models": cfg.model_dump(exclude={"default"}),
+        "judge_schema": JudgeVerdict.model_json_schema(),
+        "distiller_schema": DistillResponse.model_json_schema(),
+        "judge_prompt": JUDGE_SYSTEM_PROMPT,
+        "distiller_prompt": _find_distiller_prompt(),
+        "judge_threshold": judge_threshold,
+        "force_distill": force_distill,
+        "dedupe_threshold": load_thresholds().dedupe.similarity_threshold,
+    }
+    # Resolve the same provider defaults for a dry-run as for a real client.
+    payload["model"] = payload["model"] or (
+        cfg.judge.model if payload["provider"] == "codex" else cfg.deepseek.model
+    )
+    payload["reasoning_effort"] = payload["reasoning_effort"] or (
+        cfg.judge.reasoning_effort if payload["provider"] == "codex" else None
+    )
+    return hashlib.sha256(json.dumps(payload, sort_keys=True).encode()).hexdigest()
 
 
 def distill_session(
@@ -221,11 +312,28 @@ def distill_session(
     if session is None:
         raise LookupError(f"session not found: {session_id}")
 
+    if session.status == "quarantined":
+        raise ProviderError("quarantined session cannot be sent to a provider")
+    begin = getattr(client, "begin_session", None)
+    if begin is not None:
+        begin(session_id)
     errors = list_errors(session_id=session_id, limit=50)
     recent = (
         recent_lessons if recent_lessons is not None else list_lessons(limit=recent_lessons_limit)
     )
     user_payload = _session_payload(session, errors, recent, replay_harness=replay_harness)
+    input_hash = evaluation_fingerprint(
+        session, errors, client=client, judge_threshold=judge_threshold, force_distill=force_distill
+    )
+
+    def complete(result: DistillationResult) -> DistillationResult:
+        if persist and not replay_harness:
+            save_evaluation(
+                SessionEvaluation(
+                    input_hash=input_hash, session_id=session.id, outcome=result.outcome
+                )
+            )
+        return result
 
     verdict = client.judge(system=JUDGE_SYSTEM_PROMPT, user=user_payload)
 
@@ -236,19 +344,34 @@ def distill_session(
         and not verdict.wasted_tokens
     )
     if healthy and not force_distill:
-        return DistillationResult(
-            session_id=session_id,
-            verdict=verdict,
-            distilled=False,
-            response=DistillResponse(status="skip"),
-            persisted=(),
+        return complete(
+            DistillationResult(
+                session_id=session_id,
+                verdict=verdict,
+                distilled=False,
+                response=DistillResponse(status="skip"),
+                persisted=(),
+                judge_healthy=True,
+            )
         )
 
     response = client.distill(system=_find_distiller_prompt(), user=user_payload)
+    if response.status == "error":
+        raise ProviderError("model reported distillation error; no lessons persisted")
+    if response.status == "skip":
+        return complete(DistillationResult(session_id, verdict, False, response, ()))
     dedup_threshold = load_thresholds().dedupe.similarity_threshold
     persisted: list[Lesson] = []
     if persist:
-        source_error_id = errors[0].id if errors else None
+        # Validate the whole response before writing even its first lesson.
+        line_count = 0
+        if response.lessons:
+            with Path(session.transcript_path).open(encoding="utf-8") as transcript:
+                line_count = sum(1 for _ in transcript)
+        citations = [
+            _validated_evidence(session, errors, candidate, line_count)
+            for candidate in response.lessons
+        ]
         # Dedupe must always check against the canonical body of approved/applied
         # lessons regardless of recency — otherwise a candidate that duplicates
         # an older approved rule slips through once newer pending rows push it
@@ -264,22 +387,31 @@ def distill_session(
             + list_lessons(status="externalized", limit=None)
         )
         saved_this_batch: list[Lesson] = list(recent) + list(approved_corpus)
-        for candidate in response.lessons:
+        for candidate, (source_error, (start, end)) in zip(
+            response.lessons, citations, strict=True
+        ):
             if _is_duplicate(candidate.rule, saved_this_batch, dedup_threshold):
                 continue
-            lesson = _candidate_to_lesson(session_id, source_error_id, candidate)
-            saved = save_lesson(lesson)
+            lesson = _candidate_to_lesson(session_id, source_error.id, candidate)
+            saved = save_lesson(
+                lesson,
+                evidence=LessonEvidence(
+                    lesson_id=lesson.id, session_id=session.id, line_start=start, line_end=end
+                ),
+            )
             persisted.append(saved)
             saved_this_batch.append(saved)
     else:
         persisted = [_candidate_to_lesson(session_id, None, c) for c in response.lessons]
 
-    return DistillationResult(
-        session_id=session_id,
-        verdict=verdict,
-        distilled=True,
-        response=response,
-        persisted=tuple(persisted),
+    return complete(
+        DistillationResult(
+            session_id=session_id,
+            verdict=verdict,
+            distilled=True,
+            response=response,
+            persisted=tuple(persisted),
+        )
     )
 
 
@@ -287,4 +419,5 @@ __all__ = [
     "JUDGE_SYSTEM_PROMPT",
     "DistillationResult",
     "distill_session",
+    "evaluation_fingerprint",
 ]

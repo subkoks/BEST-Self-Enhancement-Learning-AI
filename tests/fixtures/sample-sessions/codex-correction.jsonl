@@ -1,0 +1,9 @@
+{"timestamp":"2026-01-16T09:00:00.000Z","type":"session_meta","payload":{"id":"019d9999-1111-7222-8333-444455556666","session_id":"019d9999-1111-7222-8333-444455556666","cwd":"/tmp/demo-project","originator":"codex-tui","source":"cli","thread_source":"user"}}
+{"timestamp":"2026-01-16T09:00:01.000Z","type":"response_item","payload":{"type":"message","role":"user","content":[{"type":"input_text","text":"update the changelog for the release"}]}}
+{"timestamp":"2026-01-16T09:00:02.000Z","type":"response_item","payload":{"type":"message","role":"assistant","content":[{"type":"output_text","text":"I will read the changelog first."}]}}
+{"timestamp":"2026-01-16T09:00:03.000Z","type":"response_item","payload":{"type":"function_call","id":"fc_a1","call_id":"call_a1","name":"exec_command","arguments":"{\"cmd\":\"cat CHANGELOG.md\"}"}}
+{"timestamp":"2026-01-16T09:00:04.000Z","type":"response_item","payload":{"type":"function_call","id":"fc_a2","call_id":"call_a2","name":"exec_command","arguments":"{\"cmd\":\"cat CHANGELOG.md\"}"}}
+{"timestamp":"2026-01-16T09:00:05.000Z","type":"response_item","payload":{"type":"function_call","id":"fc_a3","call_id":"call_a3","name":"exec_command","arguments":"{\"cmd\":\"cat CHANGELOG.md\"}"}}
+{"timestamp":"2026-01-16T09:00:06.000Z","type":"response_item","payload":{"type":"function_call_output","id":"fco_a3","call_id":"call_a3","output":"Traceback (most recent call last):\n  File \"scripts/changelog.py\", line 12, in <module>\n    raise ValueError('missing section heading')\nValueError: missing section heading"}}
+{"timestamp":"2026-01-16T09:00:07.000Z","type":"response_item","payload":{"type":"message","role":"user","content":[{"type":"input_text","text":"no wait, that's wrong — revert that and use the release notes file instead"}]}}
+{"timestamp":"2026-01-16T09:00:08.000Z","type":"response_item","payload":{"type":"message","role":"assistant","content":[{"type":"output_text","text":"Reverting the changelog edit."}]}}

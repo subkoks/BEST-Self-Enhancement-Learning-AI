@@ -10,6 +10,7 @@ import {
   BselaClientError,
   isErrorItem,
   isLessonItem,
+  isSessionItem,
   type LessonItem,
 } from "../src/index.js";
 
@@ -73,7 +74,8 @@ describe("BselaClient.route", () => {
     const decision = await client.route("plan the migration to P6");
     expect(decision.task_class).toBe("planner");
     expect(decision.confidence).toBe(1);
-    expect(decision.model).toMatch(/opus/);
+    expect(decision.model).toBe("gpt-6.1-sol");
+    expect(decision.provider).toBe("codex");
     expect(decision.matched_keywords).toContain("plan");
   });
 
@@ -96,6 +98,7 @@ describe("BselaClient.route", () => {
       "confidence",
       "matched_keywords",
       "model",
+      "provider",
       "reason",
       "task_class",
     ]);
@@ -128,6 +131,7 @@ describe("BselaClient.audit", () => {
       "drift",
       "errors_total",
       "generated_at",
+      "model_usage",
       "replay_drift",
       "sessions",
       "warnings",
@@ -342,5 +346,44 @@ describe("BselaClient error paths", () => {
   it("rejects when the binary is missing", async () => {
     const client = new BselaClient({ binary: "/nonexistent/bsela-does-not-exist" });
     await expect(client.route("plan")).rejects.toBeInstanceOf(BselaClientError);
+  });
+});
+
+describe("isSessionItem", () => {
+  const sample = {
+    id: "session-fixture",
+    status: "captured",
+    source: "codex",
+    turn_count: 3,
+    tool_call_count: 1,
+    ingested_at: new Date().toISOString(),
+  };
+
+  it("accepts session rows with optional timestamps", () => {
+    expect(isSessionItem(sample)).toBe(true);
+    expect(isSessionItem({ ...sample, ingested_at: null })).toBe(true);
+    const { ingested_at: _timestamp, ...withoutTimestamp } = sample;
+    expect(isSessionItem(withoutTimestamp)).toBe(true);
+  });
+
+  it("rejects malformed session rows", () => {
+    expect(isSessionItem(null)).toBe(false);
+    expect(isSessionItem({ ...sample, turn_count: "3" })).toBe(false);
+    expect(isSessionItem({ ...sample, ingested_at: 123 })).toBe(false);
+  });
+});
+
+describe("BselaClient timeout", () => {
+  it("terminates an unresponsive CLI and reports a typed timeout", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "bsela-timeout-"));
+    try {
+      const binary = join(dir, "bsela");
+      await writeFile(binary, "#!/bin/sh\nexec sleep 30\n");
+      await chmod(binary, 0o700);
+      const client = new BselaClient({ binary, timeoutMs: 100 });
+      await expect(client.route("plan")).rejects.toThrow(/timed out after 100ms/);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
   });
 });

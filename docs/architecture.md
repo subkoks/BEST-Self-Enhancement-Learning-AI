@@ -1,5 +1,7 @@
 # Architecture
 
+Current provider/authentication and deployment contract: [ADR 0013](decisions/0013-provider-maintenance.md) and [provider maintenance](provider-maintenance.md). DeepSeek Flash is manual; there is no automatic promotion or fallback.
+
 ## Mental Model
 
 Continual-learning systems improve across three layers: **weights**, **harness**, and **context** (per the LangChain continual-learning framing). Weights training is out of scope — too slow, too expensive, wrong leverage. BSELA operates purely on harness and context:
@@ -43,7 +45,9 @@ BSELA is a **control plane**, not a runtime. It reads what other agents already 
 
 ### Capture
 
-Hook scripts (Claude Code `Stop`/`PostResponse`, Codex session-end) append raw transcripts + metadata to `~/.bsela/sessions/<uuid>.jsonl`. Pure I/O, zero LLM cost. Secret scrubber runs inline; quarantined sessions never reach the store.
+Hook scripts (Claude Code `Stop`/`PostResponse`, Codex `notify`/`SessionEnd`) hand a transcript path to `bsela ingest`, which stores the row plus its metadata in the SQLite store; `bsela scan` sweeps editor-owned transcripts (`~/.codex/sessions`, `~/.codex/archived_sessions`) for sessions no hook observed. Pure I/O, zero LLM cost. Secret scrubber runs inline; quarantined sessions never reach the store.
+
+Editor transcripts are not one format. The capture path canonicalizes a rollout into BSELA's event shape (Codex via `src/bsela/adapters/codex/rollout.py`) and strips harness-injected context — rules files, environment blocks, IDE state — so the detector only reads text the user or model actually produced. `replace` ingest keeps one row per transcript: a grown rollout refreshes its row and re-runs detection instead of inserting a snapshot.
 
 ### Detector
 
@@ -53,8 +57,8 @@ Deterministic regex + heuristic scan of new sessions. Flags user corrections (`s
 
 Two-tier LLM pipeline:
 
-1. **Haiku 4.5** scores each candidate with a typed rubric `{goal_achieved, efficiency, looped, wasted_tokens, confidence}`.
-2. Low-confidence or high-impact cases escalate to **Opus 4.7** for full distillation into a `lesson` record (`{rule, why, how_to_apply, scope, confidence}`).
+1. **Codex GPT-6.1 Sol** scores each candidate with a typed rubric `{goal_achieved, efficiency, looped, wasted_tokens, confidence}`.
+2. The same explicitly selected provider performs full distillation into a `lesson` record (`{rule, why, how_to_apply, scope, confidence}`).
    Dedupe against existing lessons via string match + embedding similarity before write.
 
 ### Updater
@@ -78,7 +82,7 @@ On-demand. Given a topic, fetches external docs/repos (via existing MCP servers:
 
 ### Reviewer
 
-Opt-in pre-commit hook. Runs staged diffs against distilled rules + `agents-md` conventions. Haiku 4.5 only. Blocks commit on hard-rule violations.
+Opt-in pre-commit hook. Runs staged diffs against distilled rules + `agents-md` conventions. Uses the selected provider under the same explicit live gates. Blocks commit on hard-rule violations.
 
 ## Memory Taxonomy
 

@@ -329,6 +329,7 @@ def _fake_distill_result(
         distilled=distilled,
         response=DistillResponse(status="ok"),
         persisted=lessons,
+        judge_healthy=not distilled,
     )
 
 
@@ -491,7 +492,7 @@ def test_process_cli_errors_hint(tmp_bsela_home: Path, monkeypatch: pytest.Monke
     monkeypatch.setattr("bsela.cli.make_llm_client", lambda: fake_client)
     with patch("bsela.cli.process_sessions", return_value=fake_result):
         result = CliRunner().invoke(app, ["process"])
-    assert result.exit_code == 0
+    assert result.exit_code == 1
     assert "hint" in result.stdout
 
 

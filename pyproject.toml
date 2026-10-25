@@ -22,7 +22,6 @@ dependencies = [
     "typer>=0.27.1",
     "pydantic>=2.13.4",
     "sqlmodel>=0.0.39",
-    "anthropic>=0.122.0",
     "rich>=13.9.0",
     "tomli-w>=1.1.0",
 ]
@@ -80,6 +79,7 @@ select = [
 ]
 ignore = [
     "PLR0913", # too many arguments
+    "PLR0917", # too many positional arguments (Typer commands carry one per flag)
     "PLR2004", # magic value in comparison
 ]
 

@@ -1,16 +1,14 @@
-"""LLM integration: Anthropic SDK client, prompt loading, judge rubric."""
+"""Provider-neutral typed model clients."""
 
-from bsela.llm.client import AnthropicClient, FakeLLMClient, LLMClient
-from bsela.llm.distiller import DistillationResult, distill_session
+from bsela.llm.client import CodexClient, DeepSeekClient, FakeLLMClient, LLMClient
 from bsela.llm.types import DistillResponse, JudgeVerdict, LessonCandidate
 
 __all__ = [
-    "AnthropicClient",
+    "CodexClient",
+    "DeepSeekClient",
     "DistillResponse",
-    "DistillationResult",
     "FakeLLMClient",
     "JudgeVerdict",
     "LLMClient",
     "LessonCandidate",
-    "distill_session",
 ]

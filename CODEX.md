@@ -19,10 +19,11 @@
 Index: `[adapters/README.md](adapters/README.md)`. Codex-specific steps:
 `[adapters/codex/README.md](adapters/codex/README.md)` (includes `codex mcp add` and a `config.toml` template). `bsela` must be on `PATH` (`uv tool install -e .` from repo root).
 
-## Suggested steady-state ops (post-P7)
+## Current maintenance
 
-P0–P7 are shipped; prioritize operator work from [`docs/roadmap.md`](docs/roadmap.md) **Next Action** (hook, ingest/process, review/propose, report, thresholds with ADR when gates move, cross-editor MCP depth).
-
-1. **Cross-editor dogfood** — run real Codex, Cursor, Windsurf, and Claude Code sessions against the same `~/.bsela` store; record parity or gaps in the roadmap or [ADR 0006](docs/decisions/0006-p6-mcp-and-adapters.md) notes.
-2. **MCP parity** — confirm `bsela_route` / `bsela_audit` / `bsela_status` / `bsela_lessons` match `bsela route|audit|status|lessons`; run `make mcp-parity` when CLI or MCP payloads change.
-3. Keep CLI↔MCP contract tests in `mcp/` current whenever tool fields change.
+Read [provider maintenance](docs/provider-maintenance.md) and
+[ADR 0013](docs/decisions/0013-provider-maintenance.md).
+Codex GPT-6.1 Sol via ChatGPT login is primary; DeepSeek Flash is manual.
+Source defaults disable live calls until the canary and isolation gates pass.
+Keep historical editor capture adapters; new setup targets Codex and VS Code.
+Run make mcp-parity when CLI/MCP fields change.

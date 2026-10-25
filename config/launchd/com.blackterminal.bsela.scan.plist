@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.blackterminal.bsela.scan</string>
+
+    <!-- launchd does not source the user's shell PATH; bsela lives in
+         ~/.local/bin, so we must supply PATH (and HOME) explicitly or the
+         job dies with "command not found: bsela". -->
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>/Users/black.terminal/.local/bin:/Users/black.terminal/.agents:/usr/local/bin:/usr/bin:/bin</string>
+        <key>HOME</key>
+        <string>/Users/black.terminal</string>
+    </dict>
+
+    <!-- Sweep Codex rollouts every day at 07:30 local time: captures sessions
+         whose end-of-session hook never fired (crash, `codex exec`, editor
+         killed). Runs before the Monday process/report/audit chain so the
+         weekly digest sees fresh sessions. -->
+    <key>StartCalendarInterval</key>
+    <dict>
+        <key>Hour</key>
+        <integer>7</integer>
+        <key>Minute</key>
+        <integer>30</integer>
+    </dict>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/zsh</string>
+        <string>-lc</string>
+        <string>bsela scan --since-days 14 --limit 50</string>
+    </array>
+
+    <key>StandardOutPath</key>
+    <string>/Users/black.terminal/.bsela/logs/scan.out.log</string>
+
+    <key>StandardErrorPath</key>
+    <string>/Users/black.terminal/.bsela/logs/scan.err.log</string>
+
+    <key>RunAtLoad</key>
+    <false/>
+
+    <key>KeepAlive</key>
+    <false/>
+</dict>
+</plist>

@@ -48,39 +48,13 @@ Deferred past MVP: Router, Auditor, Reviewer, Researcher, MCP server, Codex/Wind
 
 ## Next Action
 
-Phases **P0–P7** are code-complete in the table above; the list below is
-steady-state operator work (dogfood, tuning, and cross-editor depth).
-
-0. **Optional — multi-role dev sessions:** use the repo-local prompts in
-   [`docs/orchestrator/`](orchestrator/README.md) (lead:
-   [`ORCHESTRATOR.md`](orchestrator/ORCHESTRATOR.md); ADR
-   [0008](decisions/0008-developer-orchestrator-workflow.md)). Run
-   `make orchestrator-help` from the repo root for a short reminder.
-1. `bsela hook install --apply` — wire the Claude Code `Stop` hook.
-2. Use Claude Code normally for a few days so sessions accumulate.
-   Ingest now auto-runs the deterministic detector, so `ErrorRecord`
-   rows land without a second command.
-3. `bsela process -n 10 -d 7` — batch-distill the most recent week.
-   Needs `ANTHROPIC_API_KEY`; skips quarantined, error-free, and
-   already-distilled sessions automatically. `make dogfood-process`
-   prints the exact command as a reminder (it does not run the job).
-   Run `bsela process --dry-run` first to preview which sessions would
-   be selected and how many error-based lesson candidates are estimated,
-   without making any LLM calls or mutating the store.
-4. `bsela review` → `bsela review propose <id>` for AUTO-tagged
-   lessons; `bsela review reject <id> -n "…"` for false positives.
-5. `bsela report --stdout` (or let the weekly launchd plist write to
-   `~/.bsela/reports/dogfood.md`) — review useful-lesson ratio,
-   quarantine rate, gate-tag distribution, cost. From the repo root,
-   `make dogfood-report` runs the same command; `make dogfood-audit`
-   prints the weekly audit digest (`bsela audit --weekly --stdout`).
-6. Tune `config/thresholds.toml` (loop_threshold, judge_threshold,
-   correction_markers, scrubber patterns) based on the false-positive
-   rate observed. Any change that overrides a gate / budget / retention
-   window is a Hard Stop — it requires a matching ADR in `docs/decisions/`.
-7. Optional depth: exercise MCP tools from Codex/Windsurf against the
-   same `~/.bsela` store as Claude Code; record outcomes in the dogfood
-   report or in [ADR 0006](decisions/0006-p6-mcp-and-adapters.md) notes.
+Complete the provider maintenance rollout in
+[provider-maintenance.md](provider-maintenance.md), governed by ADR 0013.
+The historical P0-P7 milestones above describe the original implementation.
+Current defaults are Codex GPT-6.1 Sol, with explicit manual DeepSeek Flash.
+Complete offline gates, authorized live isolation and quality checks,
+then install and observe actual daily/Sunday processing before closure.
+Preserve pending global lesson statuses and review recommendations only.
 
 ## P5 — already landed
 

@@ -36,10 +36,11 @@ max_global_lessons = 200
 
 [cost]
 # Hard monthly USD ceiling for LLM spend. Exceed → circuit breaker, CLI exits.
-monthly_budget_usd = 50.0
+monthly_budget_usd = 5.0
 
 # Per-session distillation budget. Exceed → escalate to auditor digest.
 per_session_budget_usd = 0.10
+per_run_budget_usd = 0.50
 
 [retention]
 # Rolling window for raw session transcripts.
@@ -50,7 +51,7 @@ error_days = 90
 
 [audit]
 # Weekly auditor digest day-of-week (0 = Monday).
-digest_day = 0
+digest_day = 6
 
 # Drift alarm: fraction of lessons whose hit-rate dropped vs. 30-day baseline.
 drift_alarm_threshold = 0.5
@@ -58,7 +59,7 @@ drift_alarm_threshold = 0.5
 # Replay drift alarm: fraction of replayed sessions (30d window) that showed drift.
 # Fires when drift_rate > this value (see bsela.core.auditor.ReplayDriftSnapshot).
 # Free-tier models often land ~85–90% drift; 0.88 is an early-warning band before
-# quality regressions dominate. Tighten toward 0.25 when on deterministic Haiku.
+# quality regressions dominate. Tighten toward 0.25 when on stable provider baselines.
 replay_drift_threshold = 0.88
 
 [scrubber]

@@ -29,6 +29,7 @@ export type TaskClass =
   | "memory_updater";
 
 export interface RouteDecision {
+  provider: "codex" | "deepseek";
   task_class: TaskClass;
   model: string;
   confidence: number;
@@ -48,6 +49,7 @@ export interface StatusPayload {
 }
 
 export interface AuditPayload {
+  model_usage: Record<string, number>;
   generated_at: string;
   window_days: number;
   window_start: string;

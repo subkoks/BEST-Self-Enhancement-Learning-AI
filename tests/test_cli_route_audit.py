@@ -18,7 +18,7 @@ def test_route_prints_class_model_and_reason() -> None:
     assert result.exit_code == 0
     assert "class:" in result.stdout
     assert "planner" in result.stdout
-    assert "claude-opus-4-8" in result.stdout
+    assert "gpt-6.1-sol" in result.stdout
     assert "keywords:" in result.stdout
 
 
@@ -39,6 +39,7 @@ def test_route_json_locks_top_level_keys() -> None:
         "confidence",
         "matched_keywords",
         "model",
+        "provider",
         "reason",
         "task_class",
     ]
@@ -112,6 +113,7 @@ def test_audit_json_returns_machine_payload(tmp_bsela_home: Path) -> None:
         "drift",
         "errors_total",
         "generated_at",
+        "model_usage",
         "replay_drift",
         "sessions",
         "warnings",

@@ -36,6 +36,7 @@ from pathlib import Path
 
 from sqlmodel import select
 
+from bsela.llm.ledger import render_usage, usage_summary
 from bsela.memory.models import ErrorRecord, Lesson, Metric, ReplayRecord, SessionRecord
 from bsela.memory.store import bsela_home, session_scope
 from bsela.utils.config import Thresholds, find_config_dir, load_thresholds
@@ -133,6 +134,7 @@ class AuditReport:
     adrs: AdrSnapshot
     alerts: tuple[str, ...] = field(default_factory=tuple)
     warnings: tuple[str, ...] = field(default_factory=tuple)
+    usage: dict[str, int | float] = field(default_factory=dict)
 
     @property
     def quarantine_rate(self) -> float:
@@ -245,7 +247,8 @@ def build_audit(
 
     sessions_quarantined = sum(1 for sess in sessions if sess.status == "quarantined")
 
-    cost_total = round(sum(m.cost_usd for m in metrics), 6)
+    usage = usage_summary(start, end)
+    cost_total = round(sum(m.cost_usd for m in metrics) + float(usage["api_cost_usd"]), 6)
     # Prorate the window's spend up to a monthly equivalent.
     prorated = cost_total * (30.0 / window_days) if window_days > 0 else 0.0
     cost_snapshot = CostSnapshot(
@@ -302,6 +305,9 @@ def build_audit(
             f"{', '.join(adrs.missing_status)}"
         )
 
+    if usage["api_reserved_usd"]:
+        alerts.append("Unresolved API charge reservations; paid calls blocked")
+
     return AuditReport(
         generated_at=end,
         window_days=window_days,
@@ -316,6 +322,7 @@ def build_audit(
         adrs=adrs,
         alerts=tuple(alerts),
         warnings=tuple(warnings),
+        usage=usage,
     )
 
 
@@ -365,9 +372,10 @@ def render_markdown(report: AuditReport) -> str:
     lines.append(f"- Errors detected: {report.errors_total}")
     lines.append("")
 
+    lines.extend(render_usage(report.usage))
     lines.append("## Cost")
     lines.append("")
-    lines.append(f"- Window spend:   ${report.cost.total_usd:.4f}")
+    lines.append(f"- API cost estimate (usage at peak rates):   ${report.cost.total_usd:.4f}")
     lines.append(
         f"- Prorated month: ${report.cost.prorated_monthly_usd:.4f} "
         f"(budget ${report.cost.monthly_budget_usd:.2f}, "

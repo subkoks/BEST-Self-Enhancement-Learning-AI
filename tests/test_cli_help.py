@@ -32,6 +32,7 @@ def test_root_help_lists_core_commands(runner: CliRunner) -> None:
         "report",
         "route",
         "audit",
+        "scan",
         "replay",
         "replays",
         "rollback",
@@ -58,6 +59,7 @@ def test_hook_subgroup_help(runner: CliRunner) -> None:
     result = runner.invoke(app, ["hook", "--help"])
     assert result.exit_code == 0, result.stdout
     assert "install" in result.stdout
+    assert "codex-stop" in result.stdout
 
 
 def test_route_json_contract_stable_keys(runner: CliRunner) -> None:
@@ -68,6 +70,7 @@ def test_route_json_contract_stable_keys(runner: CliRunner) -> None:
     assert set(data.keys()) == {
         "task_class",
         "model",
+        "provider",
         "confidence",
         "reason",
         "matched_keywords",
@@ -190,6 +193,7 @@ def test_review_list_json_row_matches_mcp_lesson_item(
 _AUDIT_JSON_TOP_LEVEL = frozenset(
     {
         "generated_at",
+        "model_usage",
         "window_days",
         "window_start",
         "window_end",

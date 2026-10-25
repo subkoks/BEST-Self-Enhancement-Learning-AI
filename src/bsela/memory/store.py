@@ -22,8 +22,10 @@ from bsela.memory.models import (
     Decision,
     ErrorRecord,
     Lesson,
+    LessonEvidence,
     Metric,
     ReplayRecord,
+    SessionEvaluation,
     SessionRecord,
 )
 
@@ -90,6 +92,53 @@ def save_session(record: SessionRecord) -> SessionRecord:
         s.commit()
         s.refresh(record)
         return record
+
+
+# Session columns a re-ingest of a grown transcript refreshes in place.
+# Token/cost counters are omitted: they are written by later pipeline stages.
+_SESSION_REFRESH_FIELDS = (
+    "source",
+    "transcript_path",
+    "content_hash",
+    "started_at",
+    "ended_at",
+    "turn_count",
+    "tool_call_count",
+    "status",
+    "quarantine_reason",
+    "ingested_at",
+)
+
+
+def upsert_session(record: SessionRecord) -> SessionRecord:
+    """Insert ``record``, or refresh the stored row that shares its id."""
+    with session_scope() as s:
+        existing = s.get(SessionRecord, record.id)
+        if existing is None:
+            s.add(record)
+            s.commit()
+            s.refresh(record)
+            return record
+        for field in _SESSION_REFRESH_FIELDS:
+            setattr(existing, field, getattr(record, field))
+        s.add(existing)
+        s.commit()
+        s.refresh(existing)
+        return existing
+
+
+def delete_errors_for_session(session_id: str) -> int:
+    """Delete every ErrorRecord of ``session_id``; return the number removed.
+
+    Callers must be sure no Lesson references those rows — the store cascades
+    on session delete, not on error delete.
+    """
+    with session_scope() as s:
+        rows = list(s.exec(select(ErrorRecord).where(ErrorRecord.session_id == session_id)).all())
+        for row in rows:
+            s.delete(row)
+        s.commit()
+        return len(rows)
 
 
 def get_session(session_id: str) -> SessionRecord | None:
@@ -175,6 +224,29 @@ def count_sessions(*, status: str | None = None) -> int:
 # ---- Errors ----------------------------------------------------------------
 
 
+def has_evaluation(input_hash: str) -> bool:
+    with session_scope() as s:
+        return s.get(SessionEvaluation, input_hash) is not None
+
+
+def has_session_evaluation(session_id: str) -> bool:
+    with session_scope() as s:
+        return (
+            s.exec(
+                select(SessionEvaluation.input_hash)
+                .where(SessionEvaluation.session_id == session_id)
+                .limit(1)
+            ).first()
+            is not None
+        )
+
+
+def save_evaluation(record: SessionEvaluation) -> None:
+    with session_scope() as s:
+        s.merge(record)
+        s.commit()
+
+
 def save_error(record: ErrorRecord) -> ErrorRecord:
     with session_scope() as s:
         s.add(record)
@@ -196,12 +268,22 @@ def list_errors(*, session_id: str | None = None, limit: int | None = 100) -> li
 # ---- Lessons ---------------------------------------------------------------
 
 
-def save_lesson(record: Lesson) -> Lesson:
+def save_lesson(record: Lesson, *, evidence: LessonEvidence | None = None) -> Lesson:
     with session_scope() as s:
         s.add(record)
+        if evidence is not None:
+            if evidence.lesson_id != record.id:
+                raise ValueError("evidence must belong to the saved lesson")
+            s.flush()
+            s.add(evidence)
         s.commit()
         s.refresh(record)
         return record
+
+
+def get_lesson_evidence(lesson_id: str) -> LessonEvidence | None:
+    with session_scope() as s:
+        return s.get(LessonEvidence, lesson_id)
 
 
 def get_lesson(lesson_id: str) -> Lesson | None:
@@ -396,7 +478,10 @@ __all__ = [
     "find_session_by_transcript",
     "get_engine",
     "get_lesson",
+    "get_lesson_evidence",
     "get_session",
+    "has_evaluation",
+    "has_session_evaluation",
     "list_decisions",
     "list_errors",
     "list_lessons",
@@ -409,6 +494,7 @@ __all__ = [
     "resolve_session",
     "save_decision",
     "save_error",
+    "save_evaluation",
     "save_lesson",
     "save_metric",
     "save_replay_record",
