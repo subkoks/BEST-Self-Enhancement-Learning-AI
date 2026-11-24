@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <!--
-  P4 dogfood report template. Runs `bsela report` every Sunday at 09:00
+  P4 dogfood report template. Runs `bsela report` every Sunday at 19:00
   local time. Writes the rolling markdown to ~/.bsela/reports/dogfood.md
   and appends stdout/stderr to ~/.bsela/logs/report.*.log.
 
@@ -47,7 +47,7 @@
         <key>Weekday</key>
         <integer>0</integer>
         <key>Hour</key>
-        <integer>9</integer>
+        <integer>19</integer>
         <key>Minute</key>
         <integer>0</integer>
     </dict>

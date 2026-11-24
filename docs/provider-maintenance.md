@@ -113,16 +113,18 @@ live checks. Run ops/install-launchd.sh only under rollout authorization.
 
 The installer backs up live files, enables a separate ~/.bsela/config and
 loads four jobs without kickstarting model calls. Processing has one owner:
-08:00 daily, 3 sessions Monday-Saturday and 10 Sunday. Scan stays at 07:30;
-report/audit run Sunday 09:00. Self-enhance performs no model processing.
+19:00 daily, 3 sessions Monday-Saturday and 10 Sunday. Scan runs daily at
+19:00, and report/audit run Sunday at 19:00. Launchd can start these jobs
+concurrently. Self-enhance performs no model processing.
 The host must use Europe/London local time: launchd calendar jobs follow
 the host timezone, not the child process TZ variable. Verify that before
 installation and after timezone changes.
 
 Check `launchctl print gui/$(id -u)/com.blackterminal.bsela.process`, other
 labels, actual process summaries/ledger outcomes and fresh dogfood/audit files.
-Observe a daily run and the first Sunday after 09:10 BST (October 4 if
-installed in time). Exit zero alone cannot establish success or processing.
+Observe a daily run after the 19:00 job exits. On the first eligible Sunday,
+verify the fresh reports and the 19:00 process run separately. Exit zero alone
+cannot establish success or processing.
 If a timer recurs without running, query bounded launchd unified logs from
 Terminal.app for the exact label. An unavailable log probe is not evidence
 that launchd ran.

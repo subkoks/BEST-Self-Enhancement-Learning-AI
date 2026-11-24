@@ -48,4 +48,4 @@ for job in scan process report audit; do
     echo "Installed $label"
 done
 echo "Rollback files: $BACKUP_ROOT"
-echo "Daily process 08:00; Sunday report/audit 09:00 Europe/London. No model job kickstarted."
+echo "Daily scan/process and Sunday report/audit at 19:00 Europe/London. No model job kickstarted."
