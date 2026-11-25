@@ -15,7 +15,7 @@
 - **Reuse `agents-md`, do not fork it.** Rule changes are proposals against `~/Projects/Current/Active/agents-md`. Never write rules directly into the synced artifacts (`~/.claude/CLAUDE.md`, `~/.cursor/rules/gotcha.md`, etc.) — always upstream to canonical.
 - **Single-agent V1.** No LangGraph / CrewAI / autogen. Reach for sub-agents only after V1 metrics justify it. Optional **developer-session** role prompts (not an in-process framework) live under `docs/orchestrator/`; see ADR 0008 in `docs/decisions/`.
 - **Local-first.** SQLite + filesystem. No Postgres/Redis unless the data shape truly demands it.
-- **Codex primary.** GPT-6.1 Sol with medium reasoning via ChatGPT login. DeepSeek Flash is explicit and manual; no automatic fallback. Enforce the call ledger and DeepSeek budgets (ADR 0013).
+- **Codex primary.** GPT-6.2 Sol with medium reasoning via ChatGPT login. DeepSeek Flash is explicit and manual; no automatic fallback. Enforce the call ledger and DeepSeek budgets (ADR 0013).
 
 ## Memory Taxonomy (canonical)
 
@@ -126,7 +126,7 @@ Rules distilled from real session errors. Confidence ≥ 0.85 auto-approved; oth
 
 ### Gotchas
 
-- **MCP tests need `bsela` on PATH.** The MCP server shells out to the `bsela` CLI binary. Run `uv tool install --force -e .` before `pnpm check` in `mcp/`, or all CLI-dependent tests (`bsela-client.test.ts`, `parity.test.ts`) will fail with `spawn bsela ENOENT`.
+- **MCP tests need the worktree’s `bsela` on PATH.** After `uv sync --frozen --extra dev`, prepend the worktree’s `.venv/bin` when running `make mcp-check` or `make mcp-parity` from the repo root.
 - **No external services needed.** SQLite is embedded (WAL mode, stored at `~/.bsela/bsela.db`). No Postgres, Redis, or Docker.
 - **Model calls are gated.** Only distill, process and replay use a provider. Default Codex uses existing ChatGPT login; explicit DeepSeek uses the approved Keychain entry. Offline doctor and all deterministic commands need no model credentials. See docs/provider-maintenance.md.
 - **Python 3.13 required.** The `pyproject.toml` specifies `requires-python = ">=3.13"`. Use `uv python install 3.13` if the system Python is older.

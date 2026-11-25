@@ -55,13 +55,13 @@ const REPO_ROOT = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 
 function makeClient(): BselaClient {
   const localBin = join(homedir(), ".local", "bin");
-  const path = `${localBin}:${process.env["PATH"] ?? ""}`;
+  const path = `${process.env["PATH"] ?? ""}:${localBin}`;
   return new BselaClient({ env: { ...process.env, PATH: path }, cwd: tmpdir() });
 }
 
 async function makeIsolatedClient(): Promise<{ client: BselaClient; home: string }> {
   const localBin = join(homedir(), ".local", "bin");
-  const path = `${localBin}:${process.env["PATH"] ?? ""}`;
+  const path = `${process.env["PATH"] ?? ""}:${localBin}`;
   const home = await mkdtemp(join(tmpdir(), "bsela-parity-empty-"));
   const client = new BselaClient({
     env: { ...process.env, PATH: path, BSELA_HOME: home },
@@ -164,7 +164,7 @@ describe("CLI↔MCP parity", () => {
 
   it("keeps first-lesson row keys and payload parity on a seeded store", async () => {
     const localBin = join(homedir(), ".local", "bin");
-    const path = `${localBin}:${process.env["PATH"] ?? ""}`;
+    const path = `${process.env["PATH"] ?? ""}:${localBin}`;
     const home = await mkdtemp(join(tmpdir(), "bsela-parity-seeded-"));
     seedOneLesson(home, path);
 

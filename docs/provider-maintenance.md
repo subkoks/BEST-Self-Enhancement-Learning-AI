@@ -1,6 +1,6 @@
 # Provider maintenance and rollout
 
-Codex CLI is the primary integration, using GPT-6.1 Sol, medium reasoning and
+Codex CLI is the primary integration, using GPT-6.2 Sol, medium reasoning and
 the existing ChatGPT login. DeepSeek Flash is available only with explicit
 `--provider deepseek`. No authentication or quota failure switches providers.
 Capture, detection, reporting and audit remain local.
@@ -59,6 +59,10 @@ DeepSeek uses the named macOS Keychain service
 No credential is exported or passed in arguments. No global shell changes
 are required. Auth checks themselves require credential-access approval.
 
+Existing installed configurations that pin GPT-6.1 Sol continue to select
+that model until a reviewed rollout updates the installed config. Both the
+judge and distiller must select the same supported Codex model.
+
 ## Approved live checks
 
 Obtain exact authorization for existing ChatGPT login access, named Keychain
@@ -106,10 +110,19 @@ only from the additive llm_calls table.
 
 Write ~/.bsela/reports/provider-canary.json only after all checks actually
 pass, with true values for offline_gates, codex_auth, codex_isolation,
-codex_smoke, deepseek_smoke and quality_review, plus codex_model=gpt-6.1-sol
+codex_smoke, deepseek_smoke and quality_review, plus codex_model=gpt-6.2-sol
 and deepseek_model=deepseek-flash. Keep the detailed evidence beside it.
 This is an operator attestation; the installer does not independently perform
 live checks. Run ops/install-launchd.sh only under rollout authorization.
+
+The installer updates the job configuration and plists. The plists invoke
+`~/.local/bin/bsela`, which may point to an editable checkout other than the
+reviewed revision. Record the existing executable and source revision for
+rollback. Under rollout authorization, install the reviewed revision for that
+executable before updating the job configuration. Use the executable's
+Python interpreter with `BSELA_CONFIG_DIR` pointed at the reviewed configuration
+to confirm that `make_llm_client("codex").model` returns `gpt-6.2-sol`.
+This check constructs the client locally without making a provider call.
 
 The installer backs up live files, enables a separate ~/.bsela/config and
 loads four jobs without kickstarting model calls. Processing has one owner:

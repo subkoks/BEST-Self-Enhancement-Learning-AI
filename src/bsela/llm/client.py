@@ -176,7 +176,7 @@ class ModelClient:
 @dataclass
 class CodexClient(ModelClient):
     provider: str = "codex"
-    model: str = "gpt-6.1-sol"
+    model: str = "gpt-6.2-sol"
     reasoning_effort: str = "medium"
 
     def _request(
@@ -429,12 +429,16 @@ def make_llm_client(
     selected = provider or cfg.default.get("provider", "codex")
     enabled = cfg.default.get("live_enabled", False) is True
     if selected == "codex":
-        if any(
-            role.model != "gpt-6.1-sol" or role.provider != "codex"
-            for role in (cfg.judge, cfg.distiller)
+        model = cfg.judge.model
+        if (
+            model not in {"gpt-6.1-sol", "gpt-6.2-sol"}
+            or cfg.distiller.model != model
+            or cfg.judge.provider != "codex"
+            or cfg.distiller.provider != "codex"
         ):
             raise ProviderError("unsupported Codex model configuration")
         return CodexClient(
+            model=model,
             enabled=enabled,
             judge_max_tokens=cfg.judge.max_tokens,
             distiller_max_tokens=cfg.distiller.max_tokens,

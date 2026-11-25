@@ -68,6 +68,25 @@ def test_selection_is_explicit_and_retired_keys_cannot_route(monkeypatch):
         make_llm_client()
 
 
+def test_codex_model_selection_preserves_existing_installed_config(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    cfg = load_models().model_copy(deep=True)
+    monkeypatch.setattr(module, "load_models", lambda: cfg)
+    assert make_llm_client().model == "gpt-6.2-sol"
+
+    cfg.judge.model = "gpt-6.1-sol"
+    with pytest.raises(ProviderError, match="configuration"):
+        make_llm_client()
+
+    cfg.distiller.model = "gpt-6.1-sol"
+    assert make_llm_client().model == "gpt-6.1-sol"
+
+    cfg.distiller.provider = "deepseek"
+    with pytest.raises(ProviderError, match="configuration"):
+        make_llm_client()
+
+
 def test_disabled_oversize_and_deadline_send_nothing(monkeypatch):
     client = CodexClient(enabled=False)
     with pytest.raises(ProviderError, match="disabled"):

@@ -18,7 +18,7 @@ def test_route_prints_class_model_and_reason() -> None:
     assert result.exit_code == 0
     assert "class:" in result.stdout
     assert "planner" in result.stdout
-    assert "gpt-6.1-sol" in result.stdout
+    assert "gpt-6.2-sol" in result.stdout
     assert "keywords:" in result.stdout
 
 

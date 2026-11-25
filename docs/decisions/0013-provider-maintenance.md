@@ -27,6 +27,12 @@ sessions Monday–Saturday, ten on Sunday. Scan runs daily at 19:00, and
 report/audit run Sunday at 19:00. Self-enhance delegates processing to this job.
 All model commands share a non-blocking file lock and a 20-minute deadline.
 
+## 2026-11-25 source model update
+
+The source default moves to GPT-6.2 Sol at medium reasoning. Existing GPT-6.1
+Sol configurations remain supported until rollout. The installer requires
+GPT-6.2 Sol canary evidence for the new deployment.
+
 ## Deployment gate
 
 Source defaults have `live_enabled = false` because the workstation uses an
