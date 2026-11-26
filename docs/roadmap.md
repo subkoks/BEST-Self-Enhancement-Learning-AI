@@ -51,7 +51,7 @@ Deferred past MVP: Router, Auditor, Reviewer, Researcher, MCP server, Codex/Wind
 Complete the provider maintenance rollout in
 [provider-maintenance.md](provider-maintenance.md), governed by ADR 0013.
 The historical P0-P7 milestones above describe the original implementation.
-Current defaults are Codex GPT-6.1 Sol, with explicit manual DeepSeek Flash.
+Current defaults are Codex GPT-6.2 Sol, with explicit manual DeepSeek Flash.
 Complete offline gates, authorized live isolation and quality checks,
 then install and observe actual daily/Sunday processing before closure.
 Preserve pending global lesson statuses and review recommendations only.

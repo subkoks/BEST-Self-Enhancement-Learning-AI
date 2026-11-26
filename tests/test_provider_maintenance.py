@@ -163,7 +163,30 @@ def test_self_enhance_never_processes_and_reports_phase_failure(tmp_path, failur
     assert ("Completed successfully" in report) is (not failure)
 
 
-def test_installer_refuses_missing_canary_before_writes(tmp_path):
+@pytest.mark.parametrize(
+    ("codex_model", "expected_error"),
+    [(None, "canary evidence missing"), ("gpt-6.1-sol", "evidence model mismatch")],
+)
+def test_installer_refuses_missing_or_old_canary_before_writes(
+    tmp_path: Path, tmp_bsela_home: Path, codex_model: str | None, expected_error: str
+) -> None:
+    if codex_model is not None:
+        evidence = tmp_bsela_home / "reports/provider-canary.json"
+        evidence.write_text(
+            json.dumps(
+                {
+                    "offline_gates": True,
+                    "codex_auth": True,
+                    "codex_isolation": True,
+                    "codex_smoke": True,
+                    "deepseek_smoke": True,
+                    "quality_review": True,
+                    "codex_model": codex_model,
+                    "deepseek_model": "deepseek-flash",
+                }
+            )
+        )
+
     env = {**os.environ, "HOME": str(tmp_path), "UV_DEFAULT_INDEX": "https://pypi.org/simple"}
     result = subprocess.run(
         ["bash", str(ROOT / "ops/install-launchd.sh")],
@@ -173,7 +196,7 @@ def test_installer_refuses_missing_canary_before_writes(tmp_path):
         check=False,
     )
     assert result.returncode != 0
-    assert "canary evidence missing" in result.stderr
+    assert expected_error in result.stderr
     assert not (tmp_path / "Library/LaunchAgents").exists()
 
 

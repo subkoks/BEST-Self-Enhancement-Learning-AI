@@ -16,16 +16,13 @@ import {
 
 /**
  * These are integration tests: they shell out to the `bsela`
- * Python CLI that ships with this repo. `bsela` must be on PATH
- * and `.venv` must be initialised (`uv sync` + `uv tool install -e .`).
- *
- * We prepend `~/.local/bin` to PATH so the uv-installed binary (which
- * tracks the current worktree) wins over pyenv shims, which may point
- * to an older install from the main branch.
+ * Python CLI that ships with this repo. Put the worktree's .venv/bin
+ * first on PATH after uv sync to test that checkout. The user-local bin
+ * directory is a fallback.
  */
 function makeClient(): BselaClient {
   const localBin = join(homedir(), ".local", "bin");
-  const path = `${localBin}:${process.env["PATH"] ?? ""}`;
+  const path = `${process.env["PATH"] ?? ""}:${localBin}`;
   return new BselaClient({ env: { ...process.env, PATH: path } });
 }
 
@@ -74,7 +71,7 @@ describe("BselaClient.route", () => {
     const decision = await client.route("plan the migration to P6");
     expect(decision.task_class).toBe("planner");
     expect(decision.confidence).toBe(1);
-    expect(decision.model).toBe("gpt-6.1-sol");
+    expect(decision.model).toBe("gpt-6.2-sol");
     expect(decision.provider).toBe("codex");
     expect(decision.matched_keywords).toContain("plan");
   });
@@ -180,7 +177,7 @@ describe("BselaClient.lessons", () => {
     const home = await mkdtemp(join(tmpdir(), "bsela-lessons-empty-"));
     try {
       const localBin = join(homedir(), ".local", "bin");
-      const path = `${localBin}:${process.env["PATH"] ?? ""}`;
+      const path = `${process.env["PATH"] ?? ""}:${localBin}`;
       const isolatedClient = new BselaClient({
         env: { ...process.env, PATH: path, BSELA_HOME: home },
         cwd: home,
@@ -329,7 +326,7 @@ describe("BselaClient.errors", () => {
     const home = await mkdtemp(join(tmpdir(), "bsela-errors-empty-"));
     try {
       const localBin = join(homedir(), ".local", "bin");
-      const path = `${localBin}:${process.env["PATH"] ?? ""}`;
+      const path = `${process.env["PATH"] ?? ""}:${localBin}`;
       const isolatedClient = new BselaClient({
         env: { ...process.env, PATH: path, BSELA_HOME: home },
         cwd: home,

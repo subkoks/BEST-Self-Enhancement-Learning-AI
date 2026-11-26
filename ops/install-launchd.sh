@@ -15,7 +15,7 @@ data = json.loads(p.read_text())
 required = ('offline_gates', 'codex_auth', 'codex_isolation', 'codex_smoke', 'deepseek_smoke', 'quality_review')
 if not all(data.get(k) is True for k in required):
     raise SystemExit('BLOCKED: canary/quality gates incomplete; deployment not attempted')
-if data.get('codex_model') != 'gpt-6.1-sol' or data.get('deepseek_model') != 'deepseek-flash':
+if data.get('codex_model') != 'gpt-6.2-sol' or data.get('deepseek_model') != 'deepseek-flash':
     raise SystemExit('BLOCKED: evidence model mismatch')
 PY
 BACKUP_ROOT="$(mktemp -d "$HOME/.agents/backups/bsela-deploy-XXXXXXXX")"

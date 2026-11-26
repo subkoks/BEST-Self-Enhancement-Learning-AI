@@ -10,63 +10,63 @@ distiller_max_tokens = 4096
 
 [judge]
 provider = "codex"
-model = "gpt-6.1-sol"
+model = "gpt-6.2-sol"
 reasoning_effort = "medium"
 max_tokens = 512
 temperature = 0.0
 
 [distiller]
 provider = "codex"
-model = "gpt-6.1-sol"
+model = "gpt-6.2-sol"
 reasoning_effort = "medium"
 max_tokens = 4096
 temperature = 0.0
 
 [planner]
 provider = "codex"
-model = "gpt-6.1-sol"
+model = "gpt-6.2-sol"
 reasoning_effort = "medium"
 max_tokens = 4096
 temperature = 0.0
 
 [builder]
 provider = "codex"
-model = "gpt-6.1-sol"
+model = "gpt-6.2-sol"
 reasoning_effort = "medium"
 max_tokens = 4096
 temperature = 0.0
 
 [reviewer]
 provider = "codex"
-model = "gpt-6.1-sol"
+model = "gpt-6.2-sol"
 reasoning_effort = "medium"
 max_tokens = 4096
 temperature = 0.0
 
 [researcher]
 provider = "codex"
-model = "gpt-6.1-sol"
+model = "gpt-6.2-sol"
 reasoning_effort = "medium"
 max_tokens = 4096
 temperature = 0.0
 
 [auditor]
 provider = "codex"
-model = "gpt-6.1-sol"
+model = "gpt-6.2-sol"
 reasoning_effort = "medium"
 max_tokens = 4096
 temperature = 0.0
 
 [debugger]
 provider = "codex"
-model = "gpt-6.1-sol"
+model = "gpt-6.2-sol"
 reasoning_effort = "medium"
 max_tokens = 4096
 temperature = 0.0
 
 [memory_updater]
 provider = "codex"
-model = "gpt-6.1-sol"
+model = "gpt-6.2-sol"
 reasoning_effort = "medium"
 max_tokens = 4096
 temperature = 0.0
