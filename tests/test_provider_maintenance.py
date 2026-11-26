@@ -178,15 +178,17 @@ def test_installer_refuses_missing_canary_before_writes(tmp_path):
 
 
 def test_templates_use_direct_cli_and_sunday():
-    for job in ("process", "report", "audit"):
+    for job in ("scan", "process", "report", "audit"):
         data = plistlib.loads(
             (ROOT / f"config/launchd/com.blackterminal.bsela.{job}.plist").read_bytes()
         )
-        assert data["ProgramArguments"][0].endswith("/bsela")
-        assert data["EnvironmentVariables"]["TZ"] == "Europe/London"
-        calendar = data["StartCalendarInterval"]
-        assert calendar["Hour"] == (8 if job == "process" else 9)
-        assert calendar.get("Weekday") == (None if job == "process" else 0)
+        if job != "scan":
+            assert data["ProgramArguments"][0].endswith("/bsela")
+            assert data["EnvironmentVariables"]["TZ"] == "Europe/London"
+        calendar = {"Hour": 19, "Minute": 0}
+        if job in {"report", "audit"}:
+            calendar["Weekday"] = 0
+        assert data["StartCalendarInterval"] == calendar
         assert "API_KEY" not in json.dumps(data)
 
 

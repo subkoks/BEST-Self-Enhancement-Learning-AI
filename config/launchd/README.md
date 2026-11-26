@@ -5,10 +5,10 @@ DeepSeek is manually selected and never used by scheduled fallback.
 
 | Job | Europe/London schedule | Behavior |
 |---|---|---|
-| scan | Daily 07:30 | Local capture backstop |
-| process | Daily 08:00 | `bsela process --scheduled --provider codex`: 3 sessions Mon–Sat, 10 Sun |
-| report | Sunday 09:00 | Write dogfood report |
-| audit | Sunday 09:00 | Write audit; nonzero on blocking alerts |
+| scan | Daily 19:00 | Local capture backstop |
+| process | Daily 19:00 | `bsela process --scheduled --provider codex`: 3 sessions Mon–Sat, 10 Sun |
+| report | Sunday 19:00 | Write dogfood report |
+| audit | Sunday 19:00 | Write audit; nonzero on blocking alerts |
 
 Job environments contain only non-secret settings. Processing reads the
 reviewed deployed configuration in `~/.bsela/config`; no shell startup is
@@ -24,10 +24,11 @@ kickstart model processing. Run `ops/install-launchd.sh` only for an authorized
 rollout. Check loaded jobs with `launchctl print gui/$(id -u)/<label>`.
 
 Calendar counters, log timestamps and actual outcomes establish execution;
-a fresh report produced manually does not prove the calendar fired. After
-09:10 on the first eligible Sunday, inspect all four labels, new process
-outcomes and fresh dogfood/audit artifacts. If a timer misses, query bounded
-launchd unified logs for the exact labels; do not infer a cause from empty logs.
+a fresh report produced manually does not prove the calendar fired. On the
+first eligible Sunday, verify the 19:00 dogfood/audit artifacts and the
+process outcome after it exits. The jobs can run concurrently. If a timer
+misses, query bounded launchd
+unified logs for the exact labels. An empty log does not establish a cause.
 
 ## Rollback
 

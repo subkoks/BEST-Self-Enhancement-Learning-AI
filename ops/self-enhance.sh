@@ -82,7 +82,7 @@ run_process() {
   log "Phase 2: Model processing delegated to the BSELA process LaunchAgent"
   {
     echo "## 2. Batch Processing"
-    echo "Scheduled independently at 08:00; this helper makes no model calls."
+    echo "Scheduled independently at 19:00 UK time; this helper makes no model calls."
     echo ""
   } >> "$REPORT"
 }

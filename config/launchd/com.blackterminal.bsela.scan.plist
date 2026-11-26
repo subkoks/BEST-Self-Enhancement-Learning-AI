@@ -16,16 +16,14 @@
         <string>/Users/black.terminal</string>
     </dict>
 
-    <!-- Sweep Codex rollouts every day at 07:30 local time: captures sessions
-         whose end-of-session hook never fired (crash, `codex exec`, editor
-         killed). Runs before the Monday process/report/audit chain so the
-         weekly digest sees fresh sessions. -->
+    <!-- Sweep Codex rollouts daily at 19:00 local time to capture sessions
+         whose end-of-session hook never fired. -->
     <key>StartCalendarInterval</key>
     <dict>
         <key>Hour</key>
-        <integer>7</integer>
+        <integer>19</integer>
         <key>Minute</key>
-        <integer>30</integer>
+        <integer>0</integer>
     </dict>
 
     <key>ProgramArguments</key>

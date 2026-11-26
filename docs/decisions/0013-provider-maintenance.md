@@ -22,9 +22,9 @@ UTF-8 input bounds. Unknown charges stay reserved and block further paid calls.
 A ledger records subscription usage separately; it does not assign a fabricated
 API dollar cost to ChatGPT subscription calls.
 
-A single model-processing job runs at 08:00 Europe/London: at most three
-sessions Monday–Saturday, ten on Sunday. Daily scan stays at 07:30. Weekly
-report/audit run Sunday at 09:00. Self-enhance delegates processing to this job.
+A single model-processing job runs at 19:00 Europe/London: at most three
+sessions Monday–Saturday, ten on Sunday. Scan runs daily at 19:00, and
+report/audit run Sunday at 19:00. Self-enhance delegates processing to this job.
 All model commands share a non-blocking file lock and a 20-minute deadline.
 
 ## Deployment gate
